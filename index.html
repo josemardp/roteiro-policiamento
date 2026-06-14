@@ -725,13 +725,11 @@
             // ========== ANÁLISE DE CONTEXTO OPERACIONAL ==========
             const data = new Date(config.data);
             const diaSemana = data.getDay();
-            const ehFimDeSemana = diaSemana === 0 || diaSemana === 6;
             const ehMadrugada = horaInicioMin >= 22 * 60 || horaInicioMin < 6 * 60;
             const ehManha = horaInicioMin >= 6 * 60 && horaInicioMin < 12 * 60;
-            const ehTarde = horaInicioMin >= 12 * 60 && horaInicioMin < 18 * 60;
             const ehNoite = horaInicioMin >= 18 * 60 && horaInicioMin < 22 * 60;
             
-            // Calcular seed para variação determinística
+            // Seed para variação
             const seed = parseInt(config.data.replace(/-/g, '')) + horaInicioMin;
             const random = (min, max) => {
                 const x = Math.sin(seed + Math.random() * 10000) * 10000;
@@ -740,49 +738,53 @@
             
             let tempoAtual = horaInicioMin;
             let ordem = 0;
-
-            // 1. PRELEÇÃO (30 min)
-            blocos.push(criarBloco(ordem++, tempoAtual, 30, "PREL", "Base do Pelotão PM", "Assunção do serviço"));
-            tempoAtual += 30;
-
-            // 2. Definir estratégia de patrulhamento com blocos de 30 minutos
-            const tempoRefeicaoMin = horaInicioMin + Math.floor(duracao * 0.40);
-            const tempoRefeicaoMax = horaInicioMin + Math.floor(duracao * 0.70);
-            const tempoREL = horaInicioMin + duracao - 30;
-            let refeicaoInserida = false;
+            const tempoFinal = horaInicioMin + duracao;
             
             // Estratégia: madrugada = mais FISC, manhã = mais POST, noite = equilibrado
             const proporcaoFISC = ehMadrugada ? 0.65 : ehManha ? 0.35 : 0.50;
             let blocosFISC = 0;
             let blocosPOST = 0;
-
-            // BLOCOS DE 30 MINUTOS
-            while (tempoAtual < tempoREL) {
-                const tempoDisponivel = tempoREL - tempoAtual;
-                if (tempoDisponivel < 30) break;
-                
-                // Inserir refeição estrategicamente
-                if (!refeicaoInserida && tempoAtual >= tempoRefeicaoMin && tempoAtual < tempoRefeicaoMax) {
-                    if (tempoDisponivel >= 60) {
-                        // Refeição = 2 blocos de 30 min
-                        blocos.push(criarBloco(ordem++, tempoAtual, 30, "REF", "Base do Pelotão PM", "Refeição"));
-                        tempoAtual += 30;
-                        blocos.push(criarBloco(ordem++, tempoAtual, 30, "REF", "Base do Pelotão PM", "Refeição"));
-                        tempoAtual += 30;
-                        refeicaoInserida = true;
-                        continue;
-                    }
+            let refeicaoInserida = false;
+            const tempoRefeicaoMin = horaInicioMin + Math.floor(duracao * 0.40);
+            const tempoRefeicaoMax = horaInicioMin + Math.floor(duracao * 0.70);
+            
+            // GERAR BLOCOS DE 30 MINUTOS
+            while (tempoAtual + 30 <= tempoFinal) {
+                // Preleção (primeiro bloco)
+                if (ordem === 0) {
+                    blocos.push(criarBloco(ordem++, tempoAtual, 30, "PREL", "Base do Pelotão PM", "Assunção do serviço"));
+                    tempoAtual += 30;
+                    continue;
                 }
-
-                // Decidir modalidade com inteligência
+                
+                // Relatório (último bloco)
+                if (tempoAtual + 30 === tempoFinal) {
+                    blocos.push(criarBloco(ordem++, tempoAtual, 30, "REL", "Base do Pelotão PM", "Elaboração do RSO"));
+                    tempoAtual += 30;
+                    continue;
+                }
+                
+                // Refeição (2 blocos de 30 min)
+                if (!refeicaoInserida && tempoAtual >= tempoRefeicaoMin && tempoAtual < tempoRefeicaoMax) {
+                    blocos.push(criarBloco(ordem++, tempoAtual, 30, "REF", "Base do Pelotão PM", "Refeição"));
+                    tempoAtual += 30;
+                    if (tempoAtual + 30 <= tempoFinal) {
+                        blocos.push(criarBloco(ordem++, tempoAtual, 30, "REF", "Base do Pelotão PM", "Refeição"));
+                        tempoAtual += 30;
+                    }
+                    refeicaoInserida = true;
+                    continue;
+                }
+                
+                // Patrulhamento ou Fiscalização (30 min cada)
                 const taxaFISCAtual = blocosFISC / Math.max(1, blocosFISC + blocosPOST);
                 const deveSerFISC = taxaFISCAtual < proporcaoFISC;
                 const modalidade = deveSerFISC ? "FISC" : "POST";
                 
                 if (modalidade === "FISC") blocosFISC++;
                 else blocosPOST++;
-
-                // Selecionar local com variação
+                
+                // Selecionar local
                 const municipio = MUNICIPIOS[config.municipio];
                 const locaisDisponiveis = modalidade === "POST" ? municipio.comercio : municipio.pontosFisc;
                 const indexLocal = Math.floor(random(0, locaisDisponiveis.length));
@@ -794,15 +796,11 @@
                     : ["Fiscalização de veículos", "Controle de tráfego", "Segurança de acessos"];
                 const indexProblema = Math.floor(random(0, problemas.length));
                 const problema = problemas[indexProblema];
-
-                // BLOCO DE 30 MINUTOS
+                
                 blocos.push(criarBloco(ordem++, tempoAtual, 30, modalidade, local, problema));
                 tempoAtual += 30;
             }
-
-            // 3. RELATÓRIO (30 min)
-            blocos.push(criarBloco(ordem++, tempoREL, 30, "REL", "Base do Pelotão PM", "Elaboração do RSO"));
-
+            
             return blocos;
         }
 
