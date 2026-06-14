@@ -716,7 +716,12 @@
             const blocos = [];
             const horaInicioMin = horaParaMinutos(config.horaInicio);
             const horaFimMin = horaParaMinutos(config.horaTermino);
-            const duracao = horaFimMin - horaInicioMin;
+            let duracao = horaFimMin - horaInicioMin;
+            
+            // Tratar caso onde hora fim é menor que hora início (turno passa da meia-noite)
+            if (duracao <= 0) {
+                duracao = (24 * 60) + duracao;
+            }
             
             let tempoAtual = horaInicioMin;
             let ordem = 0;
@@ -726,27 +731,40 @@
             tempoAtual += 30;
 
             // 2. Preencher com patrulhamento e ponto de estacionamento
-            const tempoRefeicao = horaInicioMin + Math.floor(duracao * 0.4);
-            const tempoREL = horaFimMin - 30;
+            const tempoRefeicaoMin = horaInicioMin + Math.floor(duracao * 0.35);
+            const tempoRefeicaoMax = horaInicioMin + Math.floor(duracao * 0.65);
+            const tempoREL = horaInicioMin + duracao - 30;
             let refeicaoInserida = false;
             let modalidadeAnterior = "PREL";
+            let contadorBlocos = 0;
 
-            while (tempoAtual < tempoREL) {
-                // Inserir refeição no meio
-                if (!refeicaoInserida && tempoAtual >= tempoRefeicao && tempoAtual < tempoRefeicao + 60) {
-                    blocos.push(criarBloco(ordem++, tempoAtual, 60, "REF", "Base do Pelotão PM", "Refeição"));
-                    tempoAtual += 60;
-                    refeicaoInserida = true;
-                    continue;
+            while (tempoAtual < tempoREL && contadorBlocos < 10) {
+                contadorBlocos++;
+                
+                // Inserir refeição no terço médio
+                if (!refeicaoInserida && tempoAtual >= tempoRefeicaoMin && tempoAtual < tempoRefeicaoMax) {
+                    const tempoDisponivel = tempoREL - tempoAtual;
+                    if (tempoDisponivel > 90) {
+                        blocos.push(criarBloco(ordem++, tempoAtual, 60, "REF", "Base do Pelotão PM", "Refeição"));
+                        tempoAtual += 60;
+                        refeicaoInserida = true;
+                        continue;
+                    }
                 }
 
-                if (tempoREL - tempoAtual <= 30) break;
+                const tempoDisponivel = tempoREL - tempoAtual;
+                if (tempoDisponivel <= 30) break;
 
                 // Alternar entre POST e FISC
-                const modalidade = modalidadeAnterior === "POST" || modalidadeAnterior === "PREL" ? "FISC" : "POST";
-                const duracao_bloco = Math.min(90, tempoREL - tempoAtual - 30);
+                const ehMovel = modalidadeAnterior === "PREL" || modalidadeAnterior === "FISC" || modalidadeAnterior === "REF";
+                const modalidade = ehMovel ? "POST" : "FISC";
+                
+                // Calcular duração: entre 60 e 90 minutos, mas respeitar tempo disponível
+                const duracaoMin = 60;
+                const duracaoMax = 90;
+                const duracao_bloco = Math.min(duracaoMax, Math.max(duracaoMin, tempoDisponivel - 30));
 
-                if (duracao_bloco < 60) break;
+                if (duracao_bloco < duracaoMin) break;
 
                 const local = modalidade === "POST" 
                     ? MUNICIPIOS[config.municipio].comercio[0]
