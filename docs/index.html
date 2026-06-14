@@ -718,35 +718,57 @@
             const horaFimMin = horaParaMinutos(config.horaTermino);
             let duracao = horaFimMin - horaInicioMin;
             
-            // Tratar caso onde hora fim é menor que hora início (turno passa da meia-noite)
             if (duracao <= 0) {
                 duracao = (24 * 60) + duracao;
             }
             
+            // ========== ANÁLISE DE CONTEXTO OPERACIONAL ==========
+            const data = new Date(config.data);
+            const diaSemana = data.getDay(); // 0=dom, 1=seg, ..., 6=sab
+            const ehFimDeSemana = diaSemana === 0 || diaSemana === 6;
+            const ehMadrugada = horaInicioMin >= 22 * 60 || horaInicioMin < 6 * 60;
+            const ehManha = horaInicioMin >= 6 * 60 && horaInicioMin < 12 * 60;
+            const ehTarde = horaInicioMin >= 12 * 60 && horaInicioMin < 18 * 60;
+            const ehNoite = horaInicioMin >= 18 * 60 && horaInicioMin < 22 * 60;
+            
+            // Calcular seed para variação determinística
+            const seed = parseInt(config.data.replace(/-/g, '')) + horaInicioMin;
+            const random = (min, max) => {
+                const x = Math.sin(seed + Math.random() * 10000) * 10000;
+                return min + ((x - Math.floor(x)) * (max - min));
+            };
+            
             let tempoAtual = horaInicioMin;
             let ordem = 0;
 
-            // 1. PRELEÇÃO (30 min)
-            blocos.push(criarBloco(ordem++, tempoAtual, 30, "PREL", "Base do Pelotão PM", "Assunção do serviço"));
-            tempoAtual += 30;
+            // 1. PRELEÇÃO (25-30 min)
+            const duracaoPrel = 25 + Math.floor(random(0, 5));
+            blocos.push(criarBloco(ordem++, tempoAtual, duracaoPrel, "PREL", "Base do Pelotão PM", "Assunção do serviço"));
+            tempoAtual += duracaoPrel;
 
-            // 2. Preencher com patrulhamento e ponto de estacionamento
-            const tempoRefeicaoMin = horaInicioMin + Math.floor(duracao * 0.35);
-            const tempoRefeicaoMax = horaInicioMin + Math.floor(duracao * 0.65);
+            // 2. Definir estratégia de patrulhamento baseada em contexto
+            const tempoRefeicaoMin = horaInicioMin + Math.floor(duracao * 0.40);
+            const tempoRefeicaoMax = horaInicioMin + Math.floor(duracao * 0.70);
             const tempoREL = horaInicioMin + duracao - 30;
             let refeicaoInserida = false;
-            let modalidadeAnterior = "PREL";
             let contadorBlocos = 0;
+            
+            // Estratégia: madrugada = mais FISC, manhã = mais POST, noite = equilibrado
+            const proporcaoFISC = ehMadrugada ? 0.65 : ehManha ? 0.35 : 0.50;
+            let blocosFISC = 0;
+            let blocosPOST = 0;
+            const maxBlocos = ehMadrugada ? 4 : 5;
 
-            while (tempoAtual < tempoREL && contadorBlocos < 10) {
+            while (tempoAtual < tempoREL && contadorBlocos < maxBlocos) {
                 contadorBlocos++;
                 
-                // Inserir refeição no terço médio
+                // Inserir refeição estrategicamente
                 if (!refeicaoInserida && tempoAtual >= tempoRefeicaoMin && tempoAtual < tempoRefeicaoMax) {
                     const tempoDisponivel = tempoREL - tempoAtual;
                     if (tempoDisponivel > 90) {
-                        blocos.push(criarBloco(ordem++, tempoAtual, 60, "REF", "Base do Pelotão PM", "Refeição"));
-                        tempoAtual += 60;
+                        const duracaoRef = 50 + Math.floor(random(0, 20));
+                        blocos.push(criarBloco(ordem++, tempoAtual, duracaoRef, "REF", "Base do Pelotão PM", "Refeição"));
+                        tempoAtual += duracaoRef;
                         refeicaoInserida = true;
                         continue;
                     }
@@ -755,24 +777,36 @@
                 const tempoDisponivel = tempoREL - tempoAtual;
                 if (tempoDisponivel <= 30) break;
 
-                // Alternar entre POST e FISC
-                const ehMovel = modalidadeAnterior === "PREL" || modalidadeAnterior === "FISC" || modalidadeAnterior === "REF";
-                const modalidade = ehMovel ? "POST" : "FISC";
+                // Decidir modalidade com inteligência
+                const taxaFISCAtual = blocosFISC / Math.max(1, blocosFISC + blocosPOST);
+                const deveSerFISC = taxaFISCAtual < proporcaoFISC && blocosFISC < maxBlocos * 0.7;
+                const modalidade = deveSerFISC ? "FISC" : "POST";
                 
-                // Calcular duração: entre 60 e 90 minutos, mas respeitar tempo disponível
-                const duracaoMin = 60;
-                const duracaoMax = 90;
+                if (modalidade === "FISC") blocosFISC++;
+                else blocosPOST++;
+                
+                // Duração variável baseada em contexto
+                const duracaoMin = ehMadrugada ? 45 : 55;
+                const duracaoMax = ehMadrugada ? 75 : 95;
                 const duracao_bloco = Math.min(duracaoMax, Math.max(duracaoMin, tempoDisponivel - 30));
 
                 if (duracao_bloco < duracaoMin) break;
 
-                const local = modalidade === "POST" 
-                    ? MUNICIPIOS[config.municipio].comercio[0]
-                    : MUNICIPIOS[config.municipio].pontosFisc[0];
+                // Selecionar local com variação
+                const municipio = MUNICIPIOS[config.municipio];
+                const locaisDisponiveis = modalidade === "POST" ? municipio.comercio : municipio.pontosFisc;
+                const indexLocal = Math.floor(random(0, locaisDisponiveis.length));
+                const local = locaisDisponiveis[indexLocal];
+                
+                // Problema variado
+                const problemas = modalidade === "POST" 
+                    ? ["Patrulhamento", "Prevenção de crimes", "Presença ostensiva"]
+                    : ["Fiscalização de veículos", "Controle de tráfego", "Segurança de acessos"];
+                const indexProblema = Math.floor(random(0, problemas.length));
+                const problema = problemas[indexProblema];
 
-                blocos.push(criarBloco(ordem++, tempoAtual, duracao_bloco, modalidade, local, "Patrulhamento"));
+                blocos.push(criarBloco(ordem++, tempoAtual, duracao_bloco, modalidade, local, problema));
                 tempoAtual += duracao_bloco;
-                modalidadeAnterior = modalidade;
             }
 
             // 3. RELATÓRIO (30 min)
