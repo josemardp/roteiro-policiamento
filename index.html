@@ -860,6 +860,9 @@
         // ESTADO GLOBAL
         // ============================================================================
 
+        // Limpar localStorage para forçar regeneração com novo motor
+        localStorage.removeItem('roteiro_atual');
+        
         let estadoApp = {
             telaAtual: "config",
             roteiroDia: carregarRoteiro(),
