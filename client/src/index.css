@@ -43,46 +43,58 @@
 }
 
 :root {
-  --primary: var(--color-blue-700);
-  --primary-foreground: var(--color-blue-50);
-  --sidebar-primary: var(--color-blue-600);
-  --sidebar-primary-foreground: var(--color-blue-50);
-  --chart-1: var(--color-blue-300);
-  --chart-2: var(--color-blue-500);
-  --chart-3: var(--color-blue-600);
-  --chart-4: var(--color-blue-700);
-  --chart-5: var(--color-blue-800);
-  --radius: 0.65rem;
+  /* PMESP Institutional Colors */
+  --pmesp-navy: #0a2540;
+  --pmesp-navy-light: #1a3a5c;
+  --success-green: #1e7e34;
+  --alert-amber: #f59e0b;
+  --critical-red: #b00020;
+  --neutral-gray: #6b7680;
+  --text-dark: #1a1a1a;
+  --text-light: #ffffff;
+  
+  /* Semantic Colors */
+  --primary: var(--pmesp-navy);
+  --primary-foreground: var(--text-light);
+  --sidebar-primary: var(--pmesp-navy);
+  --sidebar-primary-foreground: var(--text-light);
+  --chart-1: var(--pmesp-navy);
+  --chart-2: var(--pmesp-navy-light);
+  --chart-3: var(--success-green);
+  --chart-4: var(--alert-amber);
+  --chart-5: var(--critical-red);
+  
+  --radius: 0.625rem;
   --background: oklch(1 0 0);
-  --foreground: oklch(0.235 0.015 65);
+  --foreground: var(--text-dark);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.235 0.015 65);
+  --card-foreground: var(--text-dark);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.235 0.015 65);
+  --popover-foreground: var(--text-dark);
   --secondary: oklch(0.98 0.001 286.375);
   --secondary-foreground: oklch(0.4 0.015 65);
   --muted: oklch(0.967 0.001 286.375);
-  --muted-foreground: oklch(0.552 0.016 285.938);
-  --accent: oklch(0.967 0.001 286.375);
-  --accent-foreground: oklch(0.141 0.005 285.823);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.985 0 0);
+  --muted-foreground: var(--neutral-gray);
+  --accent: var(--pmesp-navy);
+  --accent-foreground: var(--text-light);
+  --destructive: var(--critical-red);
+  --destructive-foreground: var(--text-light);
   --border: oklch(0.92 0.004 286.32);
   --input: oklch(0.92 0.004 286.32);
-  --ring: oklch(0.623 0.214 259.815);
+  --ring: var(--pmesp-navy);
   --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.235 0.015 65);
-  --sidebar-accent: oklch(0.967 0.001 286.375);
-  --sidebar-accent-foreground: oklch(0.141 0.005 285.823);
+  --sidebar-foreground: var(--text-dark);
+  --sidebar-accent: var(--pmesp-navy);
+  --sidebar-accent-foreground: var(--text-light);
   --sidebar-border: oklch(0.92 0.004 286.32);
-  --sidebar-ring: oklch(0.623 0.214 259.815);
+  --sidebar-ring: var(--pmesp-navy);
 }
 
 .dark {
-  --primary: var(--color-blue-700);
-  --primary-foreground: var(--color-blue-50);
-  --sidebar-primary: var(--color-blue-500);
-  --sidebar-primary-foreground: var(--color-blue-50);
+  --primary: var(--pmesp-navy);
+  --primary-foreground: var(--text-light);
+  --sidebar-primary: var(--pmesp-navy);
+  --sidebar-primary-foreground: var(--text-light);
   --background: oklch(0.141 0.005 285.823);
   --foreground: oklch(0.85 0.005 65);
   --card: oklch(0.21 0.006 285.885);
@@ -93,24 +105,24 @@
   --secondary-foreground: oklch(0.7 0.005 65);
   --muted: oklch(0.274 0.006 286.033);
   --muted-foreground: oklch(0.705 0.015 286.067);
-  --accent: oklch(0.274 0.006 286.033);
-  --accent-foreground:  oklch(0.92 0.005 65);
-  --destructive: oklch(0.704 0.191 22.216);
-  --destructive-foreground: oklch(0.985 0 0);
+  --accent: var(--pmesp-navy);
+  --accent-foreground: var(--text-light);
+  --destructive: var(--critical-red);
+  --destructive-foreground: var(--text-light);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.488 0.243 264.376);
-  --chart-1: var(--color-blue-300);
-  --chart-2: var(--color-blue-500);
-  --chart-3: var(--color-blue-600);
-  --chart-4: var(--color-blue-700);
-  --chart-5: var(--color-blue-800);
+  --ring: var(--pmesp-navy);
+  --chart-1: var(--pmesp-navy);
+  --chart-2: var(--pmesp-navy-light);
+  --chart-3: var(--success-green);
+  --chart-4: var(--alert-amber);
+  --chart-5: var(--critical-red);
   --sidebar: oklch(0.21 0.006 285.885);
   --sidebar-foreground: oklch(0.85 0.005 65);
-  --sidebar-accent: oklch(0.274 0.006 286.033);
-  --sidebar-accent-foreground:  oklch(0.985 0 0);
+  --sidebar-accent: var(--pmesp-navy);
+  --sidebar-accent-foreground: var(--text-light);
   --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.488 0.243 264.376);
+  --sidebar-ring: var(--pmesp-navy);
 }
 
 @layer base {
@@ -136,22 +148,12 @@
 @layer components {
   /**
    * Custom container utility that centers content and adds responsive padding.
-   *
-   * This overrides Tailwind's default container behavior to:
-   * - Auto-center content (mx-auto)
-   * - Add responsive horizontal padding
-   * - Set max-width for large screens
-   *
-   * Usage: <div className="container">...</div>
-   *
-   * For custom widths, use max-w-* utilities directly:
-   * <div className="max-w-6xl mx-auto px-4">...</div>
    */
   .container {
     width: 100%;
     margin-left: auto;
     margin-right: auto;
-    padding-left: 1rem; /* 16px - mobile padding */
+    padding-left: 1rem;
     padding-right: 1rem;
   }
 
@@ -162,16 +164,115 @@
 
   @media (min-width: 640px) {
     .container {
-      padding-left: 1.5rem; /* 24px - tablet padding */
+      padding-left: 1.5rem;
       padding-right: 1.5rem;
     }
   }
 
   @media (min-width: 1024px) {
     .container {
-      padding-left: 2rem; /* 32px - desktop padding */
+      padding-left: 2rem;
       padding-right: 2rem;
-      max-width: 1280px; /* Standard content width */
+      max-width: 1280px;
     }
   }
+
+  /* Operational Design System */
+  
+  /* Sticky Header with Gradient */
+  .header-sticky {
+    @apply sticky top-0 z-50 bg-gradient-to-r from-[#0a2540] to-[#1a3a5c] text-white shadow-md;
+  }
+
+  /* Card with subtle shadow */
+  .card-block {
+    @apply bg-white rounded-lg shadow-sm border border-gray-100 p-4;
+  }
+
+  /* Badge for modality */
+  .badge-prel {
+    @apply inline-block px-3 py-1 rounded text-xs font-semibold text-white bg-[#0a2540];
+  }
+
+  .badge-post {
+    @apply inline-block px-3 py-1 rounded text-xs font-semibold text-white bg-blue-600;
+  }
+
+  .badge-prev {
+    @apply inline-block px-3 py-1 rounded text-xs font-semibold text-white bg-blue-800;
+  }
+
+  .badge-pe {
+    @apply inline-block px-3 py-1 rounded text-xs font-semibold text-white bg-teal-600;
+  }
+
+  .badge-fisc {
+    @apply inline-block px-3 py-1 rounded text-xs font-semibold text-white bg-[#b00020];
+  }
+
+  .badge-esc {
+    @apply inline-block px-3 py-1 rounded text-xs font-semibold text-white bg-purple-600;
+  }
+
+  .badge-rural {
+    @apply inline-block px-3 py-1 rounded text-xs font-semibold text-white bg-amber-700;
+  }
+
+  .badge-sat {
+    @apply inline-block px-3 py-1 rounded text-xs font-semibold text-white bg-orange-600;
+  }
+
+  .badge-ref {
+    @apply inline-block px-3 py-1 rounded text-xs font-semibold text-white bg-amber-500;
+  }
+
+  .badge-rel {
+    @apply inline-block px-3 py-1 rounded text-xs font-semibold text-white bg-gray-600;
+  }
+
+  /* Large checkbox for tactical use */
+  .checkbox-large {
+    @apply w-6 h-6 rounded border-2 border-gray-300 cursor-pointer transition-all;
+  }
+
+  .checkbox-large:checked {
+    @apply bg-[#1e7e34] border-[#1e7e34];
+  }
+
+  /* Progress bar */
+  .progress-bar {
+    @apply h-2 bg-gray-200 rounded-full overflow-hidden;
+  }
+
+  .progress-fill {
+    @apply h-full bg-[#1e7e34] transition-all duration-300;
+  }
+
+  /* Button with tactical feedback */
+  .btn-tactical {
+    @apply px-4 py-3 rounded-lg font-semibold text-white bg-[#0a2540] hover:bg-[#1a3a5c] active:scale-95 transition-all min-h-[44px] min-w-[44px];
+  }
+
+  .btn-tactical-secondary {
+    @apply px-4 py-3 rounded-lg font-semibold text-[#0a2540] bg-gray-100 hover:bg-gray-200 active:scale-95 transition-all min-h-[44px] min-w-[44px];
+  }
+
+  /* Modal overlay */
+  .modal-overlay {
+    @apply fixed inset-0 bg-black/50 z-40;
+  }
+
+  /* Strikethrough for completed blocks */
+  .block-completed {
+    @apply opacity-75;
+  }
+
+  .block-completed .block-title {
+    @apply line-through;
+  }
+}
+
+/* Utility: Ensure content not hidden under keyboard */
+body {
+  padding-bottom: env(safe-area-inset-bottom);
 }
