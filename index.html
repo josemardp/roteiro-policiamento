@@ -724,7 +724,7 @@
             
             // ========== ANÁLISE DE CONTEXTO OPERACIONAL ==========
             const data = new Date(config.data);
-            const diaSemana = data.getDay(); // 0=dom, 1=seg, ..., 6=sab
+            const diaSemana = data.getDay();
             const ehFimDeSemana = diaSemana === 0 || diaSemana === 6;
             const ehMadrugada = horaInicioMin >= 22 * 60 || horaInicioMin < 6 * 60;
             const ehManha = horaInicioMin >= 6 * 60 && horaInicioMin < 12 * 60;
@@ -741,56 +741,46 @@
             let tempoAtual = horaInicioMin;
             let ordem = 0;
 
-            // 1. PRELEÇÃO (25-30 min)
-            const duracaoPrel = 25 + Math.floor(random(0, 5));
-            blocos.push(criarBloco(ordem++, tempoAtual, duracaoPrel, "PREL", "Base do Pelotão PM", "Assunção do serviço"));
-            tempoAtual += duracaoPrel;
+            // 1. PRELEÇÃO (30 min)
+            blocos.push(criarBloco(ordem++, tempoAtual, 30, "PREL", "Base do Pelotão PM", "Assunção do serviço"));
+            tempoAtual += 30;
 
-            // 2. Definir estratégia de patrulhamento baseada em contexto
+            // 2. Definir estratégia de patrulhamento com blocos de 30 minutos
             const tempoRefeicaoMin = horaInicioMin + Math.floor(duracao * 0.40);
             const tempoRefeicaoMax = horaInicioMin + Math.floor(duracao * 0.70);
             const tempoREL = horaInicioMin + duracao - 30;
             let refeicaoInserida = false;
-            let contadorBlocos = 0;
             
             // Estratégia: madrugada = mais FISC, manhã = mais POST, noite = equilibrado
             const proporcaoFISC = ehMadrugada ? 0.65 : ehManha ? 0.35 : 0.50;
             let blocosFISC = 0;
             let blocosPOST = 0;
-            const maxBlocos = ehMadrugada ? 4 : 5;
 
-            while (tempoAtual < tempoREL && contadorBlocos < maxBlocos) {
-                contadorBlocos++;
+            // BLOCOS DE 30 MINUTOS
+            while (tempoAtual < tempoREL) {
+                const tempoDisponivel = tempoREL - tempoAtual;
+                if (tempoDisponivel < 30) break;
                 
                 // Inserir refeição estrategicamente
                 if (!refeicaoInserida && tempoAtual >= tempoRefeicaoMin && tempoAtual < tempoRefeicaoMax) {
-                    const tempoDisponivel = tempoREL - tempoAtual;
-                    if (tempoDisponivel > 90) {
-                        const duracaoRef = 50 + Math.floor(random(0, 20));
-                        blocos.push(criarBloco(ordem++, tempoAtual, duracaoRef, "REF", "Base do Pelotão PM", "Refeição"));
-                        tempoAtual += duracaoRef;
+                    if (tempoDisponivel >= 60) {
+                        // Refeição = 2 blocos de 30 min
+                        blocos.push(criarBloco(ordem++, tempoAtual, 30, "REF", "Base do Pelotão PM", "Refeição"));
+                        tempoAtual += 30;
+                        blocos.push(criarBloco(ordem++, tempoAtual, 30, "REF", "Base do Pelotão PM", "Refeição"));
+                        tempoAtual += 30;
                         refeicaoInserida = true;
                         continue;
                     }
                 }
 
-                const tempoDisponivel = tempoREL - tempoAtual;
-                if (tempoDisponivel <= 30) break;
-
                 // Decidir modalidade com inteligência
                 const taxaFISCAtual = blocosFISC / Math.max(1, blocosFISC + blocosPOST);
-                const deveSerFISC = taxaFISCAtual < proporcaoFISC && blocosFISC < maxBlocos * 0.7;
+                const deveSerFISC = taxaFISCAtual < proporcaoFISC;
                 const modalidade = deveSerFISC ? "FISC" : "POST";
                 
                 if (modalidade === "FISC") blocosFISC++;
                 else blocosPOST++;
-                
-                // Duração variável baseada em contexto
-                const duracaoMin = ehMadrugada ? 45 : 55;
-                const duracaoMax = ehMadrugada ? 75 : 95;
-                const duracao_bloco = Math.min(duracaoMax, Math.max(duracaoMin, tempoDisponivel - 30));
-
-                if (duracao_bloco < duracaoMin) break;
 
                 // Selecionar local com variação
                 const municipio = MUNICIPIOS[config.municipio];
@@ -805,8 +795,9 @@
                 const indexProblema = Math.floor(random(0, problemas.length));
                 const problema = problemas[indexProblema];
 
-                blocos.push(criarBloco(ordem++, tempoAtual, duracao_bloco, modalidade, local, problema));
-                tempoAtual += duracao_bloco;
+                // BLOCO DE 30 MINUTOS
+                blocos.push(criarBloco(ordem++, tempoAtual, 30, modalidade, local, problema));
+                tempoAtual += 30;
             }
 
             // 3. RELATÓRIO (30 min)
