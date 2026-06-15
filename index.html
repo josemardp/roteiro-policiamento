@@ -177,9 +177,17 @@
         }
 
         .form-group input[type="time"] {
-            padding: 0.75rem;
-            font-size: 1.2rem;
+            padding: 0.75rem 0.5rem;
+            font-size: 1rem;
             text-align: center;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        input[type="time"]::-webkit-calendar-picker-indicator {
+            cursor: pointer;
+            padding: 0;
+            margin: 0;
         }
 
         .form-group input::placeholder,
@@ -816,6 +824,33 @@
                 <button id="btn-recalcular" class="btn btn-secondary">🔄 Recalcular CPP</button>
                 <button id="btn-exportar" class="btn btn-primary">📤 Exportar Relatório</button>
                 <button id="btn-salvar-historico" class="btn btn-success">💾 Salvar no Histórico</button>
+            </div>
+        </div>
+
+        <!-- MODAL DE ROTINA CUSTOMIZADA -->
+        <div id="modal-rotina" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 1000; backdrop-filter: blur(5px);">
+            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--dark-card); border: 1px solid var(--accent); border-radius: var(--border-radius); padding: 2rem; max-width: 90%; width: 400px; box-shadow: var(--shadow-lg);">
+                <h3 style="color: var(--accent); margin-bottom: 1.5rem; font-size: 1.5rem;">ADICIONAR ROTINA</h3>
+                
+                <div class="form-group">
+                    <label>Horário (HH:MM)</label>
+                    <input type="time" id="rotina-hora" value="14:00">
+                </div>
+                
+                <div class="form-group">
+                    <label>Atividade</label>
+                    <input type="text" id="rotina-atividade" placeholder="Ex: Deslocar ao CPI">
+                </div>
+                
+                <div class="form-group">
+                    <label>Local</label>
+                    <input type="text" id="rotina-local" placeholder="Ex: CPI">
+                </div>
+                
+                <div style="display: flex; gap: 1rem; margin-top: 2rem;">
+                    <button type="button" id="btn-salvar-rotina" class="btn btn-primary" style="flex: 1;">✓ Salvar</button>
+                    <button type="button" id="btn-cancelar-rotina" class="btn btn-secondary" style="flex: 1;">✕ Cancelar</button>
+                </div>
             </div>
         </div>
 
@@ -1677,13 +1712,24 @@
         // ============================================================================
         // ROTINAS CUSTOMIZADAS
         // ============================================================================
-        function adicionarRotina() {
-            const hora = prompt("Horário (HH:MM):", "14:00");
-            if (!hora) return;
-            const atividade = prompt("Atividade:", "Deslocar ao CPI");
-            if (!atividade) return;
-            const local = prompt("Local:", "CPI");
-            if (!local) return;
+        function abrirModalRotina() {
+            document.getElementById("modal-rotina").style.display = "block";
+            document.getElementById("rotina-atividade").focus();
+        }
+        
+        function fecharModalRotina() {
+            document.getElementById("modal-rotina").style.display = "none";
+        }
+        
+        function salvarRotina() {
+            const hora = document.getElementById("rotina-hora").value;
+            const atividade = document.getElementById("rotina-atividade").value;
+            const local = document.getElementById("rotina-local").value;
+            
+            if (!hora || !atividade || !local) {
+                alert("Preencha todos os campos!");
+                return;
+            }
             
             const [h, m] = hora.split(':').map(Number);
             const novoBloco = {
@@ -1714,16 +1760,32 @@
             
             salvarRoteiro(estadoApp.roteiroDia);
             renderizarCPP();
+            fecharModalRotina();
             alert("Rotina adicionada com sucesso!");
         }
         
-        // Event listener para botão de rotina na tela de configuração
+        // Event listeners
         document.getElementById("btn-adicionar-rotina").addEventListener("click", function() {
             if (!estadoApp.roteiroDia) {
                 alert("Gere um CPP primeiro!");
                 return;
             }
-            adicionarRotina();
+            abrirModalRotina();
+        });
+        
+        document.getElementById("btn-salvar-rotina").addEventListener("click", salvarRotina);
+        document.getElementById("btn-cancelar-rotina").addEventListener("click", fecharModalRotina);
+        
+        // Fechar modal ao clicar fora
+        document.getElementById("modal-rotina").addEventListener("click", function(e) {
+            if (e.target === this) fecharModalRotina();
+        });
+        
+        // Fechar modal com Escape
+        document.addEventListener("keydown", function(e) {
+            if (e.key === "Escape" && document.getElementById("modal-rotina").style.display === "block") {
+                fecharModalRotina();
+            }
         });
 
         // Expor funções globais
