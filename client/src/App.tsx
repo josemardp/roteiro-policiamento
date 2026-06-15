@@ -22,9 +22,12 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 import ConfiguracaoServico from "@/pages/ConfiguracaoServico";
 import CPPTurno from "@/pages/CPPTurno";
 const Historico = lazy(() => import("@/pages/Historico"));
-import type { RoteiroDia, ConfiguracaoServico as ConfigType } from "@/lib/types";
+import type {
+  RoteiroDia,
+  ConfiguracaoServico as ConfigType,
+} from "@/lib/types";
 import { gerarCPP } from "@/lib/gerarCPP";
-import { MUNICIPIOS } from "@/lib/constants";
+import { MUNICIPIOS_V33 } from "@/lib/constants";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 
 type Tela = "configuracao" | "cpp" | "historico";
@@ -42,8 +45,11 @@ function AppContent() {
   const [mostraDialogVoltar, setMostraDialogVoltar] = useState(false);
 
   const handleGerarCPP = (config: ConfigType) => {
-    const { blocos, avisos } = gerarCPP({ configuracao: config, municipios: MUNICIPIOS });
-    avisos.forEach((a) => toast.warning(a));
+    const { blocos, avisos } = gerarCPP({
+      configuracao: config,
+      municipios: MUNICIPIOS_V33,
+    });
+    avisos.forEach(a => toast.warning(a));
 
     const novoRoteiro: RoteiroDia = {
       id: `roteiro-${Date.now()}`,
@@ -60,9 +66,12 @@ function AppContent() {
 
   const handleAtualizarRoteiro = (roteiro: RoteiroDia) => {
     const total = roteiro.blocos.length;
-    const percentual = total > 0
-      ? Math.round((roteiro.blocos.filter((b) => b.concluido).length / total) * 100)
-      : 0;
+    const percentual =
+      total > 0
+        ? Math.round(
+            (roteiro.blocos.filter(b => b.concluido).length / total) * 100
+          )
+        : 0;
     setRoteiroDia({
       ...roteiro,
       percentualConcluido: percentual,
@@ -96,7 +105,7 @@ function AppContent() {
       id: `roteiro-${Date.now()}`,
       dataCriacao: new Date().toISOString(),
       dataAtualizacao: new Date().toISOString(),
-      blocos: roteiro.blocos.map((b) => ({ ...b, concluido: false })),
+      blocos: roteiro.blocos.map(b => ({ ...b, concluido: false })),
       percentualConcluido: 0,
     };
     setRoteiroDia(novoRoteiro);
@@ -104,7 +113,7 @@ function AppContent() {
   };
 
   const handleExcluir = (id: string) => {
-    setHistorico(historico.filter((r) => r.id !== id));
+    setHistorico(historico.filter(r => r.id !== id));
   };
 
   const handleExportarBackup = () => {
@@ -148,21 +157,30 @@ function AppContent() {
       )}
 
       {telaAtual === "historico" && (
-        <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-gray-500">Carregando...</div>}>
-        <Historico
-          historico={historico}
-          onReabrir={handleReabrir}
-          onDuplicar={handleDuplicar}
-          onExcluir={handleExcluir}
-          onExportarBackup={handleExportarBackup}
-          onImportarBackup={handleImportarBackup}
-          onVoltar={() => setTelaAtual("configuracao")}
-        />
+        <Suspense
+          fallback={
+            <div className="min-h-screen flex items-center justify-center text-gray-500">
+              Carregando...
+            </div>
+          }
+        >
+          <Historico
+            historico={historico}
+            onReabrir={handleReabrir}
+            onDuplicar={handleDuplicar}
+            onExcluir={handleExcluir}
+            onExportarBackup={handleExportarBackup}
+            onImportarBackup={handleImportarBackup}
+            onVoltar={() => setTelaAtual("configuracao")}
+          />
         </Suspense>
       )}
 
       {/* Dialog de confirmação ao sair do turno */}
-      <AlertDialog open={mostraDialogVoltar} onOpenChange={setMostraDialogVoltar}>
+      <AlertDialog
+        open={mostraDialogVoltar}
+        onOpenChange={setMostraDialogVoltar}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Sair do turno?</AlertDialogTitle>

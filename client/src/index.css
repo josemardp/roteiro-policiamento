@@ -52,7 +52,7 @@
   --neutral-gray: #6b7680;
   --text-dark: #1a1a1a;
   --text-light: #ffffff;
-  
+
   /* Semantic Colors */
   --primary: var(--pmesp-navy);
   --primary-foreground: var(--text-light);
@@ -63,7 +63,7 @@
   --chart-3: var(--success-green);
   --chart-4: var(--alert-amber);
   --chart-5: var(--critical-red);
-  
+
   --radius: 0.625rem;
   --background: oklch(1 0 0);
   --foreground: var(--text-dark);
@@ -178,7 +178,7 @@
   }
 
   /* Operational Design System */
-  
+
   /* Sticky Header with Gradient */
   .header-sticky {
     @apply sticky top-0 z-50 bg-gradient-to-r from-[#0a2540] to-[#1a3a5c] text-white shadow-md;

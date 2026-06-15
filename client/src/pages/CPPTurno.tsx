@@ -27,37 +27,49 @@ export default function CPPTurno({
   const [mostraExportar, setMostraExportar] = useState(false);
 
   const total = roteiroDia.blocos.length;
-  const concluidos = roteiroDia.blocos.filter((b) => b.concluido).length;
-  const percentualConcluido = total > 0 ? Math.round((concluidos / total) * 100) : 0;
+  const concluidos = roteiroDia.blocos.filter(b => b.concluido).length;
+  const percentualConcluido =
+    total > 0 ? Math.round((concluidos / total) * 100) : 0;
 
-  const blocosOrdenados = [...roteiroDia.blocos].sort((a, b) => a.ordem - b.ordem);
+  const blocosOrdenados = [...roteiroDia.blocos].sort(
+    (a, b) => a.ordem - b.ordem
+  );
 
-  const dataTurno = parseDataLocal(roteiroDia.configuracao.data)
-    .toLocaleDateString("pt-BR");
+  const dataTurno = parseDataLocal(
+    roteiroDia.configuracao.data
+  ).toLocaleDateString("pt-BR");
 
-  const handleMarcarConcluido = useCallback((blocoId: string) => {
-    const novosBlocos = roteiroDia.blocos.map((b) =>
-      b.id === blocoId ? { ...b, concluido: !b.concluido } : b
-    );
-    onAtualizar({ ...roteiroDia, blocos: novosBlocos });
-  }, [roteiroDia, onAtualizar]);
+  const handleMarcarConcluido = useCallback(
+    (blocoId: string) => {
+      const novosBlocos = roteiroDia.blocos.map(b =>
+        b.id === blocoId ? { ...b, concluido: !b.concluido } : b
+      );
+      onAtualizar({ ...roteiroDia, blocos: novosBlocos });
+    },
+    [roteiroDia, onAtualizar]
+  );
 
-  const handleEditarBloco = useCallback((blocoId: string, novoBloco: BlocoHorario) => {
-    const novosBlocos = roteiroDia.blocos.map((b) =>
-      b.id === blocoId ? novoBloco : b
-    );
-    onAtualizar({ ...roteiroDia, blocos: novosBlocos });
-    setBlocoEditando(null);
-    toast.success("Bloco atualizado!");
-  }, [roteiroDia, onAtualizar]);
+  const handleEditarBloco = useCallback(
+    (blocoId: string, novoBloco: BlocoHorario) => {
+      const novosBlocos = roteiroDia.blocos.map(b =>
+        b.id === blocoId ? novoBloco : b
+      );
+      onAtualizar({ ...roteiroDia, blocos: novosBlocos });
+      setBlocoEditando(null);
+      toast.success("Bloco atualizado!");
+    },
+    [roteiroDia, onAtualizar]
+  );
 
   const handleAdicionarBloco = useCallback(() => {
     // Calcula horário a partir do último bloco
-    const ultimo = [...roteiroDia.blocos].sort((a, b) => a.ordem - b.ordem).at(-1);
+    const ultimo = [...roteiroDia.blocos]
+      .sort((a, b) => a.ordem - b.ordem)
+      .at(-1);
 
     const horaInicio = ultimo?.horaFim ?? roteiroDia.configuracao.horaInicio;
     const [h, m] = horaInicio.split(":").map(Number);
-    const fimMin = ((h * 60 + m + 30) % (24 * 60));
+    const fimMin = (h * 60 + m + 30) % (24 * 60);
     const horaFim = `${String(Math.floor(fimMin / 60)).padStart(2, "0")}:${String(fimMin % 60).padStart(2, "0")}`;
 
     const novoBloco: BlocoHorario = {
@@ -99,13 +111,16 @@ export default function CPPTurno({
           {/* Resumo do Turno */}
           <div className="grid grid-cols-2 gap-2 text-sm text-blue-100 mb-3">
             <div>
-              <span className="font-semibold">{roteiroDia.configuracao.tipoAtividade}</span>
+              <span className="font-semibold">
+                {roteiroDia.configuracao.tipoAtividade}
+              </span>
               <br />
               {roteiroDia.configuracao.municipio}
             </div>
             <div>
               <span className="font-semibold">
-                {roteiroDia.configuracao.horaInicio} — {roteiroDia.configuracao.horaTermino}
+                {roteiroDia.configuracao.horaInicio} —{" "}
+                {roteiroDia.configuracao.horaTermino}
               </span>
               <br />
               {dataTurno}
@@ -115,7 +130,10 @@ export default function CPPTurno({
           {/* Barra de Progresso */}
           <div className="space-y-1">
             <div className="progress-bar">
-              <div className="progress-fill" style={{ width: `${percentualConcluido}%` }} />
+              <div
+                className="progress-fill"
+                style={{ width: `${percentualConcluido}%` }}
+              />
             </div>
             <p className="text-xs text-blue-100 font-semibold">
               {concluidos} de {total} blocos concluídos ({percentualConcluido}%)
@@ -127,7 +145,7 @@ export default function CPPTurno({
       {/* Conteúdo */}
       <div className="container py-6 max-w-2xl">
         <div className="space-y-4">
-          {blocosOrdenados.map((bloco) => (
+          {blocosOrdenados.map(bloco => (
             <BlocoCard
               key={bloco.id}
               bloco={bloco}
@@ -139,7 +157,8 @@ export default function CPPTurno({
           {/* Nota de Supervisão */}
           <div className="bg-blue-50 border-l-4 border-[#0a2540] p-4 rounded-r-lg">
             <p className="text-xs text-gray-700 leading-relaxed">
-              <span className="font-semibold">Nota de Supervisão:</span> {NOTA_SUPERVISAO}
+              <span className="font-semibold">Nota de Supervisão:</span>{" "}
+              {NOTA_SUPERVISAO}
             </p>
           </div>
 
@@ -165,7 +184,7 @@ export default function CPPTurno({
       {blocoEditando && (
         <EditBlocoModal
           bloco={blocoEditando}
-          onSalvar={(novoBloco) => handleEditarBloco(blocoEditando.id, novoBloco)}
+          onSalvar={novoBloco => handleEditarBloco(blocoEditando.id, novoBloco)}
           onFechar={() => setBlocoEditando(null)}
         />
       )}

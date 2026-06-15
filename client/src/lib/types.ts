@@ -3,8 +3,16 @@
  * Design: Operacional Moderno — Legibilidade Tática
  */
 
+// Nota de Design: Existe uma colisão de siglas. No contexto do sistema,
+// CPP = Cartão de Prioridade de Patrulhamento.
+// No contexto prisional/operacional local (como o CPP Valparaíso),
+// CPP = Centro de Progressão Penitenciária (unidade prisional).
 export type TipoAtividade = "Atividade Delegada" | "DEJEM";
-export type Municipio = "Valparaíso" | "Guararapes" | "Rubiácea" | "Bento de Abreu";
+export type Municipio =
+  | "Valparaíso"
+  | "Guararapes"
+  | "Rubiácea"
+  | "Bento de Abreu";
 export type TipoPoliciamento = "Urbano" | "Rural";
 export type ModalidadePoliciamento =
   | "PREL" // Preleção / Assunção

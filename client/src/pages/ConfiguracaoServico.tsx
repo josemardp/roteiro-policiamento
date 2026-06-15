@@ -5,7 +5,12 @@
 
 import { useState } from "react";
 import { z } from "zod";
-import type { ConfiguracaoServico, TipoAtividade, Municipio, TipoPoliciamento } from "@/lib/types";
+import type {
+  ConfiguracaoServico,
+  TipoAtividade,
+  Municipio,
+  TipoPoliciamento,
+} from "@/lib/types";
 import { calcularHoraTermino, parseDataLocal } from "@/lib/gerarCPP";
 
 const schema = z.object({
@@ -17,13 +22,19 @@ interface ConfiguracaoServicioProps {
   onGerarCPP: (config: ConfiguracaoServico) => void;
 }
 
-export default function ConfiguracaoServico({ onGerarCPP }: ConfiguracaoServicioProps) {
-  const [tipoAtividade, setTipoAtividade] = useState<TipoAtividade>("Atividade Delegada");
+export default function ConfiguracaoServico({
+  onGerarCPP,
+}: ConfiguracaoServicioProps) {
+  const [tipoAtividade, setTipoAtividade] =
+    useState<TipoAtividade>("Atividade Delegada");
   const [municipio, setMunicipio] = useState<Municipio>("Valparaíso");
-  const [tipoPoliciamento, setTipoPoliciamento] = useState<TipoPoliciamento>("Urbano");
+  const [tipoPoliciamento, setTipoPoliciamento] =
+    useState<TipoPoliciamento>("Urbano");
   const [data, setData] = useState(new Date().toISOString().split("T")[0]);
   const [horaInicio, setHoraInicio] = useState("17:00");
-  const [modalidadeGeracao, setModalidadeGeracao] = useState<"automatica" | "manual">("automatica");
+  const [modalidadeGeracao, setModalidadeGeracao] = useState<
+    "automatica" | "manual"
+  >("automatica");
   const [blocosManuais, setBlocosManuais] = useState("");
   const [efetivo, setEfetivo] = useState("");
   const [viatura, setViatura] = useState("");
@@ -80,7 +91,7 @@ export default function ConfiguracaoServico({ onGerarCPP }: ConfiguracaoServicio
             </label>
             <select
               value={tipoAtividade}
-              onChange={(e) => setTipoAtividade(e.target.value as TipoAtividade)}
+              onChange={e => setTipoAtividade(e.target.value as TipoAtividade)}
               className="w-full px-4 py-3 rounded-lg border border-gray-300 text-base font-medium focus:outline-none focus:ring-2 focus:ring-[#0a2540]"
             >
               <option>Atividade Delegada</option>
@@ -95,7 +106,7 @@ export default function ConfiguracaoServico({ onGerarCPP }: ConfiguracaoServicio
             </label>
             <select
               value={municipio}
-              onChange={(e) => setMunicipio(e.target.value as Municipio)}
+              onChange={e => setMunicipio(e.target.value as Municipio)}
               className="w-full px-4 py-3 rounded-lg border border-gray-300 text-base font-medium focus:outline-none focus:ring-2 focus:ring-[#0a2540]"
             >
               <option>Valparaíso</option>
@@ -112,7 +123,9 @@ export default function ConfiguracaoServico({ onGerarCPP }: ConfiguracaoServicio
             </label>
             <select
               value={tipoPoliciamento}
-              onChange={(e) => setTipoPoliciamento(e.target.value as TipoPoliciamento)}
+              onChange={e =>
+                setTipoPoliciamento(e.target.value as TipoPoliciamento)
+              }
               className="w-full px-4 py-3 rounded-lg border border-gray-300 text-base font-medium focus:outline-none focus:ring-2 focus:ring-[#0a2540]"
             >
               <option>Urbano</option>
@@ -128,11 +141,13 @@ export default function ConfiguracaoServico({ onGerarCPP }: ConfiguracaoServicio
             <input
               type="date"
               value={data}
-              onChange={(e) => setData(e.target.value)}
+              onChange={e => setData(e.target.value)}
               className="w-full px-4 py-3 rounded-lg border border-gray-300 text-base font-medium focus:outline-none focus:ring-2 focus:ring-[#0a2540]"
             />
             {diaSemana && (
-              <p className="text-xs text-gray-600 mt-1 capitalize">{diaSemana}</p>
+              <p className="text-xs text-gray-600 mt-1 capitalize">
+                {diaSemana}
+              </p>
             )}
             {erros.data && (
               <p className="text-xs text-red-600 mt-1">{erros.data[0]}</p>
@@ -147,7 +162,7 @@ export default function ConfiguracaoServico({ onGerarCPP }: ConfiguracaoServicio
             <input
               type="time"
               value={horaInicio}
-              onChange={(e) => setHoraInicio(e.target.value)}
+              onChange={e => setHoraInicio(e.target.value)}
               className="w-full px-4 py-3 rounded-lg border border-gray-300 text-base font-medium focus:outline-none focus:ring-2 focus:ring-[#0a2540]"
             />
             {erros.horaInicio && (
@@ -208,12 +223,15 @@ export default function ConfiguracaoServico({ onGerarCPP }: ConfiguracaoServicio
               </label>
               <textarea
                 value={blocosManuais}
-                onChange={(e) => setBlocosManuais(e.target.value)}
-                placeholder={"17h00 a 17h30 prelecao assuncao\n19h00 as 21h00 bloqueio de transito\n21h00 janta pel pm"}
+                onChange={e => setBlocosManuais(e.target.value)}
+                placeholder={
+                  "17h00 a 17h30 prelecao assuncao\n19h00 as 21h00 bloqueio de transito\n21h00 janta pel pm"
+                }
                 className="w-full px-4 py-3 rounded-lg border border-gray-300 text-base font-medium focus:outline-none focus:ring-2 focus:ring-[#0a2540] h-28 resize-none"
               />
               <p className="text-xs text-gray-600 mt-1">
-                Aceita: 19h00, 19:00, "19h00 a 21h00 bloqueio", "21h00 janta", etc.
+                Aceita: 19h00, 19:00, "19h00 a 21h00 bloqueio", "21h00 janta",
+                etc.
               </p>
             </div>
           )}
@@ -228,21 +246,21 @@ export default function ConfiguracaoServico({ onGerarCPP }: ConfiguracaoServicio
                 type="text"
                 placeholder="Efetivo (ex: 3 PMs)"
                 value={efetivo}
-                onChange={(e) => setEfetivo(e.target.value)}
+                onChange={e => setEfetivo(e.target.value)}
                 className="w-full px-4 py-3 rounded-lg border border-gray-300 text-base font-medium focus:outline-none focus:ring-2 focus:ring-[#0a2540]"
               />
               <input
                 type="text"
                 placeholder="Viatura (ex: Viatura 01)"
                 value={viatura}
-                onChange={(e) => setViatura(e.target.value)}
+                onChange={e => setViatura(e.target.value)}
                 className="w-full px-4 py-3 rounded-lg border border-gray-300 text-base font-medium focus:outline-none focus:ring-2 focus:ring-[#0a2540]"
               />
               <input
                 type="text"
                 placeholder="Prefixo da US (ex: US-01)"
                 value={prefixoUS}
-                onChange={(e) => setPrefixoUS(e.target.value)}
+                onChange={e => setPrefixoUS(e.target.value)}
                 className="w-full px-4 py-3 rounded-lg border border-gray-300 text-base font-medium focus:outline-none focus:ring-2 focus:ring-[#0a2540]"
               />
             </div>

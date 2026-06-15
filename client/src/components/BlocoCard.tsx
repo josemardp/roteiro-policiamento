@@ -13,11 +13,7 @@ interface BlocoCardProps {
   onEditar: () => void;
 }
 
-function BlocoCard({
-  bloco,
-  onMarcarConcluido,
-  onEditar,
-}: BlocoCardProps) {
+function BlocoCard({ bloco, onMarcarConcluido, onEditar }: BlocoCardProps) {
   const modalidade = MODALIDADES[bloco.modalidade];
   const badgeClass = modalidade?.badge || "badge-prel";
 
@@ -34,9 +30,7 @@ function BlocoCard({
             <span className="font-mono text-sm font-bold text-[#0a2540]">
               {bloco.horaInicio} — {bloco.horaFim}
             </span>
-            <span className={`${badgeClass} text-xs`}>
-              {bloco.modalidade}
-            </span>
+            <span className={`${badgeClass} text-xs`}>{bloco.modalidade}</span>
           </div>
           <p className="block-title text-sm font-semibold text-gray-900">
             {modalidade?.nome || "Atividade"}
@@ -49,7 +43,9 @@ function BlocoCard({
           className={`checkbox-large flex-shrink-0 ${
             bloco.concluido ? "bg-[#1e7e34] border-[#1e7e34]" : ""
           }`}
-          title={bloco.concluido ? "Marcar como incompleto" : "Marcar como concluído"}
+          title={
+            bloco.concluido ? "Marcar como incompleto" : "Marcar como concluído"
+          }
         >
           {bloco.concluido && (
             <span className="flex items-center justify-center w-full h-full text-white font-bold">
@@ -67,18 +63,26 @@ function BlocoCard({
         </div>
 
         <div>
-          <p className="text-xs font-semibold text-gray-600">PROBLEMA A SOLUCIONAR</p>
-          <p className="text-gray-900 font-medium">{bloco.problemaSolucionar}</p>
+          <p className="text-xs font-semibold text-gray-600">
+            PROBLEMA A SOLUCIONAR
+          </p>
+          <p className="text-gray-900 font-medium">
+            {bloco.problemaSolucionar}
+          </p>
         </div>
 
         <div>
-          <p className="text-xs font-semibold text-gray-600">AÇÕES DE POLÍCIA</p>
+          <p className="text-xs font-semibold text-gray-600">
+            AÇÕES DE POLÍCIA
+          </p>
           <p className="text-gray-900 font-medium">{bloco.acoesPolicia}</p>
         </div>
 
         <div>
           <p className="text-xs font-semibold text-gray-600">JUSTIFICATIVA</p>
-          <p className="text-gray-700 text-xs leading-relaxed">{bloco.justificativa}</p>
+          <p className="text-gray-700 text-xs leading-relaxed">
+            {bloco.justificativa}
+          </p>
         </div>
 
         {bloco.observacao && (

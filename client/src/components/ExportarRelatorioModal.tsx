@@ -23,7 +23,9 @@ export default function ExportarRelatorioModal({
 
   const gerarRelatorio = (): string => {
     const blocos = somenteCompletos
-      ? roteiroDia.blocos.filter((b) => b.concluido).sort((a, b) => a.ordem - b.ordem)
+      ? roteiroDia.blocos
+          .filter(b => b.concluido)
+          .sort((a, b) => a.ordem - b.ordem)
       : [...roteiroDia.blocos].sort((a, b) => a.ordem - b.ordem);
 
     const linhas: string[] = [];
@@ -35,9 +37,14 @@ export default function ExportarRelatorioModal({
     for (const bloco of blocos) {
       const hi = bloco.horaInicio.replace(":", "H");
       const hf = bloco.horaFim.replace(":", "H");
-      const descRSO = MODALIDADES[bloco.modalidade]?.descricaoRSO ?? bloco.modalidade;
-      const temLocal = !["PREL", "REL", "REF", "DESL"].includes(bloco.modalidade);
-      const acao = temLocal ? `${descRSO} ${bloco.local.toUpperCase()}` : descRSO;
+      const descRSO =
+        MODALIDADES[bloco.modalidade]?.descricaoRSO ?? bloco.modalidade;
+      const temLocal = !["PREL", "REL", "REF", "DESL"].includes(
+        bloco.modalidade
+      );
+      const acao = temLocal
+        ? `${descRSO} ${bloco.local.toUpperCase()}`
+        : descRSO;
       linhas.push(`*DAS ${hi} ÀS ${hf} ${acao}.`);
     }
 
@@ -47,9 +54,11 @@ export default function ExportarRelatorioModal({
 
     linhas.push("");
     linhas.push("OBSERVAÇÕES:");
-    linhas.push(`MODALIDADES REALIZADAS: ${blocos.map((b) => b.modalidade).join(", ")}`);
     linhas.push(
-      `BLOCOS CONCLUÍDOS: ${roteiroDia.blocos.filter((b) => b.concluido).length} de ${roteiroDia.blocos.length}`
+      `MODALIDADES REALIZADAS: ${blocos.map(b => b.modalidade).join(", ")}`
+    );
+    linhas.push(
+      `BLOCOS CONCLUÍDOS: ${roteiroDia.blocos.filter(b => b.concluido).length} de ${roteiroDia.blocos.length}`
     );
 
     return linhas.join("\n");
@@ -92,7 +101,12 @@ export default function ExportarRelatorioModal({
   };
 
   return (
-    <Dialog open onOpenChange={(open) => { if (!open) onFechar(); }}>
+    <Dialog
+      open
+      onOpenChange={open => {
+        if (!open) onFechar();
+      }}
+    >
       <DialogPortal>
         <DialogOverlay />
         {/* Content customizado: bottom-sheet mobile, centrado desktop */}
@@ -104,7 +118,9 @@ export default function ExportarRelatorioModal({
           <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-xl max-w-2xl w-full max-h-[92vh] overflow-y-auto">
             {/* Cabeçalho */}
             <div className="sticky top-0 bg-gradient-to-r from-[#0a2540] to-[#1a3a5c] text-white p-4 flex items-center justify-between rounded-t-2xl">
-              <h2 id="exportar-title" className="text-lg font-bold">Exportar Relatório</h2>
+              <h2 id="exportar-title" className="text-lg font-bold">
+                Exportar Relatório
+              </h2>
               <DialogPrimitive.Close
                 aria-label="Fechar"
                 className="text-white hover:bg-white/20 w-11 h-11 flex items-center justify-center rounded-lg transition-colors"
@@ -124,7 +140,7 @@ export default function ExportarRelatorioModal({
                 <input
                   type="checkbox"
                   checked={somenteCompletos}
-                  onChange={(e) => setSomenteCompletos(e.target.checked)}
+                  onChange={e => setSomenteCompletos(e.target.checked)}
                   className="w-5 h-5"
                 />
                 <span className="ml-3 text-base font-medium">
@@ -161,9 +177,7 @@ export default function ExportarRelatorioModal({
                 >
                   📤 Compartilhar
                 </button>
-                <DialogPrimitive.Close
-                  className="flex-1 btn-tactical-secondary text-sm font-bold py-3"
-                >
+                <DialogPrimitive.Close className="flex-1 btn-tactical-secondary text-sm font-bold py-3">
                   Fechar
                 </DialogPrimitive.Close>
               </div>

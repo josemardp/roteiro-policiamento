@@ -27,14 +27,16 @@ export default function Historico({
   onImportarBackup,
   onVoltar,
 }: HistoricoProps) {
-  const [mostraConfirmacao, setMostraConfirmacao] = useState<string | null>(null);
+  const [mostraConfirmacao, setMostraConfirmacao] = useState<string | null>(
+    null
+  );
 
   const handleImportar = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = (event) => {
+    reader.onload = event => {
       try {
         const conteudo = event.target?.result as string;
         const dados = JSON.parse(conteudo);
@@ -100,16 +102,19 @@ export default function Historico({
           </div>
         ) : (
           <div className="space-y-3">
-            {historico.map((roteiro) => {
+            {historico.map(roteiro => {
               const total = roteiro.blocos.length;
-              const percentual = total > 0
-                ? Math.round(
-                    (roteiro.blocos.filter((b) => b.concluido).length / total) * 100
-                  )
-                : 0;
+              const percentual =
+                total > 0
+                  ? Math.round(
+                      (roteiro.blocos.filter(b => b.concluido).length / total) *
+                        100
+                    )
+                  : 0;
               // parseDataLocal evita bug de fuso (UTC vs local)
-              const data = parseDataLocal(roteiro.configuracao.data)
-                .toLocaleDateString("pt-BR");
+              const data = parseDataLocal(
+                roteiro.configuracao.data
+              ).toLocaleDateString("pt-BR");
 
               return (
                 <div key={roteiro.id} className="card-block">
@@ -131,7 +136,7 @@ export default function Historico({
                         {percentual}%
                       </p>
                       <p className="text-xs text-gray-600">
-                        {roteiro.blocos.filter((b) => b.concluido).length} de{" "}
+                        {roteiro.blocos.filter(b => b.concluido).length} de{" "}
                         {total}
                       </p>
                     </div>
