@@ -173,6 +173,13 @@
             color: #e0e0e0;
             transition: all 0.3s ease;
             backdrop-filter: blur(10px);
+            overflow: hidden;
+        }
+
+        .form-group input[type="time"] {
+            padding: 0.75rem;
+            font-size: 1.2rem;
+            text-align: center;
         }
 
         .form-group input::placeholder,
@@ -780,7 +787,10 @@
                         <input type="text" id="prefixo" placeholder="Ex: 5-01">
                     </div>
 
-                    <button type="submit" class="btn btn-primary">Gerar CPP do Turno</button>
+                    <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
+                        <button type="submit" class="btn btn-primary" style="flex: 1;">Gerar CPP do Turno</button>
+                        <button type="button" class="btn btn-secondary" id="btn-adicionar-rotina" style="flex: 1;">+ Rotina</button>
+                    </div>
                 </form>
             </div>
         </div>
@@ -1664,12 +1674,65 @@
             }
         });
 
+        // ============================================================================
+        // ROTINAS CUSTOMIZADAS
+        // ============================================================================
+        function adicionarRotina() {
+            const hora = prompt("Horário (HH:MM):", "14:00");
+            if (!hora) return;
+            const atividade = prompt("Atividade:", "Deslocar ao CPI");
+            if (!atividade) return;
+            const local = prompt("Local:", "CPI");
+            if (!local) return;
+            
+            const [h, m] = hora.split(':').map(Number);
+            const novoBloco = {
+                id: Date.now(),
+                inicio: `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`,
+                fim: `${String((h + 1) % 24).padStart(2, '0')}:${String(m).padStart(2, '0')}`,
+                modalidade: "CUSTOM",
+                local: local,
+                problema: atividade,
+                modusPol: atividade,
+                acoesPol: "Execução",
+                justificativa: "Rotina customizada",
+                municipio: estadoApp.config.municipios[0] || "Valparaíso",
+                concluido: false
+            };
+            
+            // Inserir na posição correta (por hora)
+            const indice = estadoApp.roteiroDia.blocos.findIndex(b => {
+                const [bh, bm] = b.inicio.split(':').map(Number);
+                return bh > h || (bh === h && bm >= m);
+            });
+            
+            if (indice === -1) {
+                estadoApp.roteiroDia.blocos.push(novoBloco);
+            } else {
+                estadoApp.roteiroDia.blocos.splice(indice, 0, novoBloco);
+            }
+            
+            salvarRoteiro(estadoApp.roteiroDia);
+            renderizarCPP();
+            alert("Rotina adicionada com sucesso!");
+        }
+        
+        // Event listener para botão de rotina na tela de configuração
+        document.getElementById("btn-adicionar-rotina").addEventListener("click", function() {
+            if (!estadoApp.roteiroDia) {
+                alert("Gere um CPP primeiro!");
+                return;
+            }
+            adicionarRotina();
+        });
+
         // Expor funções globais
         window.toggleBloco = toggleBloco;
         window.editarBloco = editarBloco;
         window.reabrirRoteiro = reabrirRoteiro;
         window.duplicarRoteiro = duplicarRoteiro;
         window.excluirRoteiro = excluirRoteiro;
+        window.adicionarRotina = adicionarRotina;
     </script>
 </body>
 </html>
