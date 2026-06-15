@@ -899,7 +899,11 @@
             "PATRULHA": { nome: "Patrulhamento", badge: "badge-post", duracao: [30, 30] },
             "RONDA": { nome: "Ronda", badge: "badge-prev", duracao: [30, 30] },
             "PE": { nome: "Ponto de Estacionamento", badge: "badge-pe", duracao: [30, 30] },
+            "PE_ESCOLA": { nome: "PE em Escola", badge: "badge-pe", duracao: [30, 30] },
+            "PE_COMERCIO": { nome: "PE em Comércio", badge: "badge-pe", duracao: [30, 30] },
+            "PE_PRACA": { nome: "PE na Praça", badge: "badge-pe", duracao: [30, 30] },
             "FISC": { nome: "Fiscalização", badge: "badge-fisc", duracao: [30, 30] },
+            "BLOQUEIO_TRANSITO": { nome: "Bloqueio Trânsito", badge: "badge-fisc", duracao: [30, 30] },
             "BLOQUEIO": { nome: "Bloqueio", badge: "badge-fisc", duracao: [30, 30] },
             "SATURACAO": { nome: "Saturação", badge: "badge-sat", duracao: [30, 30] },
             "ESCOLTA": { nome: "Escolta", badge: "badge-desl", duracao: [30, 30] },
@@ -1367,7 +1371,7 @@
                 div.innerHTML = `
                     <div class="bloco-content">
                         <div class="bloco-header">
-                            <div class="bloco-hora">${bloco.horaInicio} - ${bloco.horaFim}</div>
+                            <div class="bloco-hora" style="color: #00d4ff; font-weight: 700; font-size: 1.1rem;">${bloco.horaInicio} - ${bloco.horaFim}</div>
                             <span class="badge ${MODALIDADES[bloco.modalidade].badge}">${bloco.modalidade}</span>
                         </div>
                         <div><strong>${bloco.local}</strong></div>
