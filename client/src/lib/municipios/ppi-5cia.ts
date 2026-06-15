@@ -232,7 +232,7 @@ export const PPI_5CIA: Record<Municipio, DadosPPI> = {
         fonte: "Prefeitura de Guararapes",
       },
     ],
-    unidadePrisional: null,
+    unidadesPrisionais: null,
     metadata: {
       versao: "3.3",
       dataLevantamento: "2026-06-15",
@@ -475,12 +475,20 @@ export const PPI_5CIA: Record<Municipio, DadosPPI> = {
         fonte: "Prefeitura de Valparaíso",
       },
     ],
-    unidadePrisional: {
-      nome: "Centro de Progressão Penitenciária de Valparaíso (CPP)",
-      tipo: "Presídio Semiaberto",
-      endereco:
-        "Estrada Municipal VPS 012/VPS 351, Km 02 - Bairro Valdevino Souza Pacheco, Valparaíso/SP",
-    },
+    unidadesPrisionais: [
+      {
+        nome: "Centro de Progressão Penitenciária de Valparaíso (CPP)",
+        tipo: "Presídio Semiaberto",
+        endereco:
+          "Estrada Municipal VPS 012/VPS 351, Km 02 - Bairro Valdevino Souza Pacheco, Valparaíso/SP",
+      },
+      {
+        nome: "Penitenciária de Valparaíso",
+        tipo: "Presídio Regime Fechado",
+        endereco:
+          "Estrada Municipal VPS 012/VPS 351, Km 02 - Bairro Valdevino Souza Pacheco, Valparaíso/SP",
+      },
+    ],
     metadata: {
       versao: "3.3",
       dataLevantamento: "2026-06-15",
@@ -646,7 +654,7 @@ export const PPI_5CIA: Record<Municipio, DadosPPI> = {
       fonte: "IBGE Censo Agro / CAR",
     },
     pontosAglomeracao: [],
-    unidadePrisional: null,
+    unidadesPrisionais: null,
     metadata: {
       versao: "3.3",
       dataLevantamento: "2026-06-15",
@@ -787,7 +795,7 @@ export const PPI_5CIA: Record<Municipio, DadosPPI> = {
       fonte: "IBGE Censo Agro / CAR",
     },
     pontosAglomeracao: [],
-    unidadePrisional: null,
+    unidadesPrisionais: null,
     metadata: {
       versao: "3.3",
       dataLevantamento: "2026-06-15",

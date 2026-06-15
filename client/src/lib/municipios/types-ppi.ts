@@ -145,5 +145,9 @@ export interface DadosPPI {
   instituicoesFinanceiras?: InstituicaoFinanceira[];
   ruralDetalhe?: RuralDetalhe;
   pontosAglomeracao?: PontoAglomeracao[];
-  unidadePrisional?: { nome: string; tipo: string; endereco: string } | null;
+  unidadesPrisionais?: Array<{
+    nome: string;
+    tipo: string;
+    endereco: string;
+  }> | null;
 }
