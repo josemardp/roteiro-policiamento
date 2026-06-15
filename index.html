@@ -986,7 +986,10 @@
                 duracao = (24 * 60) + duracao;
             }
             
-            const municipio = MUNICIPIOS[config.municipio];
+            // Suportar múltiplos municípios
+            const municipiosArray = config.municipio.split(" + ").map(m => m.trim());
+            const municipio = MUNICIPIOS[municipiosArray[0]];
+            let indiceAtualMunicipio = 0;
             const diaUtil = ehDiaUtil(config.data);
             
             let tempoAtual = horaInicioMin;
@@ -1239,13 +1242,14 @@
             }
         }
 
-        function criarBloco(ordem, horaInicioMin, duracao, modalidade, local, problema) {
+        function criarBloco(ordem, horaInicioMin, duracao, modalidade, local, problema, municipio = null) {
             return {
                 id: `bloco-${Date.now()}-${Math.random()}`,
                 horaInicio: minutosParaHora(horaInicioMin),
                 horaFim: minutosParaHora(horaInicioMin + duracao),
                 modalidade,
                 local,
+                municipio,
                 problemaSolucionar: problema,
                 modusOperandi: MODUS_OPERANDI_DEFAULT,
                 acoesPolicia: selecionarAcoesPolicia(modalidade),
@@ -1413,6 +1417,7 @@
                             <div class="bloco-hora" style="color: #00d4ff; font-weight: 700; font-size: 1.1rem;">${bloco.horaInicio} - ${bloco.horaFim}</div>
                             <span class="badge ${MODALIDADES[bloco.modalidade].badge}">${bloco.modalidade}</span>
                         </div>
+                        ${bloco.municipio ? `<div style="color: var(--gold); font-weight: 700; font-size: 0.9rem; margin-bottom: 0.5rem;">📍 ${bloco.municipio}</div>` : ''}
                         <div><strong>${bloco.local}</strong></div>
                         <div class="bloco-info">${bloco.problemaSolucionar}</div>
                         <div class="bloco-info">${bloco.acoesPolicia}</div>
