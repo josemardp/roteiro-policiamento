@@ -710,7 +710,30 @@
                         <select id="tipoPoliciamento" required>
                             <option value="Urbano">Urbano</option>
                             <option value="Rural">Rural</option>
+                            <option value="Urbano+Rural">Urbano + Rural</option>
                         </select>
+                    </div>
+
+                    <div class="form-group" id="municipios-multiplos" style="display: none;">
+                        <label>Selecione os Municípios (DEJEM)</label>
+                        <div style="margin-top: 0.5rem;">
+                            <label style="display: flex; align-items: center; font-weight: 400; margin-bottom: 0.5rem;">
+                                <input type="checkbox" name="municipios" value="Valparaíso" style="margin-right: 0.5rem;">
+                                Valparaíso
+                            </label>
+                            <label style="display: flex; align-items: center; font-weight: 400; margin-bottom: 0.5rem;">
+                                <input type="checkbox" name="municipios" value="Guararapes" style="margin-right: 0.5rem;">
+                                Guararapes
+                            </label>
+                            <label style="display: flex; align-items: center; font-weight: 400; margin-bottom: 0.5rem;">
+                                <input type="checkbox" name="municipios" value="Rubiácea" style="margin-right: 0.5rem;">
+                                Rubiácea
+                            </label>
+                            <label style="display: flex; align-items: center; font-weight: 400;">
+                                <input type="checkbox" name="municipios" value="Bento de Abreu" style="margin-right: 0.5rem;">
+                                Bento de Abreu
+                            </label>
+                        </div>
                     </div>
 
                     <div class="form-group">
@@ -1320,6 +1343,16 @@
 
         // Definir data de hoje
         document.getElementById("data").valueAsDate = new Date();
+
+        // Mostrar/esconder checkboxes de múltiplos municípios quando DEJEM
+        document.getElementById('tipoAtividade').addEventListener('change', function() {
+            const municipiosMultiplos = document.getElementById('municipios-multiplos');
+            if (this.value === 'DEJEM') {
+                municipiosMultiplos.style.display = 'block';
+            } else {
+                municipiosMultiplos.style.display = 'none';
+            }
+        });
 
         document.getElementById("form-config").addEventListener("submit", function(e) {
             e.preventDefault();
