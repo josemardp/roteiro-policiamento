@@ -862,6 +862,7 @@
                 bairros: ["Jardim Primavera", "Jardim Flamboyant", "Jardim Morumbi"],
                 pontosPE: ["Entrada norte", "Entrada sul", "Praça central"],
                 pontosFisc: ["Saída SP-300", "Acessos principais", "Rodovia Marechal Rondon"],
+                acessos: ["Saída SP-300", "Acessos principais", "Rodovia Marechal Rondon", "Entrada norte"],
                 rural: ["Zona rural norte", "Zona rural sul"]
             },
             "Guararapes": {
@@ -870,6 +871,7 @@
                 bairros: ["Centro", "Bairro novo", "Zona residencial"],
                 pontosPE: ["Praça central", "Entrada da cidade"],
                 pontosFisc: ["Saída norte", "Saída sul"],
+                acessos: ["Saída norte", "Saída sul"],
                 rural: ["Zona rural"]
             },
             "Rubiácea": {
@@ -878,6 +880,7 @@
                 bairros: ["Centro", "Zona residencial"],
                 pontosPE: ["Entrada da cidade"],
                 pontosFisc: ["Saída principal"],
+                acessos: ["Saída principal"],
                 rural: ["Zona rural norte", "Zona rural sul", "Propriedades rurais"]
             },
             "Bento de Abreu": {
@@ -886,39 +889,42 @@
                 bairros: ["Centro"],
                 pontosPE: ["Entrada"],
                 pontosFisc: ["Saída"],
+                acessos: ["Saída"],
                 rural: ["Zona rural", "Propriedades"]
             }
         };
 
         const MODALIDADES = {
             "PREL": { nome: "Preleção", badge: "badge-prel", duracao: [30, 30] },
-            "POST": { nome: "Patrulhamento Ostensivo", badge: "badge-post", duracao: [60, 90] },
-            "PREV": { nome: "Patrulhamento Preventivo", badge: "badge-prev", duracao: [60, 90] },
-            "PE": { nome: "Ponto de Estacionamento", badge: "badge-pe", duracao: [60, 90] },
-            "FISC": { nome: "Fiscalização", badge: "badge-fisc", duracao: [60, 90] },
-            "RURAL": { nome: "Patrulhamento Rural", badge: "badge-rural", duracao: [60, 90] },
-            "ESC": { nome: "Ronda Escolar", badge: "badge-esc", duracao: [60, 90] },
-            "SAT": { nome: "Saturação", badge: "badge-sat", duracao: [60, 90] },
-            "DESL": { nome: "Deslocamento", badge: "badge-desl", duracao: [20, 20] },
+            "PATRULHA": { nome: "Patrulhamento", badge: "badge-post", duracao: [30, 30] },
+            "RONDA": { nome: "Ronda", badge: "badge-prev", duracao: [30, 30] },
+            "PE": { nome: "Ponto de Estacionamento", badge: "badge-pe", duracao: [30, 30] },
+            "FISC": { nome: "Fiscalização", badge: "badge-fisc", duracao: [30, 30] },
+            "BLOQUEIO": { nome: "Bloqueio", badge: "badge-fisc", duracao: [30, 30] },
+            "SATURACAO": { nome: "Saturação", badge: "badge-sat", duracao: [30, 30] },
+            "ESCOLTA": { nome: "Escolta", badge: "badge-desl", duracao: [30, 30] },
+            "RURAL": { nome: "Patrulhamento Rural", badge: "badge-rural", duracao: [30, 30] },
+            "ESC": { nome: "Ronda Escolar", badge: "badge-esc", duracao: [30, 30] },
             "REF": { nome: "Refeição", badge: "badge-ref", duracao: [60, 60] },
             "REL": { nome: "Relatório", badge: "badge-rel", duracao: [30, 30] }
         };
 
         const JUSTIFICATIVAS = {
             "PREL": "Preleção e assunção do serviço pela base do pelotão.",
-            "POST": "Patrulhamento ostensivo em área comercial.",
-            "PREV": "Patrulhamento preventivo em bairros.",
+            "PATRULHA": "Patrulhamento móvel em área de cobertura.",
+            "RONDA": "Ronda preventiva em bairros residenciais.",
             "PE": "Ponto de estacionamento para dissuasão.",
             "FISC": "Fiscalização de veículos em acessos.",
+            "BLOQUEIO": "Bloqueio de acesso para controle de fluxo.",
+            "SATURACAO": "Saturação em área de alto risco.",
+            "ESCOLTA": "Escolta de evento ou autoridade.",
             "RURAL": "Patrulhamento em zona rural.",
             "ESC": "Ronda escolar para proteção.",
-            "SAT": "Atividade de saturação.",
-            "DESL": "Deslocamento ao setor de policiamento.",
             "REF": "Alimentação pela base do pelotão.",
             "REL": "Elaboração do Relatório de Serviço Operacional (RSO)."
         };
 
-        const MODUS_OPERANDI_DEFAULT = "Patrulhamento, Abordagem";
+        const MODUS_OPERANDI_DEFAULT = "Patrulhamento, Abordagem, Vigilância";
 
         // ============================================================================
         // MOTOR DE GERAÇÃO DE CPP
@@ -1018,20 +1024,21 @@
                 const periodo = calcularPeriodo(horaAtual);
                 
                 // Selecionar próxima modalidade
+                const contadorBlocos = blocos.map(b => b.modalidade);
                 const modalidade = selecionarProximaModalidade(
                     config,
                     municipio,
                     periodo,
                     modalidadeAnterior,
-                    diaUtil
+                    diaUtil,
+                    contadorBlocos
                 );
                 
-                // Calcular duração
-                const [minDur, maxDur] = MODALIDADES[modalidade]?.duracao || [60, 90];
+                // BLOCOS DE 30 MINUTOS SEMPRE
                 const tempoDisponivel = tempoREL - tempoAtual;
-                const duracaoBloco = Math.min(maxDur, Math.max(minDur, tempoDisponivel - 30));
+                const duracaoBloco = 30; // SEMPRE 30 minutos
                 
-                if (duracaoBloco < minDur) break;
+                if (tempoDisponivel < 30) break;
                 
                 // Selecionar local
                 const local = selecionarLocal(
@@ -1070,38 +1077,52 @@
             return blocos;
         }
 
-        function selecionarProximaModalidade(configuracao, municipio, periodo, modalidadeAnterior, diaUtil) {
-            // Priorizar FISC à noite em saídas
-            if (periodo === "noite") {
-                return "FISC";
+        function selecionarProximaModalidade(configuracao, municipio, periodo, modalidadeAnterior, diaUtil, contadorBlocos) {
+            // Contadores para controlar repetição
+            const peCount = contadorBlocos.filter(m => m === "PE").length;
+            const bloqueioCount = contadorBlocos.filter(m => m === "BLOQUEIO").length;
+            const rondasCount = contadorBlocos.filter(m => m === "RONDA").length;
+            
+            // Regra 1: Máximo 2 PEs consecutivos
+            if (peCount >= 2 && modalidadeAnterior === "PE") {
+                // Forçar móvel
+                return periodo === "noite" ? "FISC" : "PATRULHA";
             }
             
-            // Ronda escolar em dia útil, horários de entrada/saída
-            if (diaUtil && municipio.perfil === "urbano_medio") {
-                return "ESC";
+            // Regra 2: Máximo 2 BLOQUEIOs por turno
+            if (bloqueioCount >= 2) {
+                // Não inserir mais bloqueios
+            } else if (periodo === "noite" && Math.random() > 0.6) {
+                return "BLOQUEIO"; // 40% de chance à noite
             }
             
-            // Alternar móvel e fixo
-            const ehMovel =
-                modalidadeAnterior === null ||
-                modalidadeAnterior === "PREL" ||
-                modalidadeAnterior === "DESL" ||
-                modalidadeAnterior === "REF" ||
-                ["PE", "FISC", "SAT"].includes(modalidadeAnterior);
+            // Regra 3: Alternar móvel/fixo a cada 30 min
+            const ehMovel = ["PE", "BLOQUEIO", "FISC"].includes(modalidadeAnterior);
             
             if (ehMovel) {
                 // Selecionar modalidade móvel
-                if (configuracao.tipoPoliciamento === "Rural" || municipio.perfil === "rural_pequeno") {
-                    return "RURAL";
+                const modalidadesMoveis = [];
+                
+                if (configuracao.tipoPoliciamento === "Rural") {
+                    modalidadesMoveis.push("PATRULHA", "RONDA");
+                } else {
+                    if (periodo === "manha" || periodo === "tarde") {
+                        modalidadesMoveis.push("PATRULHA", "RONDA", "SATURACAO");
+                    } else {
+                        modalidadesMoveis.push("PATRULHA", "RONDA");
+                    }
+                    
+                    // Escolta em horários de evento
+                    if ((periodo === "tarde" || periodo === "noite") && Math.random() > 0.8) {
+                        modalidadesMoveis.push("ESCOLTA");
+                    }
                 }
-                if (periodo === "manha" || periodo === "tarde") {
-                    return "POST";
-                }
-                return "PREV";
+                
+                return modalidadesMoveis[Math.floor(Math.random() * modalidadesMoveis.length)];
             } else {
                 // Selecionar modalidade fixa
                 if (periodo === "noite" || periodo === "madrugada") {
-                    return "FISC";
+                    return Math.random() > 0.5 ? "FISC" : "PE";
                 }
                 return "PE";
             }
@@ -1109,14 +1130,20 @@
 
         function selecionarLocal(configuracao, municipio, modalidade, indice) {
             switch (modalidade) {
-                case "POST":
+                case "PATRULHA":
                     return municipio.comercio[indice % municipio.comercio.length];
-                case "PREV":
+                case "RONDA":
                     return municipio.bairros[indice % municipio.bairros.length];
                 case "PE":
                     return municipio.pontosPE[indice % municipio.pontosPE.length];
                 case "FISC":
                     return municipio.pontosFisc[indice % municipio.pontosFisc.length];
+                case "BLOQUEIO":
+                    return `Bloqueio — ${municipio.acessos[indice % municipio.acessos.length]}`;
+                case "SATURACAO":
+                    return municipio.comercio[indice % municipio.comercio.length];
+                case "ESCOLTA":
+                    return `Escolta — ${municipio.bairros[indice % municipio.bairros.length]}`;
                 case "RURAL":
                     return municipio.rural[indice % municipio.rural.length];
                 case "ESC":
@@ -1128,23 +1155,27 @@
 
         function selecionarProblema(modalidade, periodo, local) {
             switch (modalidade) {
-                case "POST":
-                    return "Roubo/furto a comércio; furto/roubo de veículo";
-                case "PREV":
+                case "PATRULHA":
+                    return "Roubo/furto a comércio; presença ostensiva";
+                case "RONDA":
                     if (periodo === "noite" || periodo === "madrugada") {
-                        return "Furto/roubo a residência";
+                        return "Furto/roubo a residência; vigilância preventiva";
                     }
                     return "Prevenção de delitos em bairros";
                 case "PE":
                     return "Sensação de segurança; dissuasão de delitos no entorno";
                 case "FISC":
-                    return "Furto/roubo de veículo; evasão de autores; infrações de trânsito";
+                    return "Furto/roubo de veículo; infrações de trânsito; controle de acessos";
+                case "BLOQUEIO":
+                    return "Controle de acesso; prevenção de fuga de autores; fiscalização de trânsito";
+                case "SATURACAO":
+                    return "Prevenção em evento/data de relevância; presença massiva";
+                case "ESCOLTA":
+                    return "Proteção de evento; segurança de autoridades";
                 case "ESC":
                     return "Proteção do entorno escolar; uso/tráfico de drogas";
                 case "RURAL":
-                    return "Furto em propriedade rural (defensivos, semoventes, fios, implementos)";
-                case "SAT":
-                    return "Prevenção em evento/data de relevância";
+                    return "Furto em propriedade rural; vigilância de acessos";
                 default:
                     return "Atividade de policiamento";
             }
@@ -1152,19 +1183,24 @@
 
         function selecionarAcoesPolicia(modalidade) {
             switch (modalidade) {
-                case "POST":
-                case "PREV":
-                    return "Patrulhamento, Abordagem";
+                case "PATRULHA":
+                    return "Patrulhamento, Abordagem, Vigilância";
+                case "RONDA":
+                    return "Ronda, Abordagem, Orientação";
                 case "PE":
-                    return "Permanência, Abordagem";
+                    return "Permanência, Abordagem, Vigilância";
                 case "FISC":
-                    return "Abordagem, Fiscalização de trânsito";
+                    return "Abordagem, Fiscalização de trânsito, Revista";
+                case "BLOQUEIO":
+                    return "Bloqueio, Fiscalização, Abordagem";
+                case "SATURACAO":
+                    return "Saturação, Abordagem massiva, Revista";
+                case "ESCOLTA":
+                    return "Escolta, Proteção, Vigilância";
                 case "ESC":
-                    return "Patrulhamento, Orientação";
+                    return "Patrulhamento, Orientação, Proteção";
                 case "RURAL":
-                    return "Patrulhamento, Abordagem, ronda em propriedades";
-                case "SAT":
-                    return "Saturação, Abordagem";
+                    return "Patrulhamento, Abordagem, Ronda em propriedades";
                 default:
                     return "Patrulhamento";
             }
