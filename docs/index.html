@@ -699,18 +699,51 @@
         };
 
         const MODALIDADES = {
-            "PREL": { nome: "Preleção", badge: "badge-prel" },
-            "POST": { nome: "Patrulhamento Ostensivo", badge: "badge-post" },
-            "PREV": { nome: "Patrulhamento Preventivo", badge: "badge-prev" },
-            "PE": { nome: "Ponto de Estacionamento", badge: "badge-pe" },
-            "FISC": { nome: "Fiscalização", badge: "badge-fisc" },
-            "REF": { nome: "Refeição", badge: "badge-ref" },
-            "REL": { nome: "Relatório", badge: "badge-rel" }
+            "PREL": { nome: "Preleção", badge: "badge-prel", duracao: [30, 30] },
+            "POST": { nome: "Patrulhamento Ostensivo", badge: "badge-post", duracao: [60, 90] },
+            "PREV": { nome: "Patrulhamento Preventivo", badge: "badge-prev", duracao: [60, 90] },
+            "PE": { nome: "Ponto de Estacionamento", badge: "badge-pe", duracao: [60, 90] },
+            "FISC": { nome: "Fiscalização", badge: "badge-fisc", duracao: [60, 90] },
+            "RURAL": { nome: "Patrulhamento Rural", badge: "badge-rural", duracao: [60, 90] },
+            "ESC": { nome: "Ronda Escolar", badge: "badge-esc", duracao: [60, 90] },
+            "SAT": { nome: "Saturação", badge: "badge-sat", duracao: [60, 90] },
+            "DESL": { nome: "Deslocamento", badge: "badge-desl", duracao: [20, 20] },
+            "REF": { nome: "Refeição", badge: "badge-ref", duracao: [60, 60] },
+            "REL": { nome: "Relatório", badge: "badge-rel", duracao: [30, 30] }
         };
+
+        const JUSTIFICATIVAS = {
+            "PREL": "Preleção e assunção do serviço pela base do pelotão.",
+            "POST": "Patrulhamento ostensivo em área comercial.",
+            "PREV": "Patrulhamento preventivo em bairros.",
+            "PE": "Ponto de estacionamento para dissuasão.",
+            "FISC": "Fiscalização de veículos em acessos.",
+            "RURAL": "Patrulhamento em zona rural.",
+            "ESC": "Ronda escolar para proteção.",
+            "SAT": "Atividade de saturação.",
+            "DESL": "Deslocamento ao setor de policiamento.",
+            "REF": "Alimentação pela base do pelotão.",
+            "REL": "Elaboração do Relatório de Serviço Operacional (RSO)."
+        };
+
+        const MODUS_OPERANDI_DEFAULT = "Patrulhamento, Abordagem";
 
         // ============================================================================
         // MOTOR DE GERAÇÃO DE CPP
         // ============================================================================
+
+        function calcularPeriodo(hora) {
+            if (hora >= 6 && hora < 12) return "manha";
+            if (hora >= 12 && hora < 18) return "tarde";
+            if (hora >= 18 && hora < 24) return "noite";
+            return "madrugada";
+        }
+
+        function ehDiaUtil(data) {
+            const date = new Date(data);
+            const diaSemana = date.getDay();
+            return diaSemana !== 0 && diaSemana !== 6;
+        }
 
         function gerarCPP(config) {
             const blocos = [];
@@ -722,86 +755,227 @@
                 duracao = (24 * 60) + duracao;
             }
             
-            // ========== ANÁLISE DE CONTEXTO OPERACIONAL ==========
-            const data = new Date(config.data);
-            const diaSemana = data.getDay();
-            const ehMadrugada = horaInicioMin >= 22 * 60 || horaInicioMin < 6 * 60;
-            const ehManha = horaInicioMin >= 6 * 60 && horaInicioMin < 12 * 60;
-            const ehNoite = horaInicioMin >= 18 * 60 && horaInicioMin < 22 * 60;
-            
-            // Seed para variação
-            const seed = parseInt(config.data.replace(/-/g, '')) + horaInicioMin;
-            const random = (min, max) => {
-                const x = Math.sin(seed + Math.random() * 10000) * 10000;
-                return min + ((x - Math.floor(x)) * (max - min));
-            };
+            const municipio = MUNICIPIOS[config.municipio];
+            const diaUtil = ehDiaUtil(config.data);
             
             let tempoAtual = horaInicioMin;
             let ordem = 0;
-            const tempoFinal = horaInicioMin + duracao;
-            
-            // Estratégia: madrugada = mais FISC, manhã = mais POST, noite = equilibrado
-            const proporcaoFISC = ehMadrugada ? 0.65 : ehManha ? 0.35 : 0.50;
-            let blocosFISC = 0;
-            let blocosPOST = 0;
             let refeicaoInserida = false;
-            const tempoRefeicaoMin = horaInicioMin + Math.floor(duracao * 0.40);
-            const tempoRefeicaoMax = horaInicioMin + Math.floor(duracao * 0.70);
+            let modalidadeAnterior = null;
+            let indiceBairro = 0;
             
-            // GERAR BLOCOS DE 30 MINUTOS
-            while (tempoAtual + 30 <= tempoFinal) {
-                // Preleção (primeiro bloco)
-                if (ordem === 0) {
-                    blocos.push(criarBloco(ordem++, tempoAtual, 30, "PREL", "Base do Pelotão PM", "Assunção do serviço"));
-                    tempoAtual += 30;
-                    continue;
-                }
-                
-                // Relatório (último bloco)
-                if (tempoAtual + 30 === tempoFinal) {
-                    blocos.push(criarBloco(ordem++, tempoAtual, 30, "REL", "Base do Pelotão PM", "Elaboração do RSO"));
-                    tempoAtual += 30;
-                    continue;
-                }
-                
-                // Refeição (2 blocos de 30 min)
-                if (!refeicaoInserida && tempoAtual >= tempoRefeicaoMin && tempoAtual < tempoRefeicaoMax) {
-                    blocos.push(criarBloco(ordem++, tempoAtual, 30, "REF", "Base do Pelotão PM", "Refeição"));
-                    tempoAtual += 30;
-                    if (tempoAtual + 30 <= tempoFinal) {
-                        blocos.push(criarBloco(ordem++, tempoAtual, 30, "REF", "Base do Pelotão PM", "Refeição"));
-                        tempoAtual += 30;
-                    }
-                    refeicaoInserida = true;
-                    continue;
-                }
-                
-                // Patrulhamento ou Fiscalização (30 min cada)
-                const taxaFISCAtual = blocosFISC / Math.max(1, blocosFISC + blocosPOST);
-                const deveSerFISC = taxaFISCAtual < proporcaoFISC;
-                const modalidade = deveSerFISC ? "FISC" : "POST";
-                
-                if (modalidade === "FISC") blocosFISC++;
-                else blocosPOST++;
-                
-                // Selecionar local
-                const municipio = MUNICIPIOS[config.municipio];
-                const locaisDisponiveis = modalidade === "POST" ? municipio.comercio : municipio.pontosFisc;
-                const indexLocal = Math.floor(random(0, locaisDisponiveis.length));
-                const local = locaisDisponiveis[indexLocal];
-                
-                // Problema variado
-                const problemas = modalidade === "POST" 
-                    ? ["Patrulhamento", "Prevenção de crimes", "Presença ostensiva"]
-                    : ["Fiscalização de veículos", "Controle de tráfego", "Segurança de acessos"];
-                const indexProblema = Math.floor(random(0, problemas.length));
-                const problema = problemas[indexProblema];
-                
-                blocos.push(criarBloco(ordem++, tempoAtual, 30, modalidade, local, problema));
-                tempoAtual += 30;
+            const duracao8h = 8 * 60;
+            const tempoRefeicaoMin = horaInicioMin + Math.floor(duracao8h * 0.4);
+            const tempoRefeicaoMax = horaInicioMin + Math.floor(duracao8h * 0.6);
+            const tempoREL = horaInicioMin + duracao8h - 30;
+            
+            // 1. PRELEÇÃO (sempre primeiro, 30 min)
+            blocos.push(criarBloco(
+                ordem++,
+                tempoAtual,
+                30,
+                "PREL",
+                "Base do Pelotão PM",
+                "Assunção do serviço"
+            ));
+            tempoAtual += 30;
+            modalidadeAnterior = "PREL";
+            
+            // 2. DESLOCAMENTO (se necessário, 20 min)
+            if (config.municipio !== "Valparaíso") {
+                blocos.push(criarBloco(
+                    ordem++,
+                    tempoAtual,
+                    20,
+                    "DESL",
+                    `Deslocamento para ${config.municipio}`,
+                    "Deslocamento ao setor"
+                ));
+                tempoAtual += 20;
+                modalidadeAnterior = "DESL";
             }
             
+            // 3. Preencher o miolo com alternância de móvel e fixo
+            while (tempoAtual < tempoREL) {
+                // Inserir refeição no terço médio (60 min)
+                if (
+                    !refeicaoInserida &&
+                    tempoAtual >= tempoRefeicaoMin &&
+                    tempoAtual < tempoRefeicaoMax &&
+                    tempoREL - tempoAtual > 90
+                ) {
+                    blocos.push(criarBloco(
+                        ordem++,
+                        tempoAtual,
+                        60,
+                        "REF",
+                        "Base do Pelotão PM",
+                        "Refeição"
+                    ));
+                    tempoAtual += 60;
+                    refeicaoInserida = true;
+                    modalidadeAnterior = "REF";
+                    continue;
+                }
+                
+                // Verificar se há tempo suficiente
+                if (tempoREL - tempoAtual <= 30) break;
+                
+                // Calcular hora atual para determinar período
+                const horaAtual = Math.floor((tempoAtual % (24 * 60)) / 60);
+                const periodo = calcularPeriodo(horaAtual);
+                
+                // Selecionar próxima modalidade
+                const modalidade = selecionarProximaModalidade(
+                    config,
+                    municipio,
+                    periodo,
+                    modalidadeAnterior,
+                    diaUtil
+                );
+                
+                // Calcular duração
+                const [minDur, maxDur] = MODALIDADES[modalidade]?.duracao || [60, 90];
+                const tempoDisponivel = tempoREL - tempoAtual;
+                const duracaoBloco = Math.min(maxDur, Math.max(minDur, tempoDisponivel - 30));
+                
+                if (duracaoBloco < minDur) break;
+                
+                // Selecionar local
+                const local = selecionarLocal(
+                    config,
+                    municipio,
+                    modalidade,
+                    indiceBairro++
+                );
+                
+                // Selecionar problema
+                const problema = selecionarProblema(modalidade, periodo, local);
+                
+                blocos.push(criarBloco(
+                    ordem++,
+                    tempoAtual,
+                    duracaoBloco,
+                    modalidade,
+                    local,
+                    problema
+                ));
+                
+                tempoAtual += duracaoBloco;
+                modalidadeAnterior = modalidade;
+            }
+            
+            // 4. RELATÓRIO (sempre último, 30 min)
+            blocos.push(criarBloco(
+                ordem++,
+                tempoREL,
+                30,
+                "REL",
+                "Base do Pelotão PM",
+                "Elaboração do RSO"
+            ));
+            
             return blocos;
+        }
+
+        function selecionarProximaModalidade(configuracao, municipio, periodo, modalidadeAnterior, diaUtil) {
+            // Priorizar FISC à noite em saídas
+            if (periodo === "noite") {
+                return "FISC";
+            }
+            
+            // Ronda escolar em dia útil, horários de entrada/saída
+            if (diaUtil && municipio.perfil === "urbano_medio") {
+                return "ESC";
+            }
+            
+            // Alternar móvel e fixo
+            const ehMovel =
+                modalidadeAnterior === null ||
+                modalidadeAnterior === "PREL" ||
+                modalidadeAnterior === "DESL" ||
+                modalidadeAnterior === "REF" ||
+                ["PE", "FISC", "SAT"].includes(modalidadeAnterior);
+            
+            if (ehMovel) {
+                // Selecionar modalidade móvel
+                if (configuracao.tipoPoliciamento === "Rural" || municipio.perfil === "rural_pequeno") {
+                    return "RURAL";
+                }
+                if (periodo === "manha" || periodo === "tarde") {
+                    return "POST";
+                }
+                return "PREV";
+            } else {
+                // Selecionar modalidade fixa
+                if (periodo === "noite" || periodo === "madrugada") {
+                    return "FISC";
+                }
+                return "PE";
+            }
+        }
+
+        function selecionarLocal(configuracao, municipio, modalidade, indice) {
+            switch (modalidade) {
+                case "POST":
+                    return municipio.comercio[indice % municipio.comercio.length];
+                case "PREV":
+                    return municipio.bairros[indice % municipio.bairros.length];
+                case "PE":
+                    return municipio.pontosPE[indice % municipio.pontosPE.length];
+                case "FISC":
+                    return municipio.pontosFisc[indice % municipio.pontosFisc.length];
+                case "RURAL":
+                    return municipio.rural[indice % municipio.rural.length];
+                case "ESC":
+                    return `Entorno de escola — ${municipio.bairros[indice % municipio.bairros.length]}`;
+                default:
+                    return "Base do Pelotão PM";
+            }
+        }
+
+        function selecionarProblema(modalidade, periodo, local) {
+            switch (modalidade) {
+                case "POST":
+                    return "Roubo/furto a comércio; furto/roubo de veículo";
+                case "PREV":
+                    if (periodo === "noite" || periodo === "madrugada") {
+                        return "Furto/roubo a residência";
+                    }
+                    return "Prevenção de delitos em bairros";
+                case "PE":
+                    return "Sensação de segurança; dissuasão de delitos no entorno";
+                case "FISC":
+                    return "Furto/roubo de veículo; evasão de autores; infrações de trânsito";
+                case "ESC":
+                    return "Proteção do entorno escolar; uso/tráfico de drogas";
+                case "RURAL":
+                    return "Furto em propriedade rural (defensivos, semoventes, fios, implementos)";
+                case "SAT":
+                    return "Prevenção em evento/data de relevância";
+                default:
+                    return "Atividade de policiamento";
+            }
+        }
+
+        function selecionarAcoesPolicia(modalidade) {
+            switch (modalidade) {
+                case "POST":
+                case "PREV":
+                    return "Patrulhamento, Abordagem";
+                case "PE":
+                    return "Permanência, Abordagem";
+                case "FISC":
+                    return "Abordagem, Fiscalização de trânsito";
+                case "ESC":
+                    return "Patrulhamento, Orientação";
+                case "RURAL":
+                    return "Patrulhamento, Abordagem, ronda em propriedades";
+                case "SAT":
+                    return "Saturação, Abordagem";
+                default:
+                    return "Patrulhamento";
+            }
         }
 
         function criarBloco(ordem, horaInicioMin, duracao, modalidade, local, problema) {
@@ -812,8 +986,9 @@
                 modalidade,
                 local,
                 problemaSolucionar: problema,
-                acoesPolicia: "Patrulhamento, Abordagem",
-                justificativa: "Atividade de policiamento conforme NORSOP",
+                modusOperandi: MODUS_OPERANDI_DEFAULT,
+                acoesPolicia: selecionarAcoesPolicia(modalidade),
+                justificativa: JUSTIFICATIVAS[modalidade] || "Atividade de policiamento conforme NORSOP",
                 observacao: "",
                 concluido: false,
                 ordem
