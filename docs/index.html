@@ -18,6 +18,8 @@
             --primary-light: #1a4d7a;
             --accent: #00d4ff;
             --accent-dark: #0099cc;
+            --gold: #FFD700;
+            --purple: #9b59b6;
             --success: #10b981;
             --warning: #f59e0b;
             --danger: #ef4444;
@@ -112,15 +114,17 @@
         }
 
         .header h1 {
-            font-size: 2rem;
-            font-weight: 800;
+            font-size: 2.5rem;
+            font-weight: 900;
             margin-bottom: 0.5rem;
-            background: linear-gradient(135deg, #fff 0%, var(--accent) 100%);
+            background: linear-gradient(135deg, var(--gold) 0%, #fff 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
             position: relative;
             z-index: 1;
+            text-transform: uppercase;
+            letter-spacing: 2px;
         }
 
         .header p {
@@ -375,9 +379,10 @@
         }
 
         .badge-pe {
-            background: rgba(13, 148, 136, 0.3);
-            color: #2dd4bf;
-            border-color: rgba(13, 148, 136, 0.5);
+            background: linear-gradient(135deg, rgba(155, 89, 182, 0.4), rgba(155, 89, 182, 0.1));
+            color: #d8b4fe;
+            border-color: rgba(155, 89, 182, 0.6);
+            box-shadow: 0 0 15px rgba(155, 89, 182, 0.2);
         }
 
         .badge-fisc {
@@ -388,16 +393,17 @@
         }
 
         .badge-ref {
-            background: rgba(245, 158, 11, 0.3);
-            color: #fbbf24;
-            border-color: rgba(245, 158, 11, 0.5);
-            box-shadow: 0 0 15px rgba(245, 158, 11, 0.2);
+            background: linear-gradient(135deg, rgba(255, 215, 0, 0.4), rgba(255, 215, 0, 0.1));
+            color: var(--gold);
+            border-color: rgba(255, 215, 0, 0.6);
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
         }
 
         .badge-rel {
-            background: rgba(107, 114, 128, 0.3);
-            color: #d1d5db;
-            border-color: rgba(107, 114, 128, 0.5);
+            background: linear-gradient(135deg, rgba(155, 89, 182, 0.4), rgba(155, 89, 182, 0.1));
+            color: #d8b4fe;
+            border-color: rgba(155, 89, 182, 0.6);
+            box-shadow: 0 0 15px rgba(155, 89, 182, 0.2);
         }
 
         .badge-rural {
