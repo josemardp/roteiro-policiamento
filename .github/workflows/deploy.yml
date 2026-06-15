@@ -28,8 +28,7 @@ jobs:
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: 10
+        # versão lida automaticamente do campo packageManager em package.json
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
