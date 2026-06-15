@@ -18,6 +18,8 @@
             --primary-light: #1a4d7a;
             --accent: #00d4ff;
             --accent-dark: #0099cc;
+            --gold: #FFD700;
+            --purple: #9b59b6;
             --success: #10b981;
             --warning: #f59e0b;
             --danger: #ef4444;
@@ -112,15 +114,17 @@
         }
 
         .header h1 {
-            font-size: 2rem;
-            font-weight: 800;
+            font-size: 2.5rem;
+            font-weight: 900;
             margin-bottom: 0.5rem;
-            background: linear-gradient(135deg, #fff 0%, var(--accent) 100%);
+            background: linear-gradient(135deg, var(--gold) 0%, #fff 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
             position: relative;
             z-index: 1;
+            text-transform: uppercase;
+            letter-spacing: 2px;
         }
 
         .header p {
@@ -169,6 +173,21 @@
             color: #e0e0e0;
             transition: all 0.3s ease;
             backdrop-filter: blur(10px);
+            overflow: hidden;
+        }
+
+        .form-group input[type="time"] {
+            padding: 0.75rem 0.5rem;
+            font-size: 1rem;
+            text-align: center;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        input[type="time"]::-webkit-calendar-picker-indicator {
+            cursor: pointer;
+            padding: 0;
+            margin: 0;
         }
 
         .form-group input::placeholder,
@@ -375,9 +394,10 @@
         }
 
         .badge-pe {
-            background: rgba(13, 148, 136, 0.3);
-            color: #2dd4bf;
-            border-color: rgba(13, 148, 136, 0.5);
+            background: linear-gradient(135deg, rgba(155, 89, 182, 0.4), rgba(155, 89, 182, 0.1));
+            color: #d8b4fe;
+            border-color: rgba(155, 89, 182, 0.6);
+            box-shadow: 0 0 15px rgba(155, 89, 182, 0.2);
         }
 
         .badge-fisc {
@@ -388,16 +408,17 @@
         }
 
         .badge-ref {
-            background: rgba(245, 158, 11, 0.3);
-            color: #fbbf24;
-            border-color: rgba(245, 158, 11, 0.5);
-            box-shadow: 0 0 15px rgba(245, 158, 11, 0.2);
+            background: linear-gradient(135deg, rgba(255, 215, 0, 0.4), rgba(255, 215, 0, 0.1));
+            color: var(--gold);
+            border-color: rgba(255, 215, 0, 0.6);
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
         }
 
         .badge-rel {
-            background: rgba(107, 114, 128, 0.3);
-            color: #d1d5db;
-            border-color: rgba(107, 114, 128, 0.5);
+            background: linear-gradient(135deg, rgba(155, 89, 182, 0.4), rgba(155, 89, 182, 0.1));
+            color: #d8b4fe;
+            border-color: rgba(155, 89, 182, 0.6);
+            box-shadow: 0 0 15px rgba(155, 89, 182, 0.2);
         }
 
         .badge-rural {
@@ -704,7 +725,30 @@
                         <select id="tipoPoliciamento" required>
                             <option value="Urbano">Urbano</option>
                             <option value="Rural">Rural</option>
+                            <option value="Urbano+Rural">Urbano + Rural</option>
                         </select>
+                    </div>
+
+                    <div class="form-group" id="municipios-multiplos" style="display: none;">
+                        <label>Selecione os Municípios (DEJEM)</label>
+                        <div style="margin-top: 0.5rem;">
+                            <label style="display: flex; align-items: center; font-weight: 400; margin-bottom: 0.5rem;">
+                                <input type="checkbox" name="municipios" value="Valparaíso" style="margin-right: 0.5rem;">
+                                Valparaíso
+                            </label>
+                            <label style="display: flex; align-items: center; font-weight: 400; margin-bottom: 0.5rem;">
+                                <input type="checkbox" name="municipios" value="Guararapes" style="margin-right: 0.5rem;">
+                                Guararapes
+                            </label>
+                            <label style="display: flex; align-items: center; font-weight: 400; margin-bottom: 0.5rem;">
+                                <input type="checkbox" name="municipios" value="Rubiácea" style="margin-right: 0.5rem;">
+                                Rubiácea
+                            </label>
+                            <label style="display: flex; align-items: center; font-weight: 400;">
+                                <input type="checkbox" name="municipios" value="Bento de Abreu" style="margin-right: 0.5rem;">
+                                Bento de Abreu
+                            </label>
+                        </div>
                     </div>
 
                     <div class="form-group">
@@ -751,7 +795,10 @@
                         <input type="text" id="prefixo" placeholder="Ex: 5-01">
                     </div>
 
-                    <button type="submit" class="btn btn-primary">Gerar CPP do Turno</button>
+                    <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
+                        <button type="submit" class="btn btn-primary" style="flex: 1;">Gerar CPP do Turno</button>
+                        <button type="button" class="btn btn-secondary" id="btn-adicionar-rotina" style="flex: 1;">+ Rotina</button>
+                    </div>
                 </form>
             </div>
         </div>
@@ -777,6 +824,33 @@
                 <button id="btn-recalcular" class="btn btn-secondary">🔄 Recalcular CPP</button>
                 <button id="btn-exportar" class="btn btn-primary">📤 Exportar Relatório</button>
                 <button id="btn-salvar-historico" class="btn btn-success">💾 Salvar no Histórico</button>
+            </div>
+        </div>
+
+        <!-- MODAL DE ROTINA CUSTOMIZADA -->
+        <div id="modal-rotina" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 1000; backdrop-filter: blur(5px);">
+            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--dark-card); border: 1px solid var(--accent); border-radius: var(--border-radius); padding: 2rem; max-width: 90%; width: 400px; box-shadow: var(--shadow-lg);">
+                <h3 style="color: var(--accent); margin-bottom: 1.5rem; font-size: 1.5rem;">ADICIONAR ROTINA</h3>
+                
+                <div class="form-group">
+                    <label>Horário (HH:MM)</label>
+                    <input type="time" id="rotina-hora" value="14:00">
+                </div>
+                
+                <div class="form-group">
+                    <label>Atividade</label>
+                    <input type="text" id="rotina-atividade" placeholder="Ex: Deslocar ao CPI">
+                </div>
+                
+                <div class="form-group">
+                    <label>Local</label>
+                    <input type="text" id="rotina-local" placeholder="Ex: CPI">
+                </div>
+                
+                <div style="display: flex; gap: 1rem; margin-top: 2rem;">
+                    <button type="button" id="btn-salvar-rotina" class="btn btn-primary" style="flex: 1;">✓ Salvar</button>
+                    <button type="button" id="btn-cancelar-rotina" class="btn btn-secondary" style="flex: 1;">✕ Cancelar</button>
+                </div>
             </div>
         </div>
 
@@ -858,39 +932,56 @@
         const MUNICIPIOS = {
             "Valparaíso": {
                 perfil: "urbano_medio",
-                comercio: ["Centro", "Área comercial central"],
-                bairros: ["Jardim Primavera", "Jardim Flamboyant", "Jardim Morumbi"],
-                pontosPE: ["Entrada norte", "Entrada sul", "Praça central"],
-                pontosFisc: ["Saída SP-300", "Acessos principais", "Rodovia Marechal Rondon"],
-                acessos: ["Saída SP-300", "Acessos principais", "Rodovia Marechal Rondon", "Entrada norte"],
-                rural: ["Zona rural norte", "Zona rural sul"]
+                nome: "Valparaíso de Goiás - GO",
+                populacao: "~197 mil hab.",
+                comercio: ["Avenida das Palmeiras", "Setor Comercial Central", "Centro"],
+                avenidas: ["Avenida das Palmeiras", "Avenida Central", "Avenida 15 de Junho"],
+                bairros: ["Parque São Bernardo", "Parque Rio Branco", "Valparaíso I", "Parque Santa Rita", "Céu Azul", "Cruzeiro do Sul", "Etapa A", "Parque Esplanada"],
+                escolas: ["Escola Estadual Parque Rio Branco", "Escola Municipal Central"],
+                pontosPE: ["Avenida das Palmeiras", "Parque Rio Branco", "Praça Central", "Entrada Parque São Bernardo"],
+                pontosFisc: ["Saída SP-300", "Acessos principais", "Rodovia Marechal Rondon", "Entrada norte"],
+                acessos: ["Saída SP-300", "Acessos principais", "Rodovia Marechal Rondon", "Entrada norte", "Entrada sul"],
+                rural: ["Zona rural norte", "Zona rural sul", "Setor de Chácaras Anhanguera"]
             },
             "Guararapes": {
                 perfil: "urbano_pequeno",
-                comercio: ["Centro", "Comércio local"],
-                bairros: ["Centro", "Bairro novo", "Zona residencial"],
-                pontosPE: ["Praça central", "Entrada da cidade"],
-                pontosFisc: ["Saída norte", "Saída sul"],
-                acessos: ["Saída norte", "Saída sul"],
-                rural: ["Zona rural"]
+                nome: "Guararapes - SP",
+                populacao: "~30 mil hab.",
+                area: "959,1 km²",
+                comercio: ["Centro", "Comércio local", "Avenida Principal"],
+                avenidas: ["Avenida Principal", "Rua Central"],
+                bairros: ["Centro", "Vila Nova", "Zona residencial", "Bairro novo"],
+                escolas: ["Escola Estadual Central", "Escola Municipal"],
+                pontosPE: ["Praça central", "Entrada da cidade", "Centro"],
+                pontosFisc: ["Saída norte", "Saída sul", "Acessos principais"],
+                acessos: ["Saída norte", "Saída sul", "Entrada leste", "Entrada oeste"],
+                rural: ["Zona rural norte", "Zona rural sul", "Propriedades rurais"]
             },
             "Rubiácea": {
                 perfil: "rural_pequeno",
+                nome: "Rubiácea - SP",
+                populacao: "~2.740 hab.",
                 comercio: ["Centro"],
+                avenidas: ["Rua Principal"],
                 bairros: ["Centro", "Zona residencial"],
-                pontosPE: ["Entrada da cidade"],
-                pontosFisc: ["Saída principal"],
-                acessos: ["Saída principal"],
-                rural: ["Zona rural norte", "Zona rural sul", "Propriedades rurais"]
+                escolas: ["Escola Municipal"],
+                pontosPE: ["Entrada da cidade", "Centro"],
+                pontosFisc: ["Saída principal", "Saída alternativa"],
+                acessos: ["Saída principal", "Entrada leste"],
+                rural: ["Zona rural norte", "Zona rural sul", "Propriedades rurais", "Estradas vicinais"]
             },
             "Bento de Abreu": {
                 perfil: "rural_pequeno",
+                nome: "Bento de Abreu - SP",
+                populacao: "~2.500 hab.",
                 comercio: ["Centro"],
+                avenidas: ["Rua Principal"],
                 bairros: ["Centro"],
-                pontosPE: ["Entrada"],
-                pontosFisc: ["Saída"],
-                acessos: ["Saída"],
-                rural: ["Zona rural", "Propriedades"]
+                escolas: ["Escola Municipal"],
+                pontosPE: ["Entrada", "Centro"],
+                pontosFisc: ["Saída", "Acessos"],
+                acessos: ["Saída", "Entrada"],
+                rural: ["Zona rural", "Propriedades", "Estradas rurais"]
             }
         };
 
@@ -957,7 +1048,10 @@
                 duracao = (24 * 60) + duracao;
             }
             
-            const municipio = MUNICIPIOS[config.municipio];
+            // Suportar múltiplos municípios
+            const municipiosArray = config.municipio.split(" + ").map(m => m.trim());
+            const municipio = MUNICIPIOS[municipiosArray[0]];
+            let indiceAtualMunicipio = 0;
             const diaUtil = ehDiaUtil(config.data);
             
             let tempoAtual = horaInicioMin;
@@ -1210,13 +1304,14 @@
             }
         }
 
-        function criarBloco(ordem, horaInicioMin, duracao, modalidade, local, problema) {
+        function criarBloco(ordem, horaInicioMin, duracao, modalidade, local, problema, municipio = null) {
             return {
                 id: `bloco-${Date.now()}-${Math.random()}`,
                 horaInicio: minutosParaHora(horaInicioMin),
                 horaFim: minutosParaHora(horaInicioMin + duracao),
                 modalidade,
                 local,
+                municipio,
                 problemaSolucionar: problema,
                 modusOperandi: MODUS_OPERANDI_DEFAULT,
                 acoesPolicia: selecionarAcoesPolicia(modalidade),
@@ -1315,6 +1410,16 @@
         // Definir data de hoje
         document.getElementById("data").valueAsDate = new Date();
 
+        // Mostrar/esconder checkboxes de múltiplos municípios quando DEJEM
+        document.getElementById('tipoAtividade').addEventListener('change', function() {
+            const municipiosMultiplos = document.getElementById('municipios-multiplos');
+            if (this.value === 'DEJEM') {
+                municipiosMultiplos.style.display = 'block';
+            } else {
+                municipiosMultiplos.style.display = 'none';
+            }
+        });
+
         document.getElementById("form-config").addEventListener("submit", function(e) {
             e.preventDefault();
 
@@ -1374,6 +1479,7 @@
                             <div class="bloco-hora" style="color: #00d4ff; font-weight: 700; font-size: 1.1rem;">${bloco.horaInicio} - ${bloco.horaFim}</div>
                             <span class="badge ${MODALIDADES[bloco.modalidade].badge}">${bloco.modalidade}</span>
                         </div>
+                        ${bloco.municipio ? `<div style="color: var(--gold); font-weight: 700; font-size: 0.9rem; margin-bottom: 0.5rem;">📍 ${bloco.municipio}</div>` : ''}
                         <div><strong>${bloco.local}</strong></div>
                         <div class="bloco-info">${bloco.problemaSolucionar}</div>
                         <div class="bloco-info">${bloco.acoesPolicia}</div>
@@ -1603,12 +1709,92 @@
             }
         });
 
+        // ============================================================================
+        // ROTINAS CUSTOMIZADAS
+        // ============================================================================
+        function abrirModalRotina() {
+            document.getElementById("modal-rotina").style.display = "block";
+            document.getElementById("rotina-atividade").focus();
+        }
+        
+        function fecharModalRotina() {
+            document.getElementById("modal-rotina").style.display = "none";
+        }
+        
+        function salvarRotina() {
+            const hora = document.getElementById("rotina-hora").value;
+            const atividade = document.getElementById("rotina-atividade").value;
+            const local = document.getElementById("rotina-local").value;
+            
+            if (!hora || !atividade || !local) {
+                alert("Preencha todos os campos!");
+                return;
+            }
+            
+            const [h, m] = hora.split(':').map(Number);
+            const novoBloco = {
+                id: Date.now(),
+                inicio: `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`,
+                fim: `${String((h + 1) % 24).padStart(2, '0')}:${String(m).padStart(2, '0')}`,
+                modalidade: "CUSTOM",
+                local: local,
+                problema: atividade,
+                modusPol: atividade,
+                acoesPol: "Execução",
+                justificativa: "Rotina customizada",
+                municipio: estadoApp.config.municipios[0] || "Valparaíso",
+                concluido: false
+            };
+            
+            // Inserir na posição correta (por hora)
+            const indice = estadoApp.roteiroDia.blocos.findIndex(b => {
+                const [bh, bm] = b.inicio.split(':').map(Number);
+                return bh > h || (bh === h && bm >= m);
+            });
+            
+            if (indice === -1) {
+                estadoApp.roteiroDia.blocos.push(novoBloco);
+            } else {
+                estadoApp.roteiroDia.blocos.splice(indice, 0, novoBloco);
+            }
+            
+            salvarRoteiro(estadoApp.roteiroDia);
+            renderizarCPP();
+            fecharModalRotina();
+            alert("Rotina adicionada com sucesso!");
+        }
+        
+        // Event listeners
+        document.getElementById("btn-adicionar-rotina").addEventListener("click", function() {
+            if (!estadoApp.roteiroDia) {
+                alert("Gere um CPP primeiro!");
+                return;
+            }
+            abrirModalRotina();
+        });
+        
+        document.getElementById("btn-salvar-rotina").addEventListener("click", salvarRotina);
+        document.getElementById("btn-cancelar-rotina").addEventListener("click", fecharModalRotina);
+        
+        // Fechar modal ao clicar fora
+        document.getElementById("modal-rotina").addEventListener("click", function(e) {
+            if (e.target === this) fecharModalRotina();
+        });
+        
+        // Fechar modal com Escape
+        document.addEventListener("keydown", function(e) {
+            if (e.key === "Escape" && document.getElementById("modal-rotina").style.display === "block") {
+                fecharModalRotina();
+            }
+        });
+
         // Expor funções globais
         window.toggleBloco = toggleBloco;
         window.editarBloco = editarBloco;
         window.reabrirRoteiro = reabrirRoteiro;
         window.duplicarRoteiro = duplicarRoteiro;
         window.excluirRoteiro = excluirRoteiro;
+        window.adicionarRotina = adicionarRotina;
     </script>
 </body>
 </html>
