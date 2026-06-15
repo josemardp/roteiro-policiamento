@@ -111,12 +111,13 @@ const MATRIZ_PESOS: Record<string, Record<Periodo, Pesos>> = {
 
 function selecionarModalidade(
   pesos: Pesos,
-  rng: () => number
+  rng: () => number,
+  fallback: ModalidadePoliciamento = "PREV"
 ): ModalidadePoliciamento {
   const entries = (
     Object.entries(pesos) as [ModalidadePoliciamento, number][]
   ).filter(([, w]) => w > 0);
-  if (entries.length === 0) return "PREV";
+  if (entries.length === 0) return fallback;
   const total = entries.reduce((s, [, w]) => s + w, 0);
   let r = rng() * total;
   for (const [mod, w] of entries) {
@@ -388,6 +389,7 @@ export function gerarCPP({ configuracao, municipios }: GerarCPPParams): BlocoHor
         ));
         tempoAtual += durSafe;
         historico.push(bm.modalidade);
+        if (bm.modalidade === "REF") refInserida = true;
         idxManual++;
         continue;
       }
@@ -423,6 +425,14 @@ export function gerarCPP({ configuracao, municipios }: GerarCPPParams): BlocoHor
       pesos.ESC = (pesos.ESC ?? 0) + 3;
     }
 
+    // Fallback = modalidade de maior peso antes do anti-repetição
+    const fallback = (
+      Object.entries(pesos) as [ModalidadePoliciamento, number][]
+    ).reduce<[ModalidadePoliciamento, number]>(
+      (best, [m, w]) => (w > best[1] ? [m, w] : best),
+      ["PREV", 0]
+    )[0];
+
     // Anti-repetição: zera peso das 2 últimas modalidades reais
     for (const m of historico.slice(-2).filter(
       (m) => m !== "PREL" && m !== "DESL" && m !== "REF"
@@ -430,20 +440,25 @@ export function gerarCPP({ configuracao, municipios }: GerarCPPParams): BlocoHor
       delete (pesos as Record<string, number>)[m];
     }
 
-    const modalidade = selecionarModalidade(pesos, rng);
+    const modalidade = selecionarModalidade(pesos, rng, fallback);
+
+    // Nunca ultrapassa o início do próximo bloco manual
+    const proxManualInicio =
+      idxManual < manuais.length ? manuais[idxManual].inicioMin : fimREL;
+    const disponivelReal = Math.min(disponivel, proxManualInicio - tempoAtual);
 
     // Duração: PE e ESC = 30 min; RURAL = 60-90; demais = 30-60
     let dur: number;
     if (modalidade === "PE" || modalidade === "ESC") {
       dur = 30;
     } else if (modalidade === "RURAL") {
-      dur = disponivel >= 120 ? (rng() > 0.5 ? 90 : 60) : 60;
+      dur = disponivelReal >= 120 ? (rng() > 0.5 ? 90 : 60) : 60;
     } else {
-      dur = disponivel >= 90 ? (rng() > 0.6 ? 60 : 30) : 30;
+      dur = disponivelReal >= 90 ? (rng() > 0.6 ? 60 : 30) : 30;
     }
 
-    // Nunca ultrapassa fimREL
-    dur = Math.min(dur, disponivel);
+    // Nunca ultrapassa fimREL nem próximo bloco manual
+    dur = Math.min(dur, disponivelReal);
     if (dur < 30) break;
 
     const local = selecionarLocal(municipio, modalidade, cobertura, rng);
