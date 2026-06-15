@@ -307,9 +307,9 @@ interface GerarCPPParams {
   municipios: typeof MUNICIPIOS;
 }
 
-export function gerarCPP({ configuracao, municipios }: GerarCPPParams): BlocoHorario[] {
+export function gerarCPP({ configuracao, municipios }: GerarCPPParams): { blocos: BlocoHorario[]; avisos: string[] } {
   const municipio = municipios[configuracao.municipio];
-  if (!municipio) return [];
+  if (!municipio) return { blocos: [], avisos: [] };
 
   // RNG com seed: mesma config → mesmo roteiro; outra data/hora/município → outro
   const rng = mulberry32(
@@ -332,6 +332,7 @@ export function gerarCPP({ configuracao, municipios }: GerarCPPParams): BlocoHor
   const refAlvo = snapGrid30(turnoInicio + 192); // ~40% de 480 min
 
   const blocos: BlocoHorario[] = [];
+  const avisos: string[] = [];
   let ordem = 0;
   let tempoAtual = turnoInicio;
   const cobertura: CoberturaMapa = new Map();
@@ -362,6 +363,7 @@ export function gerarCPP({ configuracao, municipios }: GerarCPPParams): BlocoHor
     configuracao.modalidadeGeracao === "manual" && configuracao.blocosManuais.trim()
       ? parseBlocosManuais(configuracao.blocosManuais)
       : [];
+  const temRefManual = manuais.some((m) => m.modalidade === "REF");
   let idxManual = 0;
 
   // ── Miolo ──────────────────────────────────────────────────────────────────
@@ -373,13 +375,18 @@ export function gerarCPP({ configuracao, municipios }: GerarCPPParams): BlocoHor
     if (idxManual < manuais.length) {
       const bm = manuais[idxManual];
       // Avança se o bloco manual já passou
-      if (bm.inicioMin < tempoAtual) { idxManual++; continue; }
+      if (bm.inicioMin < tempoAtual) {
+        avisos.push(`Bloco "${bm.desc || bm.modalidade}" às ${String(Math.floor(bm.inicioMin / 60)).padStart(2, "0")}:${String(bm.inicioMin % 60).padStart(2, "0")} ignorado por sobreposição.`);
+        idxManual++;
+        continue;
+      }
       // Encaixa bloco manual
       if (bm.inicioMin === tempoAtual) {
         const dur = bm.fimMin
           ? Math.max(30, snapGrid30(bm.fimMin - bm.inicioMin))
           : 30;
-        const durSafe = Math.min(dur, disponivel);
+        const proxMin = manuais[idxManual + 1]?.inicioMin ?? fimREL;
+        const durSafe = Math.min(dur, disponivel, proxMin - tempoAtual);
         const local = selecionarLocal(municipio, bm.modalidade, cobertura, rng);
         const periodo = calcularPeriodo(tempoAtual);
         blocos.push(criarBloco(
@@ -395,8 +402,8 @@ export function gerarCPP({ configuracao, municipios }: GerarCPPParams): BlocoHor
       }
     }
 
-    // REF no ponto alvo (40% do turno) — apenas uma vez
-    if (!refInserida && tempoAtual >= refAlvo && disponivel >= 90) {
+    // REF no ponto alvo (40% do turno) — apenas uma vez, e só se não há REF manual
+    if (!refInserida && !temRefManual && tempoAtual >= refAlvo && disponivel >= 90) {
       blocos.push(criarBloco(
         ordem++, tempoAtual, 60, "REF",
         "Base do Pelotão PM", "Refeição", JUSTIFICATIVAS.REF
@@ -459,6 +466,21 @@ export function gerarCPP({ configuracao, municipios }: GerarCPPParams): BlocoHor
 
     // Nunca ultrapassa fimREL nem próximo bloco manual
     dur = Math.min(dur, disponivelReal);
+
+    // RURAL que não cabe (gap < 60 min): substitui por PE ou FISC de 30 min
+    if (modalidade === "RURAL" && dur < 60) {
+      const alt: ModalidadePoliciamento = pesos.PE ? "PE" : "FISC";
+      blocos.push(criarBloco(
+        ordem++, tempoAtual, 30, alt,
+        selecionarLocal(municipio, alt, cobertura, rng),
+        selecionarProblema(alt, periodo),
+        JUSTIFICATIVAS[alt] || "Atividade de policiamento."
+      ));
+      tempoAtual += 30;
+      historico.push(alt);
+      continue;
+    }
+
     if (dur < 30) break;
 
     const local = selecionarLocal(municipio, modalidade, cobertura, rng);
@@ -477,5 +499,5 @@ export function gerarCPP({ configuracao, municipios }: GerarCPPParams): BlocoHor
     "Base do Pelotão PM", "Elaboração do RSO", JUSTIFICATIVAS.REL
   ));
 
-  return blocos;
+  return { blocos, avisos };
 }

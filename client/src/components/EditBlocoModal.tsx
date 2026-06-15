@@ -29,7 +29,9 @@ export default function EditBlocoModal({ bloco, onSalvar, onFechar }: EditBlocoM
   const [horaInicio, setHoraInicio] = useState(bloco.horaInicio);
   const [horaFim, setHoraFim] = useState(bloco.horaFim);
 
-  const horaValida = horaFim > horaInicio;
+  const toMin = (s: string) => { const [h, m] = s.split(":").map(Number); return h * 60 + m; };
+  const durMin = (toMin(horaFim) - toMin(horaInicio) + 1440) % 1440;
+  const horaValida = durMin > 0;
 
   const handleSalvar = () => {
     if (!horaValida) return;

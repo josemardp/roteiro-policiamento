@@ -42,7 +42,8 @@ function AppContent() {
   const [mostraDialogVoltar, setMostraDialogVoltar] = useState(false);
 
   const handleGerarCPP = (config: ConfigType) => {
-    const blocos = gerarCPP({ configuracao: config, municipios: MUNICIPIOS });
+    const { blocos, avisos } = gerarCPP({ configuracao: config, municipios: MUNICIPIOS });
+    avisos.forEach((a) => toast.warning(a));
 
     const novoRoteiro: RoteiroDia = {
       id: `roteiro-${Date.now()}`,

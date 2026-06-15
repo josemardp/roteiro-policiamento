@@ -30,10 +30,7 @@ export default function CPPTurno({
   const concluidos = roteiroDia.blocos.filter((b) => b.concluido).length;
   const percentualConcluido = total > 0 ? Math.round((concluidos / total) * 100) : 0;
 
-  // Sempre exibe em ordem cronológica
-  const blocosOrdenados = [...roteiroDia.blocos].sort((a, b) =>
-    a.horaInicio.localeCompare(b.horaInicio)
-  );
+  const blocosOrdenados = [...roteiroDia.blocos].sort((a, b) => a.ordem - b.ordem);
 
   const dataTurno = parseDataLocal(roteiroDia.configuracao.data)
     .toLocaleDateString("pt-BR");
@@ -56,9 +53,7 @@ export default function CPPTurno({
 
   const handleAdicionarBloco = useCallback(() => {
     // Calcula horário a partir do último bloco
-    const ultimo = [...roteiroDia.blocos].sort((a, b) =>
-      a.horaFim.localeCompare(b.horaFim)
-    ).at(-1);
+    const ultimo = [...roteiroDia.blocos].sort((a, b) => a.ordem - b.ordem).at(-1);
 
     const horaInicio = ultimo?.horaFim ?? roteiroDia.configuracao.horaInicio;
     const [h, m] = horaInicio.split(":").map(Number);

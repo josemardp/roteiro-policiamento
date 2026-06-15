@@ -23,8 +23,8 @@ export default function ExportarRelatorioModal({
 
   const gerarRelatorio = (): string => {
     const blocos = somenteCompletos
-      ? roteiroDia.blocos.filter((b) => b.concluido)
-      : [...roteiroDia.blocos].sort((a, b) => a.horaInicio.localeCompare(b.horaInicio));
+      ? roteiroDia.blocos.filter((b) => b.concluido).sort((a, b) => a.ordem - b.ordem)
+      : [...roteiroDia.blocos].sort((a, b) => a.ordem - b.ordem);
 
     const linhas: string[] = [];
 
