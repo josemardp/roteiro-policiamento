@@ -3,6 +3,7 @@
  * Design: Operacional Moderno — Checkbox grande, badges coloridas, edição
  */
 
+import { memo } from "react";
 import type { BlocoHorario } from "@/lib/types";
 import { MODALIDADES } from "@/lib/constants";
 
@@ -12,7 +13,7 @@ interface BlocoCardProps {
   onEditar: () => void;
 }
 
-export default function BlocoCard({
+function BlocoCard({
   bloco,
   onMarcarConcluido,
   onEditar,
@@ -98,3 +99,5 @@ export default function BlocoCard({
     </div>
   );
 }
+
+export default memo(BlocoCard);

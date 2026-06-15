@@ -78,6 +78,8 @@ export type ModalidadeInfo = {
   duracao: [number, number]; // [min, max] em minutos
   cor: string; // CSS class
   badge: string; // badge-* class
+  acoesPadrao: string; // ações de polícia padrão
+  descricaoRSO: string; // texto para o relatório RSO
 };
 
 export interface AppState {

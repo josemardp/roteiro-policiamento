@@ -232,7 +232,7 @@
 
   /* Large checkbox for tactical use */
   .checkbox-large {
-    @apply w-6 h-6 rounded border-2 border-gray-300 cursor-pointer transition-all;
+    @apply w-11 h-11 rounded border-2 border-gray-300 cursor-pointer transition-all flex-shrink-0;
   }
 
   .checkbox-large:checked {

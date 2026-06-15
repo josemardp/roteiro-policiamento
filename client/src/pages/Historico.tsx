@@ -4,7 +4,9 @@
  */
 
 import { useState } from "react";
+import { toast } from "sonner";
 import type { RoteiroDia } from "@/lib/types";
+import { parseDataLocal } from "@/lib/gerarCPP";
 
 interface HistoricoProps {
   historico: RoteiroDia[];
@@ -38,13 +40,12 @@ export default function Historico({
         const dados = JSON.parse(conteudo);
         if (Array.isArray(dados)) {
           onImportarBackup(dados);
-          alert("Backup importado com sucesso!");
+          toast.success("Backup importado com sucesso!");
         } else {
-          alert("Formato de arquivo inválido");
+          toast.error("Formato de arquivo inválido");
         }
-      } catch (error) {
-        alert("Erro ao importar arquivo");
-        console.error(error);
+      } catch {
+        toast.error("Erro ao importar arquivo");
       }
     };
     reader.readAsText(file);
@@ -61,7 +62,7 @@ export default function Historico({
             </h1>
             <button
               onClick={onVoltar}
-              className="text-white hover:bg-white/20 px-3 py-2 rounded-lg transition-colors"
+              className="text-white hover:bg-white/20 px-3 py-2 rounded-lg transition-colors min-h-[44px]"
             >
               ← Voltar
             </button>
@@ -79,7 +80,7 @@ export default function Historico({
           >
             💾 Exportar Backup JSON
           </button>
-          <label className="w-full btn-tactical-secondary text-base font-bold py-3 block text-center cursor-pointer">
+          <label className="w-full btn-tactical-secondary text-base font-bold py-3 block text-center cursor-pointer min-h-[44px] flex items-center justify-center">
             📥 Importar Backup JSON
             <input
               type="file"
@@ -100,14 +101,15 @@ export default function Historico({
         ) : (
           <div className="space-y-3">
             {historico.map((roteiro) => {
-              const percentual = Math.round(
-                (roteiro.blocos.filter((b) => b.concluido).length /
-                  roteiro.blocos.length) *
-                  100
-              );
-              const data = new Date(roteiro.configuracao.data).toLocaleDateString(
-                "pt-BR"
-              );
+              const total = roteiro.blocos.length;
+              const percentual = total > 0
+                ? Math.round(
+                    (roteiro.blocos.filter((b) => b.concluido).length / total) * 100
+                  )
+                : 0;
+              // parseDataLocal evita bug de fuso (UTC vs local)
+              const data = parseDataLocal(roteiro.configuracao.data)
+                .toLocaleDateString("pt-BR");
 
               return (
                 <div key={roteiro.id} className="card-block">
@@ -130,7 +132,7 @@ export default function Historico({
                       </p>
                       <p className="text-xs text-gray-600">
                         {roteiro.blocos.filter((b) => b.concluido).length} de{" "}
-                        {roteiro.blocos.length}
+                        {total}
                       </p>
                     </div>
                   </div>
@@ -157,7 +159,7 @@ export default function Historico({
                     </button>
                   </div>
 
-                  {/* Confirmação de Exclusão */}
+                  {/* Confirmação de Exclusão inline */}
                   {mostraConfirmacao === roteiro.id && (
                     <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
                       <p className="text-xs text-red-800 font-semibold mb-2">
@@ -168,14 +170,15 @@ export default function Historico({
                           onClick={() => {
                             onExcluir(roteiro.id);
                             setMostraConfirmacao(null);
+                            toast.success("Roteiro excluído.");
                           }}
-                          className="flex-1 bg-red-600 text-white text-xs font-bold py-2 rounded-lg hover:bg-red-700"
+                          className="flex-1 bg-red-600 text-white text-xs font-bold py-2 rounded-lg hover:bg-red-700 min-h-[44px]"
                         >
                           Sim, excluir
                         </button>
                         <button
                           onClick={() => setMostraConfirmacao(null)}
-                          className="flex-1 bg-gray-300 text-gray-900 text-xs font-bold py-2 rounded-lg hover:bg-gray-400"
+                          className="flex-1 bg-gray-300 text-gray-900 text-xs font-bold py-2 rounded-lg hover:bg-gray-400 min-h-[44px]"
                         >
                           Cancelar
                         </button>

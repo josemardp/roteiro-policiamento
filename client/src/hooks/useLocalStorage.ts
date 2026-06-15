@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 
 /**
  * Hook para persistência em localStorage com suporte a autosave
@@ -35,23 +35,3 @@ export function useLocalStorage<T>(
   return [storedValue, setValue];
 }
 
-/**
- * Hook para autosave com debounce
- */
-export function useAutoSave<T>(
-  value: T,
-  key: string,
-  delayMs: number = 500
-): void {
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      try {
-        window.localStorage.setItem(key, JSON.stringify(value));
-      } catch (error) {
-        console.error(`Erro ao autosalvar localStorage[${key}]:`, error);
-      }
-    }, delayMs);
-
-    return () => clearTimeout(timer);
-  }, [value, key, delayMs]);
-}

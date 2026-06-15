@@ -3,9 +3,11 @@
  * Design: Operacional Moderno — Cartões com checkbox, edição modal, progresso
  */
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
+import { toast } from "sonner";
 import type { RoteiroDia, BlocoHorario } from "@/lib/types";
 import { MODALIDADES, NOTA_SUPERVISAO } from "@/lib/constants";
+import { parseDataLocal } from "@/lib/gerarCPP";
 import BlocoCard from "@/components/BlocoCard";
 import EditBlocoModal from "@/components/EditBlocoModal";
 import ExportarRelatorioModal from "@/components/ExportarRelatorioModal";
@@ -24,37 +26,49 @@ export default function CPPTurno({
   const [blocoEditando, setBlocoEditando] = useState<BlocoHorario | null>(null);
   const [mostraExportar, setMostraExportar] = useState(false);
 
-  const percentualConcluido = Math.round(
-    (roteiroDia.blocos.filter((b) => b.concluido).length / roteiroDia.blocos.length) * 100
+  const total = roteiroDia.blocos.length;
+  const concluidos = roteiroDia.blocos.filter((b) => b.concluido).length;
+  const percentualConcluido = total > 0 ? Math.round((concluidos / total) * 100) : 0;
+
+  // Sempre exibe em ordem cronológica
+  const blocosOrdenados = [...roteiroDia.blocos].sort((a, b) =>
+    a.horaInicio.localeCompare(b.horaInicio)
   );
 
-  const handleMarcarConcluido = (blocoId: string) => {
+  const dataTurno = parseDataLocal(roteiroDia.configuracao.data)
+    .toLocaleDateString("pt-BR");
+
+  const handleMarcarConcluido = useCallback((blocoId: string) => {
     const novosBlocos = roteiroDia.blocos.map((b) =>
       b.id === blocoId ? { ...b, concluido: !b.concluido } : b
     );
-    onAtualizar({
-      ...roteiroDia,
-      blocos: novosBlocos,
-      percentualConcluido,
-    });
-  };
+    onAtualizar({ ...roteiroDia, blocos: novosBlocos });
+  }, [roteiroDia, onAtualizar]);
 
-  const handleEditarBloco = (blocoId: string, novoBloco: BlocoHorario) => {
+  const handleEditarBloco = useCallback((blocoId: string, novoBloco: BlocoHorario) => {
     const novosBlocos = roteiroDia.blocos.map((b) =>
       b.id === blocoId ? novoBloco : b
     );
-    onAtualizar({
-      ...roteiroDia,
-      blocos: novosBlocos,
-    });
+    onAtualizar({ ...roteiroDia, blocos: novosBlocos });
     setBlocoEditando(null);
-  };
+    toast.success("Bloco atualizado!");
+  }, [roteiroDia, onAtualizar]);
 
-  const handleAdicionarBloco = () => {
+  const handleAdicionarBloco = useCallback(() => {
+    // Calcula horário a partir do último bloco
+    const ultimo = [...roteiroDia.blocos].sort((a, b) =>
+      a.horaFim.localeCompare(b.horaFim)
+    ).at(-1);
+
+    const horaInicio = ultimo?.horaFim ?? roteiroDia.configuracao.horaInicio;
+    const [h, m] = horaInicio.split(":").map(Number);
+    const fimMin = ((h * 60 + m + 30) % (24 * 60));
+    const horaFim = `${String(Math.floor(fimMin / 60)).padStart(2, "0")}:${String(fimMin % 60).padStart(2, "0")}`;
+
     const novoBloco: BlocoHorario = {
       id: `bloco-${Date.now()}`,
-      horaInicio: "00:00",
-      horaFim: "01:00",
+      horaInicio,
+      horaFim,
       modalidade: "PREV",
       local: "Local a definir",
       problemaSolucionar: "A definir",
@@ -65,16 +79,10 @@ export default function CPPTurno({
       concluido: false,
       ordem: roteiroDia.blocos.length,
     };
-    onAtualizar({
-      ...roteiroDia,
-      blocos: [...roteiroDia.blocos, novoBloco],
-    });
-  };
 
-  const handleRecalcular = () => {
-    // TODO: Regenerar CPP preservando blocos concluídos
-    alert("Recalcular CPP — em desenvolvimento");
-  };
+    onAtualizar({ ...roteiroDia, blocos: [...roteiroDia.blocos, novoBloco] });
+    toast.success("Bloco adicionado — edite para detalhar.");
+  }, [roteiroDia, onAtualizar]);
 
   return (
     <div className="min-h-screen bg-gray-50 pb-32">
@@ -87,7 +95,7 @@ export default function CPPTurno({
             </h1>
             <button
               onClick={onVoltar}
-              className="text-white hover:bg-white/20 px-3 py-2 rounded-lg transition-colors"
+              className="text-white hover:bg-white/20 px-3 py-2 rounded-lg transition-colors min-h-[44px]"
             >
               ← Voltar
             </button>
@@ -105,20 +113,17 @@ export default function CPPTurno({
                 {roteiroDia.configuracao.horaInicio} — {roteiroDia.configuracao.horaTermino}
               </span>
               <br />
-              {new Date(roteiroDia.configuracao.data).toLocaleDateString("pt-BR")}
+              {dataTurno}
             </div>
           </div>
 
           {/* Barra de Progresso */}
           <div className="space-y-1">
             <div className="progress-bar">
-              <div
-                className="progress-fill"
-                style={{ width: `${percentualConcluido}%` }}
-              />
+              <div className="progress-fill" style={{ width: `${percentualConcluido}%` }} />
             </div>
             <p className="text-xs text-blue-100 font-semibold">
-              {roteiroDia.blocos.filter((b) => b.concluido).length} de {roteiroDia.blocos.length} blocos concluídos ({percentualConcluido}%)
+              {concluidos} de {total} blocos concluídos ({percentualConcluido}%)
             </p>
           </div>
         </div>
@@ -127,8 +132,7 @@ export default function CPPTurno({
       {/* Conteúdo */}
       <div className="container py-6 max-w-2xl">
         <div className="space-y-4">
-          {/* Blocos Horários */}
-          {roteiroDia.blocos.map((bloco) => (
+          {blocosOrdenados.map((bloco) => (
             <BlocoCard
               key={bloco.id}
               bloco={bloco}
@@ -151,12 +155,6 @@ export default function CPPTurno({
               className="w-full btn-tactical-secondary text-base font-bold py-3"
             >
               + Adicionar Bloco
-            </button>
-            <button
-              onClick={handleRecalcular}
-              className="w-full btn-tactical-secondary text-base font-bold py-3"
-            >
-              🔄 Recalcular CPP
             </button>
             <button
               onClick={() => setMostraExportar(true)}

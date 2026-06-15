@@ -12,62 +12,80 @@ export const MODALIDADES: Record<string, ModalidadeInfo> = {
     duracao: [30, 30],
     cor: "bg-slate-600",
     badge: "badge-prel",
+    acoesPadrao: "Assunção do serviço",
+    descricaoRSO: "PRELEÇÃO E ASSUNÇÃO DO SERVIÇO PELA BASE DO PELOTÃO PM",
   },
   DESL: {
     codigo: "DESL",
     nome: "Deslocamento ao setor",
-    duracao: [15, 20],
+    duracao: [30, 30],
     cor: "bg-gray-500",
     badge: "badge-prel",
+    acoesPadrao: "Deslocamento",
+    descricaoRSO: "DESLOCAMENTO AO SETOR",
   },
   POST: {
     codigo: "POST",
     nome: "Patrulhamento ostensivo — comércio/centro",
-    duracao: [60, 90],
+    duracao: [30, 60],
     cor: "bg-blue-600",
     badge: "badge-post",
+    acoesPadrao: "Patrulhamento, Abordagem",
+    descricaoRSO: "PATRULHAMENTO OSTENSIVO",
   },
   PREV: {
     codigo: "PREV",
     nome: "Patrulhamento preventivo — bairros",
-    duracao: [60, 90],
+    duracao: [30, 60],
     cor: "bg-blue-800",
     badge: "badge-prev",
+    acoesPadrao: "Patrulhamento, Abordagem",
+    descricaoRSO: "PATRULHAMENTO PREVENTIVO",
   },
   PE: {
     codigo: "PE",
     nome: "Ponto de Estacionamento / Visibilidade",
-    duracao: [30, 45],
+    duracao: [30, 30],
     cor: "bg-teal-600",
     badge: "badge-pe",
+    acoesPadrao: "Permanência, Abordagem",
+    descricaoRSO: "PONTO DE ESTACIONAMENTO/VISIBILIDADE",
   },
   FISC: {
     codigo: "FISC",
     nome: "Ponto de Estacionamento na saída — fiscalização",
-    duracao: [60, 90],
+    duracao: [30, 60],
     cor: "bg-red-700",
     badge: "badge-fisc",
+    acoesPadrao: "Abordagem, Fiscalização de trânsito",
+    descricaoRSO: "PONTO DE ESTACIONAMENTO E FISCALIZAÇÃO DE VEÍCULOS",
   },
   ESC: {
     codigo: "ESC",
     nome: "Ronda Escolar",
-    duracao: [30, 45],
+    duracao: [30, 30],
     cor: "bg-purple-600",
     badge: "badge-esc",
+    acoesPadrao: "Patrulhamento, Orientação",
+    descricaoRSO: "RONDA ESCOLAR",
   },
   RURAL: {
     codigo: "RURAL",
     nome: "Policiamento Rural — propriedades",
-    duracao: [90, 120],
+    duracao: [60, 90],
     cor: "bg-amber-700",
     badge: "badge-rural",
+    acoesPadrao: "Patrulhamento, Abordagem, ronda em propriedades",
+    descricaoRSO: "POLICIAMENTO RURAL",
   },
   SAT: {
     codigo: "SAT",
     nome: "Saturação Preventiva (evento/sazonal)",
-    duracao: [60, 90],
+    duracao: [30, 60],
     cor: "bg-orange-600",
     badge: "badge-sat",
+    acoesPadrao: "Saturação, Abordagem",
+    descricaoRSO: "SATURAÇÃO PREVENTIVA",
   },
   REF: {
     codigo: "REF",
@@ -75,6 +93,8 @@ export const MODALIDADES: Record<string, ModalidadeInfo> = {
     duracao: [60, 60],
     cor: "bg-amber-500",
     badge: "badge-ref",
+    acoesPadrao: "Refeição",
+    descricaoRSO: "ALIMENTAÇÃO PELA BASE DO PELOTÃO PM",
   },
   REL: {
     codigo: "REL",
@@ -82,6 +102,8 @@ export const MODALIDADES: Record<string, ModalidadeInfo> = {
     duracao: [30, 30],
     cor: "bg-gray-600",
     badge: "badge-rel",
+    acoesPadrao: "Elaboração do RSO",
+    descricaoRSO: "BASE DO PELOTÃO PARA ELABORAÇÃO DO RSO",
   },
 };
 
@@ -187,32 +209,6 @@ export const MUNICIPIOS: Municipios = {
   },
 };
 
-export const PROBLEMAS_SOLUCIONAR: Record<string, string> = {
-  "Comércio/Centro (diurno)":
-    "Roubo/furto a comércio; furto/roubo de veículo",
-  "Bairro residencial (noite/madrugada)": "Furto/roubo a residência",
-  "Saída/rodovia (FISC)":
-    "Furto/roubo de veículo; evasão de autores; infrações de trânsito",
-  "Ponto de Estacionamento (PE)":
-    "Sensação de segurança; dissuasão de delitos no entorno",
-  "Ronda Escolar (ESC)":
-    "Proteção do entorno escolar; uso/tráfico de drogas; lesão",
-  "Rural (RURAL)":
-    "Furto em propriedade rural (defensivos, semoventes, fios, implementos)",
-  "Saturação (SAT)":
-    "Prevenção em evento/data de relevância (ex.: feira, evento de grande público)",
-};
-
-export const ACOES_POLICIA: Record<string, string> = {
-  "Comércio/Centro": "Patrulhamento, Abordagem",
-  "Bairro residencial": "Patrulhamento, Abordagem",
-  "Saída/rodovia": "Abordagem, Fiscalização de trânsito",
-  "Ponto de Estacionamento": "Permanência, Abordagem",
-  "Ronda Escolar": "Patrulhamento, Orientação",
-  Rural: "Patrulhamento, Abordagem, ronda em propriedades",
-  Saturação: "Saturação, Abordagem",
-};
-
 export const JUSTIFICATIVAS: Record<string, string> = {
   PREL: "Assunção do serviço, leitura de novidades e orientação da guarnição (US).",
   POST: "Presença ostensiva no comércio/centro no horário de maior fluxo — dissuasão de roubo/furto.",
@@ -220,8 +216,7 @@ export const JUSTIFICATIVAS: Record<string, string> = {
   PE: "Ponto de Estacionamento desembarcado, ver e ser visto, atento ao rádio e high light ligado — presença ostensiva e pronta-resposta (Anexo D, 1.1.3 e 4.3).",
   FISC: "PE na saída/rodovia — abordagem e fiscalização de veículos, coibir evasão na rota de fuga; identificar vias de desvio (Anexo D, 4.14.5).",
   ESC: "Ronda Escolar no horário de entrada/saída de alunos — proteção do entorno escolar (Programa de Policiamento Escolar).",
-  RURAL:
-    "Policiamento ostensivo geral rural — ronda em propriedades (mínimo 4); coibir furto em zona rural.",
+  RURAL: "Policiamento ostensivo geral rural — ronda em propriedades (mínimo 4); coibir furto em zona rural.",
   SAT: "Saturação preventiva em razão de evento/sazonalidade/data de relevância (Glossário NORSOP).",
   REF: "Refeição da guarnição (base do Pelotão PM).",
   REL: "Retorno à base, confecção do RSO e encerramento da atividade (Anexo D, 1.1.12).",
