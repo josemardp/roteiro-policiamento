@@ -26,11 +26,16 @@ function BlocoCard({ bloco, onMarcarConcluido, onEditar }: BlocoCardProps) {
       {/* Cabeçalho: Horário + Badge + Checkbox */}
       <div className="flex items-start justify-between gap-3 mb-3">
         <div className="flex-1">
-          <div className="flex items-center gap-2 mb-1">
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
             <span className="font-mono text-sm font-bold text-[#0a2540]">
               {bloco.horaInicio} — {bloco.horaFim}
             </span>
             <span className={`${badgeClass} text-xs`}>{bloco.modalidade}</span>
+            {bloco.municipio && (
+              <span className="bg-blue-50 text-[#0a2540] border border-blue-100 px-2 py-0.5 rounded text-[10px] font-bold">
+                {bloco.municipio.toUpperCase()}
+              </span>
+            )}
           </div>
           <p className="block-title text-sm font-semibold text-gray-900">
             {modalidade?.nome || "Atividade"}

@@ -3,7 +3,34 @@
  * Baseado na NORSOP e doutrina operacional PMESP
  */
 
-import type { ModalidadeInfo, Municipios } from "./types";
+import type { ModalidadeInfo, Municipios, TipoAtividade } from "./types";
+
+export const DURACAO_TURNO_MIN: Record<TipoAtividade, number> = {
+  "Radiopatrulha (RP)": 720,
+  "CGP": 720,
+  "CFP": 720,
+  "Supervisor Regional": 480,
+  "Atividade Delegada": 480,
+  "Comando Delegada": 480,
+  "CGP Delegada": 480,
+  "DEJEM": 480,
+  "Comando DEJEM": 480,
+  "CGP DEJEM": 480,
+};
+
+export type CategoriaAtividade = "PATRULHA" | "CGP" | "COMANDO" | "SUPERVISAO";
+export const CATEGORIA_ATIVIDADE: Record<TipoAtividade, CategoriaAtividade> = {
+  "Radiopatrulha (RP)": "PATRULHA",
+  "Atividade Delegada": "PATRULHA",
+  "DEJEM": "PATRULHA",
+  "CGP": "CGP",
+  "CGP Delegada": "CGP",
+  "CGP DEJEM": "CGP",
+  "CFP": "COMANDO",
+  "Comando Delegada": "COMANDO",
+  "Comando DEJEM": "COMANDO",
+  "Supervisor Regional": "SUPERVISAO",
+};
 
 export const MODALIDADES: Record<string, ModalidadeInfo> = {
   PREL: {

@@ -12,6 +12,7 @@ import type {
   TipoPoliciamento,
 } from "@/lib/types";
 import { calcularHoraTermino, parseDataLocal } from "@/lib/gerarCPP";
+import { DURACAO_TURNO_MIN } from "@/lib/constants";
 
 const schema = z.object({
   data: z.string().min(1, "Data é obrigatória"),
@@ -27,7 +28,7 @@ export default function ConfiguracaoServico({
 }: ConfiguracaoServicioProps) {
   const [tipoAtividade, setTipoAtividade] =
     useState<TipoAtividade>("Atividade Delegada");
-  const [municipio, setMunicipio] = useState<Municipio>("Valparaíso");
+  const [municipiosSel, setMunicipiosSel] = useState<Municipio[]>(["Valparaíso"]);
   const [tipoPoliciamento, setTipoPoliciamento] =
     useState<TipoPoliciamento>("Urbano");
   const [data, setData] = useState(new Date().toISOString().split("T")[0]);
@@ -40,22 +41,31 @@ export default function ConfiguracaoServico({
   const [viatura, setViatura] = useState("");
   const [prefixoUS, setPrefixoUS] = useState("");
 
-  const horaTermino = calcularHoraTermino(horaInicio);
+  const horaTermino = calcularHoraTermino(horaInicio, tipoAtividade);
 
   // parseDataLocal evita bug de fuso: new Date("YYYY-MM-DD") interpreta como UTC
   const diaSemana = data
     ? parseDataLocal(data).toLocaleDateString("pt-BR", { weekday: "long" })
     : "";
 
+  const handleToggleMunicipio = (mun: Municipio) => {
+    if (municipiosSel.includes(mun)) {
+      setMunicipiosSel(municipiosSel.filter(m => m !== mun));
+    } else {
+      setMunicipiosSel([...municipiosSel, mun]);
+    }
+  };
+
   const validacao = schema.safeParse({ data, horaInicio });
-  const camposValidos = validacao.success;
+  const camposValidos = validacao.success && municipiosSel.length > 0;
   const erros = !validacao.success ? validacao.error.flatten().fieldErrors : {};
 
   const handleGerarCPP = () => {
     if (!camposValidos) return;
     const config: ConfiguracaoServico = {
       tipoAtividade,
-      municipio,
+      municipios: municipiosSel,
+      municipio: municipiosSel[0],
       tipoPoliciamento,
       data,
       horaInicio,
@@ -94,26 +104,60 @@ export default function ConfiguracaoServico({
               onChange={e => setTipoAtividade(e.target.value as TipoAtividade)}
               className="w-full px-4 py-3 rounded-lg border border-gray-300 text-base font-medium focus:outline-none focus:ring-2 focus:ring-[#0a2540]"
             >
-              <option>Atividade Delegada</option>
-              <option>DEJEM</option>
+              <optgroup label="Ordinário 12h">
+                <option value="Radiopatrulha (RP)">Radiopatrulha (RP)</option>
+                <option value="CGP">CGP (Comando de Grupo de Patrulha)</option>
+                <option value="CFP">CFP (Comando de Força de Patrulha)</option>
+              </optgroup>
+              <optgroup label="Supervisão 8h">
+                <option value="Supervisor Regional">Supervisor Regional</option>
+              </optgroup>
+              <optgroup label="Delegada 8h">
+                <option value="Atividade Delegada">Atividade Delegada</option>
+                <option value="Comando Delegada">Comando Delegada</option>
+                <option value="CGP Delegada">CGP Delegada</option>
+              </optgroup>
+              <optgroup label="DEJEM 8h">
+                <option value="DEJEM">DEJEM</option>
+                <option value="Comando DEJEM">Comando DEJEM</option>
+                <option value="CGP DEJEM">CGP DEJEM</option>
+              </optgroup>
             </select>
           </div>
 
-          {/* Município */}
+          {/* Municípios (Multi-seleção) */}
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Município
+              Municípios de Atuação (Selecione na ordem de patrulhamento)
             </label>
-            <select
-              value={municipio}
-              onChange={e => setMunicipio(e.target.value as Municipio)}
-              className="w-full px-4 py-3 rounded-lg border border-gray-300 text-base font-medium focus:outline-none focus:ring-2 focus:ring-[#0a2540]"
-            >
-              <option>Valparaíso</option>
-              <option>Guararapes</option>
-              <option>Rubiácea</option>
-              <option>Bento de Abreu</option>
-            </select>
+            <div className="grid grid-cols-2 gap-3">
+              {(["Valparaíso", "Guararapes", "Rubiácea", "Bento de Abreu"] as Municipio[]).map(mun => {
+                const orderIdx = municipiosSel.indexOf(mun);
+                const isSelected = orderIdx !== -1;
+                return (
+                  <button
+                    key={mun}
+                    type="button"
+                    onClick={() => handleToggleMunicipio(mun)}
+                    className={`relative p-4 rounded-xl border-2 text-left font-semibold transition-all duration-200 ${
+                      isSelected
+                        ? "border-[#0a2540] bg-blue-50/50 text-[#0a2540] shadow-sm"
+                        : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"
+                    }`}
+                  >
+                    <span>{mun}</span>
+                    {isSelected && (
+                      <span className="absolute top-2 right-2 w-6 h-6 flex items-center justify-center rounded-full bg-[#0a2540] text-white text-xs font-bold">
+                        {orderIdx + 1}º
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+            {municipiosSel.length === 0 && (
+              <p className="text-xs text-red-600 mt-1">Selecione pelo menos um município.</p>
+            )}
           </div>
 
           {/* Tipo de Policiamento */}
@@ -173,7 +217,7 @@ export default function ConfiguracaoServico({
           {/* Hora de Término (calculada) */}
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Hora de Término (Duração: 8h)
+              Hora de Término (Turno: {DURACAO_TURNO_MIN[tipoAtividade] / 60}h)
             </label>
             <div className="px-4 py-3 rounded-lg border border-gray-300 bg-gray-100 text-base font-medium text-gray-700">
               {horaTermino}

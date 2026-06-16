@@ -7,7 +7,21 @@
 // CPP = Cartão de Prioridade de Patrulhamento.
 // No contexto prisional/operacional local (como o CPP Valparaíso),
 // CPP = Centro de Progressão Penitenciária (unidade prisional).
-export type TipoAtividade = "Atividade Delegada" | "DEJEM";
+export type TipoAtividade =
+  // Ordinário — turno de 12h
+  | "Radiopatrulha (RP)"
+  | "CGP"
+  | "CFP"
+  // Supervisão — turno de 8h
+  | "Supervisor Regional"
+  // Jornada extraordinária DELEGADA — turno de 8h
+  | "Atividade Delegada"
+  | "Comando Delegada"
+  | "CGP Delegada"
+  // Jornada extraordinária DEJEM — turno de 8h
+  | "DEJEM"
+  | "Comando DEJEM"
+  | "CGP DEJEM";
 export type Municipio =
   | "Valparaíso"
   | "Guararapes"
@@ -40,11 +54,13 @@ export interface BlocoHorario {
   observacao: string;
   concluido: boolean;
   ordem: number; // Para reordenação
+  municipio?: Municipio;
 }
 
 export interface ConfiguracaoServico {
   tipoAtividade: TipoAtividade;
-  municipio: Municipio;
+  municipio?: Municipio; // Mantido como opcional para retrocompatibilidade direta
+  municipios: Municipio[];
   tipoPoliciamento: TipoPoliciamento;
   data: string; // YYYY-MM-DD
   horaInicio: string; // HH:MM
@@ -74,7 +90,14 @@ export type MunicipioData = {
   pontosPE: string[];
   pontosFisc: string[];
   rural: string[];
-  eventos: Array<{ nome: string; mes: number }>;
+  eventos: Array<{
+    nome: string;
+    inicio?: string; // MM-DD ou YYYY-MM-DD
+    fim?: string;    // MM-DD ou YYYY-MM-DD
+    mes?: number;    // retrocompatibilidade (1-12)
+    pesoSAT?: number;
+    diasSemana?: Array<"dom" | "seg" | "ter" | "qua" | "qui" | "sex" | "sab">;
+  }>;
   obs: string;
 };
 

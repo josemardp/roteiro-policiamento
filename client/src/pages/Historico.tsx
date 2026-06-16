@@ -124,7 +124,7 @@ export default function Historico({
                         {roteiro.configuracao.tipoAtividade}
                       </p>
                       <p className="text-xs text-gray-600">
-                        {roteiro.configuracao.municipio} • {data}
+                        {roteiro.configuracao.municipios?.join(" → ") || roteiro.configuracao.municipio} • {data}
                       </p>
                       <p className="text-xs text-gray-600 mt-1">
                         {roteiro.configuracao.horaInicio} —{" "}

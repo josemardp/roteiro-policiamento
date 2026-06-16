@@ -45,15 +45,18 @@ export const GUARARAPES: MunicipioData = {
     "Estrada Vicinal GRP-010 — Acesso a clusters agrícolas (cana/pasto)",
   ],
   eventos: [
-    { nome: "FAPIG (Feira Agropecuária)", mes: 11 },
-    { nome: "Safra de cana-de-açúcar", mes: 4 },
-    { nome: "Safra de cana-de-açúcar", mes: 5 },
-    { nome: "Safra de cana-de-açúcar", mes: 6 },
-    { nome: "Safra de cana-de-açúcar", mes: 7 },
-    { nome: "Safra de cana-de-açúcar", mes: 8 },
-    { nome: "Safra de cana-de-açúcar", mes: 9 },
-    { nome: "Safra de cana-de-açúcar", mes: 10 },
-    { nome: "Safra de cana-de-açúcar", mes: 11 },
+    {
+      nome: "FAPIG (Feira Agropecuária de Guararapes)",
+      inicio: "11-15",
+      fim: "11-23",
+      pesoSAT: 5,
+    },
+    {
+      nome: "Safra de Cana (Pico de Moagem - Entorno Industrial)",
+      inicio: "07-01",
+      fim: "10-15",
+      pesoSAT: 3,
+    },
   ],
   obs: "Cidade mais urbana e populosa (~31.043 hab. Censo 2022); possui o distrito de Ribeiro do Vale; sedia a Usina Unialco e frigorífico JBS. Pontos de trânsito e bancos integrados.",
 };

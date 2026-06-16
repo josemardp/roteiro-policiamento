@@ -23,6 +23,13 @@ export const BENTO_DE_ABREU: MunicipioData = {
     "Vicinal Bento de Abreu a Lucélia — cluster de propriedades rurais",
     "Bacia do Rio Aguapeí",
   ],
-  eventos: [],
+  eventos: [
+    {
+      nome: "Safra de Cana (Pico de Moagem)",
+      inicio: "07-01",
+      fim: "10-15",
+      pesoSAT: 4,
+    },
+  ],
   obs: "O menor município da Companhia (~2.606 hab. Censo 2022); roteiro simplificado focado em rural e visibilidade no trevo de acesso. Bairros devem ser apenas Centro e Zona Rural. Sem agências bancárias.",
 };

@@ -62,14 +62,12 @@ export const VALPARAISO: MunicipioData = {
     "Vicinal VPS 012 — Acesso ao CPP Valparaíso",
   ],
   eventos: [
-    { nome: "Safra de cana-de-açúcar", mes: 4 },
-    { nome: "Safra de cana-de-açúcar", mes: 5 },
-    { nome: "Safra de cana-de-açúcar", mes: 6 },
-    { nome: "Safra de cana-de-açúcar", mes: 7 },
-    { nome: "Safra de cana-de-açúcar", mes: 8 },
-    { nome: "Safra de cana-de-açúcar", mes: 9 },
-    { nome: "Safra de cana-de-açúcar", mes: 10 },
-    { nome: "Safra de cana-de-açúcar", mes: 11 },
+    {
+      nome: "Safra de Cana (Pico de Moagem - Entorno Industrial)",
+      inicio: "07-01",
+      fim: "10-15",
+      pesoSAT: 3,
+    },
   ],
   obs: "Sede do pelotão PM (~24.241 hab. Censo 2022); o motor não deve gerar DESL aqui; possui parque industrial e complexo penal (CPP Valparaíso) nos acessos.",
 };

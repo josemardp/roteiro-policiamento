@@ -28,6 +28,13 @@ export const RUBIACEA: MunicipioData = {
     "Vicinal Rubiácea a Bilac",
     "Vicinal Geraldo Stringhetta — cluster de propriedades rurais",
   ],
-  eventos: [],
+  eventos: [
+    {
+      nome: "Safra de Cana (Pico de Moagem)",
+      inicio: "07-01",
+      fim: "10-15",
+      pesoSAT: 4,
+    },
+  ],
   obs: "Município de perfil essencialmente rural (~2.700 hab. Censo 2022); priorizar policiamento rural e fiscalização em vicinais. Bairros devem ser apenas Centro e Zona Rural.",
 };

@@ -12,12 +12,17 @@ import type {
   ConfiguracaoServico,
   ModalidadePoliciamento,
   MunicipioData,
+  TipoAtividade,
+  Municipio,
 } from "./types";
 import {
   MODALIDADES,
   MUNICIPIOS_V33,
   JUSTIFICATIVAS,
   MODUS_OPERANDI_DEFAULT,
+  DURACAO_TURNO_MIN,
+  CATEGORIA_ATIVIDADE,
+  type CategoriaAtividade,
 } from "./constants";
 
 // ─── RNG reproduzível (mulberry32) ───────────────────────────────────────────
@@ -63,8 +68,108 @@ function snapGrid30(min: number): number {
   return Math.round(min / 30) * 30;
 }
 
-export function calcularHoraTermino(horaInicio: string): string {
-  return minParaHora(horaParaMin(horaInicio) + 480);
+function parseMMDD(mmdd: string, year: number): Date {
+  const [m, d] = mmdd.split("-").map(Number);
+  return new Date(year, m - 1, d);
+}
+
+function dentroDaJanela(mmdd: string, inicio: string, fim: string, dataLocal: Date): boolean {
+  const ano = dataLocal.getFullYear();
+  let dInicio: Date;
+  let dFim: Date;
+  
+  if (inicio.length === 10) {
+    const [y, m, d] = inicio.split("-").map(Number);
+    dInicio = new Date(y, m - 1, d);
+  } else {
+    dInicio = parseMMDD(inicio, ano);
+  }
+  
+  if (fim.length === 10) {
+    const [y, m, d] = fim.split("-").map(Number);
+    dFim = new Date(y, m - 1, d);
+  } else {
+    dFim = parseMMDD(fim, ano);
+  }
+  
+  if (dFim < dInicio && inicio.length !== 10 && fim.length !== 10) {
+    const dFimNoAnoSeguinte = parseMMDD(fim, ano + 1);
+    const dInicioNoAnoAnterior = parseMMDD(inicio, ano - 1);
+    return (dataLocal >= dInicio && dataLocal <= dFimNoAnoSeguinte) ||
+           (dataLocal >= dInicioNoAnoAnterior && dataLocal <= dFim);
+  }
+  
+  return dataLocal >= dInicio && dataLocal <= dFim;
+}
+
+function pesoSatNaData(eventos: any[] | undefined, dataStr: string): number {
+  if (!eventos || eventos.length === 0) return 0;
+  const d = parseDataLocal(dataStr);
+  const mes = d.getMonth() + 1;
+  const dia = d.getDate();
+  const mmdd = `${String(mes).padStart(2, "0")}-${String(dia).padStart(2, "0")}`;
+  
+  const diasSemanaMapa: Record<number, string> = {
+    0: "dom",
+    1: "seg",
+    2: "ter",
+    3: "qua",
+    4: "qui",
+    5: "sex",
+    6: "sab"
+  };
+  const diaSemana = diasSemanaMapa[d.getDay()];
+  
+  let pesoMax = 0;
+  for (const e of eventos) {
+    let ativo = false;
+    if (e.inicio && e.fim) {
+      ativo = dentroDaJanela(mmdd, e.inicio, e.fim, d);
+    } else if (e.mes) {
+      ativo = mes === e.mes;
+    }
+    
+    if (ativo && e.diasSemana && !e.diasSemana.includes(diaSemana)) {
+      ativo = false;
+    }
+    
+    if (ativo) {
+      pesoMax = Math.max(pesoMax, e.pesoSAT ?? 5);
+    }
+  }
+  return pesoMax;
+}
+
+function ajustarPesosPorCategoria(pesos: Pesos, categoria: CategoriaAtividade): Pesos {
+  const novosPesos: Pesos = { ...pesos };
+  switch (categoria) {
+    case "PATRULHA":
+      break;
+    case "CGP":
+      if (novosPesos.FISC !== undefined) novosPesos.FISC = Math.round(novosPesos.FISC * 1.5 + 1);
+      if (novosPesos.PE !== undefined) novosPesos.PE = Math.round(novosPesos.PE * 1.5 + 1);
+      if (novosPesos.ESC !== undefined) novosPesos.ESC = Math.max(0, Math.round(novosPesos.ESC * 0.3));
+      break;
+    case "COMANDO":
+      if (novosPesos.FISC !== undefined) novosPesos.FISC = Math.round(novosPesos.FISC * 2.0 + 1);
+      if (novosPesos.PE !== undefined) novosPesos.PE = Math.round(novosPesos.PE * 0.7);
+      if (novosPesos.ESC !== undefined) novosPesos.ESC = Math.max(0, Math.round(novosPesos.ESC * 0.3));
+      if (novosPesos.POST !== undefined) novosPesos.POST = Math.round(novosPesos.POST * 0.5);
+      break;
+    case "SUPERVISAO":
+      if (novosPesos.FISC !== undefined) novosPesos.FISC = Math.round(novosPesos.FISC * 2.5 + 2);
+      if (novosPesos.PE !== undefined) novosPesos.PE = Math.round(novosPesos.PE * 1.8 + 1);
+      if (novosPesos.POST !== undefined) novosPesos.POST = Math.max(0, Math.round(novosPesos.POST * 0.2));
+      if (novosPesos.ESC !== undefined) novosPesos.ESC = Math.max(0, Math.round(novosPesos.ESC * 0.1));
+      if (novosPesos.PREV !== undefined) novosPesos.PREV = Math.round(novosPesos.PREV * 0.6);
+      break;
+  }
+  return novosPesos;
+}
+
+export function calcularHoraTermino(horaInicio: string, tipoAtividade: TipoAtividade): string {
+  const duracao = DURACAO_TURNO_MIN[tipoAtividade] ?? 480;
+  return minParaHora(horaParaMin(horaInicio) + duracao);
 }
 
 function calcularPeriodo(
@@ -226,7 +331,8 @@ function criarBloco(
   modalidade: ModalidadePoliciamento,
   local: string,
   problema: string,
-  justificativa: string
+  justificativa: string,
+  municipio?: Municipio
 ): BlocoHorario {
   return {
     id: uuidv4(),
@@ -241,6 +347,7 @@ function criarBloco(
     observacao: "",
     concluido: false,
     ordem,
+    municipio,
   };
 }
 
@@ -317,37 +424,85 @@ export function gerarCPP({ configuracao, municipios }: GerarCPPParams): {
   blocos: BlocoHorario[];
   avisos: string[];
 } {
-  const municipio = municipios[configuracao.municipio];
-  if (!municipio) return { blocos: [], avisos: [] };
+  const municipiosList: Municipio[] = configuracao.municipios && configuracao.municipios.length > 0
+    ? configuracao.municipios
+    : (configuracao.municipio ? [configuracao.municipio] : []);
+  if (municipiosList.length === 0) return { blocos: [], avisos: [] };
 
-  // RNG com seed: mesma config → mesmo roteiro; outra data/hora/município → outro
+  const numMuns = municipiosList.length;
+  const munsStr = municipiosList.join(",");
+
+  // RNG com seed: mesma config → mesmo roteiro; outra data/hora/municípios → outro
   const rng = mulberry32(
     hashStr(
-      `${configuracao.data}|${configuracao.municipio}|${configuracao.horaInicio}`
+      `${configuracao.data}|${munsStr}|${configuracao.horaInicio}|${configuracao.tipoAtividade}`
     )
   );
 
   const diaUtil = ehDiaUtil(configuracao.data);
   const mesData = parseDataLocal(configuracao.data).getMonth() + 1;
-  const temEvento = municipio.eventos.some(e => e.mes === mesData);
 
-  const usaRural =
-    configuracao.tipoPoliciamento === "Rural" ||
-    municipio.perfil === "rural_pequeno";
-  const foraDeValparaiso = configuracao.municipio !== "Valparaíso";
+  const duracaoTurno = DURACAO_TURNO_MIN[configuracao.tipoAtividade] ?? 480;
 
-  // Grade de 30 min: snap o início e calcular fim = início + 8h
+  // Grade de 30 min: snap o início e calcular fim = início + duracaoTurno
   const turnoInicio = snapGrid30(horaParaMin(configuracao.horaInicio));
-  const turnoFim = turnoInicio + 480;
+  const turnoFim = turnoInicio + duracaoTurno;
   const fimREL = turnoFim - 30; // REL ocupa os últimos 30 min
-  const refAlvo = snapGrid30(turnoInicio + 192); // ~40% de 480 min
+
+  // Cálculo de deslocamentos
+  const deslEntre = numMuns - 1;
+  const deslInicial = (municipiosList[0] !== "Valparaíso") ? 1 : 0;
+  const totalDESL = (deslEntre + deslInicial) * 30;
+
+  // Refeições: 12h (>= 600 min) -> 2 refeições, 8h (< 600 min) -> 1 refeição
+  let numRefeicoes = duracaoTurno >= 600 ? 2 : 1;
+  let miolo = duracaoTurno - 30 - 30 - numRefeicoes * 60 - totalDESL;
+  const avisos: string[] = [];
+
+  if (miolo < numMuns * 30 && numRefeicoes > 1) {
+    numRefeicoes = 1;
+    miolo = duracaoTurno - 30 - 30 - numRefeicoes * 60 - totalDESL;
+    avisos.push(`Turno curto para ${numMuns} municípios — refeições/segmentos reduzidos`);
+  }
+  if (miolo < numMuns * 30 && numRefeicoes > 0) {
+    numRefeicoes = 0;
+    miolo = duracaoTurno - 30 - 30 - numRefeicoes * 60 - totalDESL;
+    avisos.push(`Turno curto para ${numMuns} municípios — refeições/segmentos reduzidos`);
+  }
+  if (miolo < numMuns * 30) {
+    miolo = numMuns * 30;
+  }
+
+  const alvosRef = numRefeicoes === 2
+    ? [snapGrid30(turnoInicio + duracaoTurno * 0.33), snapGrid30(turnoInicio + duracaoTurno * 0.66)]
+    : (numRefeicoes === 1 ? [snapGrid30(turnoInicio + duracaoTurno * 0.40)] : []);
+
+  // Distribuição do miolo entre os segmentos (multiplos de 30 min)
+  const duracoesSegmento = Array(numMuns).fill(snapGrid30(miolo / numMuns));
+  let somaSegmentos = duracoesSegmento.reduce((s, v) => s + v, 0);
+  let idxSoma = 0;
+  while (somaSegmentos < miolo) {
+    duracoesSegmento[idxSoma % numMuns] += 30;
+    somaSegmentos += 30;
+    idxSoma++;
+  }
+  while (somaSegmentos > miolo) {
+    duracoesSegmento[idxSoma % numMuns] -= 30;
+    somaSegmentos -= 30;
+    idxSoma++;
+  }
 
   const blocos: BlocoHorario[] = [];
-  const avisos: string[] = [];
   let ordem = 0;
   let tempoAtual = turnoInicio;
-  const cobertura: CoberturaMapa = new Map();
-  let refInserida = false;
+
+  // Mapas de cobertura independentes por município
+  const coberturas: Record<string, CoberturaMapa> = {};
+  for (const mun of municipiosList) {
+    coberturas[mun] = new Map();
+  }
+
+  let proximoRefIdx = 0;
   const historico: ModalidadePoliciamento[] = [];
 
   // ── PREL ───────────────────────────────────────────────────────────────────
@@ -359,23 +514,26 @@ export function gerarCPP({ configuracao, municipios }: GerarCPPParams): {
       "PREL",
       "Base do Pelotão PM",
       "Assunção do serviço",
-      JUSTIFICATIVAS.PREL
+      JUSTIFICATIVAS.PREL,
+      "Valparaíso"
     )
   );
   tempoAtual += 30;
   historico.push("PREL");
 
-  // ── DESL (se fora de Valparaíso) ───────────────────────────────────────────
-  if (foraDeValparaiso) {
+  // ── DESL Inicial ───────────────────────────────────────────────────────────
+  if (deslInicial === 1) {
+    const primMun = municipiosList[0];
     blocos.push(
       criarBloco(
         ordem++,
         tempoAtual,
         30,
         "DESL",
-        `Deslocamento para ${configuracao.municipio}`,
+        `Deslocamento para ${primMun}`,
         "Deslocamento ao setor",
-        "Deslocamento ao setor de policiamento."
+        "Deslocamento ao setor de policiamento.",
+        primMun
       )
     );
     tempoAtual += 30;
@@ -391,164 +549,218 @@ export function gerarCPP({ configuracao, municipios }: GerarCPPParams): {
   const temRefManual = manuais.some(m => m.modalidade === "REF");
   let idxManual = 0;
 
-  // ── Miolo ──────────────────────────────────────────────────────────────────
-  while (tempoAtual < fimREL) {
-    const disponivel = fimREL - tempoAtual;
-    if (disponivel < 30) break;
+  // ── Miolo Segmentado por Município ─────────────────────────────────────────
+  for (let i = 0; i < numMuns; i++) {
+    const currentMunName = municipiosList[i];
+    const currentMunData = municipios[currentMunName];
+    if (!currentMunData) continue;
 
-    // Bloco manual prioritário para este horário
-    if (idxManual < manuais.length) {
-      const bm = manuais[idxManual];
-      // Avança se o bloco manual já passou
-      if (bm.inicioMin < tempoAtual) {
-        avisos.push(
-          `Bloco "${bm.desc || bm.modalidade}" às ${String(Math.floor(bm.inicioMin / 60)).padStart(2, "0")}:${String(bm.inicioMin % 60).padStart(2, "0")} ignorado por sobreposição.`
-        );
-        idxManual++;
-        continue;
+    let patrolBudget = duracoesSegmento[i];
+
+    while (patrolBudget > 0 && tempoAtual < fimREL) {
+      const disponivel = fimREL - tempoAtual;
+      if (disponivel < 30) break;
+
+      // Bloco manual prioritário para este horário
+      if (idxManual < manuais.length) {
+        const bm = manuais[idxManual];
+        if (bm.inicioMin < tempoAtual) {
+          avisos.push(
+            `Bloco "${bm.desc || bm.modalidade}" às ${String(Math.floor(bm.inicioMin / 60)).padStart(2, "0")}:${String(bm.inicioMin % 60).padStart(2, "0")} ignorado por sobreposição.`
+          );
+          idxManual++;
+          continue;
+        }
+        if (bm.inicioMin === tempoAtual) {
+          const dur = bm.fimMin
+            ? Math.max(30, snapGrid30(bm.fimMin - bm.inicioMin))
+            : 30;
+          const proxMin = manuais[idxManual + 1]?.inicioMin ?? fimREL;
+          const durSafe = Math.min(dur, disponivel, proxMin - tempoAtual);
+          const local = selecionarLocal(currentMunData, bm.modalidade, coberturas[currentMunName], rng);
+          const periodo = calcularPeriodo(tempoAtual);
+          blocos.push(
+            criarBloco(
+              ordem++,
+              tempoAtual,
+              durSafe,
+              bm.modalidade,
+              local,
+              selecionarProblema(bm.modalidade, periodo),
+              JUSTIFICATIVAS[bm.modalidade] || "Atividade de policiamento.",
+              currentMunName
+            )
+          );
+          tempoAtual += durSafe;
+          historico.push(bm.modalidade);
+          if (bm.modalidade === "REF") proximoRefIdx++;
+          const isPatrol = !["PREL", "DESL", "REF", "REL"].includes(bm.modalidade);
+          if (isPatrol) {
+            patrolBudget = Math.max(0, patrolBudget - durSafe);
+          }
+          idxManual++;
+          continue;
+        }
       }
-      // Encaixa bloco manual
-      if (bm.inicioMin === tempoAtual) {
-        const dur = bm.fimMin
-          ? Math.max(30, snapGrid30(bm.fimMin - bm.inicioMin))
-          : 30;
-        const proxMin = manuais[idxManual + 1]?.inicioMin ?? fimREL;
-        const durSafe = Math.min(dur, disponivel, proxMin - tempoAtual);
-        const local = selecionarLocal(municipio, bm.modalidade, cobertura, rng);
-        const periodo = calcularPeriodo(tempoAtual);
+
+      // REF no ponto alvo — apenas se não há REF manual e se o espaço restante comporta a refeição
+      if (
+        !temRefManual &&
+        proximoRefIdx < alvosRef.length &&
+        tempoAtual >= alvosRef[proximoRefIdx] &&
+        disponivel >= 90
+      ) {
         blocos.push(
           criarBloco(
             ordem++,
             tempoAtual,
-            durSafe,
-            bm.modalidade,
-            local,
-            selecionarProblema(bm.modalidade, periodo),
-            JUSTIFICATIVAS[bm.modalidade] || "Atividade de policiamento."
+            60,
+            "REF",
+            "Base do Pelotão PM",
+            "Refeição",
+            JUSTIFICATIVAS.REF,
+            "Valparaíso"
           )
         );
-        tempoAtual += durSafe;
-        historico.push(bm.modalidade);
-        if (bm.modalidade === "REF") refInserida = true;
-        idxManual++;
+        tempoAtual += 60;
+        proximoRefIdx++;
+        historico.push("REF");
         continue;
       }
-    }
 
-    // REF no ponto alvo (40% do turno) — apenas uma vez, e só se não há REF manual
-    if (
-      !refInserida &&
-      !temRefManual &&
-      tempoAtual >= refAlvo &&
-      disponivel >= 90
-    ) {
+      // Seleção de modalidade com pesos
+      const periodo = calcularPeriodo(tempoAtual);
+      const usaRural =
+        configuracao.tipoPoliciamento === "Rural" ||
+        currentMunData.perfil === "rural_pequeno";
+      const perfil: string = numMuns > 1
+        ? currentMunData.perfil
+        : (usaRural ? "rural_pequeno" : currentMunData.perfil);
+
+      let pesos: Pesos = {
+        ...(MATRIZ_PESOS[perfil]?.[periodo] ?? { PREV: 3, PE: 2, FISC: 1 }),
+      };
+
+      // Sazonalidade: SAT com peso dinâmico de evento/saturação na data
+      const pesoSat = pesoSatNaData(currentMunData.eventos, configuracao.data);
+      if (pesoSat > 0) pesos.SAT = (pesos.SAT ?? 0) + pesoSat;
+
+      // Força ESC em dia útil manhã/tarde (urbano) — só se ainda não está nos últimos 2
+      if (
+        diaUtil &&
+        (periodo === "manha" || periodo === "tarde") &&
+        perfil === "urbano_medio" &&
+        !historico.slice(-2).includes("ESC")
+      ) {
+        pesos.ESC = (pesos.ESC ?? 0) + 3;
+      }
+
+      // Ajuste de pesos por categoria doutrinária
+      const categoria = CATEGORIA_ATIVIDADE[configuracao.tipoAtividade] ?? "PATRULHA";
+      pesos = ajustarPesosPorCategoria(pesos, categoria);
+
+      // Fallback = modalidade de maior peso antes do anti-repetição
+      const fallback = (
+        Object.entries(pesos) as [ModalidadePoliciamento, number][]
+      ).reduce<[ModalidadePoliciamento, number]>(
+        (best, [m, w]) => (w > best[1] ? [m, w] : best),
+        ["PREV", 0]
+      )[0];
+
+      // Anti-repetição: zera peso das 2 últimas modalities reais
+      for (const m of historico
+        .slice(-2)
+        .filter(m => m !== "PREL" && m !== "DESL" && m !== "REF")) {
+        delete (pesos as Record<string, number>)[m];
+      }
+
+      const modalidade = selecionarModalidade(pesos, rng, fallback);
+
+      // Nunca ultrapassa o início do próximo bloco manual ou o orçamento de patrulha
+      const proxManualInicio =
+        idxManual < manuais.length ? manuais[idxManual].inicioMin : fimREL;
+      const disponivelReal = Math.min(disponivel, proxManualInicio - tempoAtual, patrolBudget);
+
+      // Duração: PE e ESC = 30 min; RURAL = 60-90; demais = 30-60
+      let dur: number;
+      if (modalidade === "PE" || modalidade === "ESC") {
+        dur = 30;
+      } else if (modalidade === "RURAL") {
+        dur = disponivelReal >= 120 ? (rng() > 0.5 ? 90 : 60) : 60;
+      } else {
+        dur = disponivelReal >= 90 ? (rng() > 0.6 ? 60 : 30) : 30;
+      }
+
+      // Nunca ultrapassa limites
+      dur = Math.min(dur, disponivelReal);
+
+      // RURAL que não cabe (gap < 60 min): substitui por PE ou FISC de 30 min
+      if (modalidade === "RURAL" && dur < 60) {
+        const alt: ModalidadePoliciamento = pesos.PE ? "PE" : "FISC";
+        const durAlt = Math.min(30, disponivelReal);
+        if (durAlt >= 30) {
+          blocos.push(
+            criarBloco(
+              ordem++,
+              tempoAtual,
+              durAlt,
+              alt,
+              selecionarLocal(currentMunData, alt, coberturas[currentMunName], rng),
+              selecionarProblema(alt, periodo),
+              JUSTIFICATIVAS[alt] || "Atividade de policiamento.",
+              currentMunName
+            )
+          );
+          tempoAtual += durAlt;
+          patrolBudget -= durAlt;
+          historico.push(alt);
+        } else {
+          patrolBudget = 0;
+        }
+        continue;
+      }
+
+      if (dur < 30) {
+        patrolBudget = 0;
+        break;
+      }
+
+      const local = selecionarLocal(currentMunData, modalidade, coberturas[currentMunName], rng);
       blocos.push(
         criarBloco(
           ordem++,
           tempoAtual,
-          60,
-          "REF",
-          "Base do Pelotão PM",
-          "Refeição",
-          JUSTIFICATIVAS.REF
+          dur,
+          modalidade,
+          local,
+          selecionarProblema(modalidade, periodo),
+          JUSTIFICATIVAS[modalidade] || "Atividade de policiamento.",
+          currentMunName
         )
       );
-      tempoAtual += 60;
-      refInserida = true;
-      historico.push("REF");
-      continue;
+      tempoAtual += dur;
+      patrolBudget -= dur;
+      historico.push(modalidade);
     }
 
-    // Seleção de modalidade com pesos
-    const periodo = calcularPeriodo(tempoAtual);
-    const perfil: string = usaRural ? "rural_pequeno" : municipio.perfil;
-    const pesos: Pesos = {
-      ...(MATRIZ_PESOS[perfil]?.[periodo] ?? { PREV: 3, PE: 2, FISC: 1 }),
-    };
-
-    // Sazonalidade: SAT com peso alto em mês de evento
-    if (temEvento) pesos.SAT = (pesos.SAT ?? 0) + 5;
-
-    // Força ESC em dia útil manhã/tarde (urbano) — só se ainda não está nos últimos 2
-    if (
-      diaUtil &&
-      (periodo === "manha" || periodo === "tarde") &&
-      perfil === "urbano_medio" &&
-      !historico.slice(-2).includes("ESC")
-    ) {
-      pesos.ESC = (pesos.ESC ?? 0) + 3;
-    }
-
-    // Fallback = modalidade de maior peso antes do anti-repetição
-    const fallback = (
-      Object.entries(pesos) as [ModalidadePoliciamento, number][]
-    ).reduce<[ModalidadePoliciamento, number]>(
-      (best, [m, w]) => (w > best[1] ? [m, w] : best),
-      ["PREV", 0]
-    )[0];
-
-    // Anti-repetição: zera peso das 2 últimas modalidades reais
-    for (const m of historico
-      .slice(-2)
-      .filter(m => m !== "PREL" && m !== "DESL" && m !== "REF")) {
-      delete (pesos as Record<string, number>)[m];
-    }
-
-    const modalidade = selecionarModalidade(pesos, rng, fallback);
-
-    // Nunca ultrapassa o início do próximo bloco manual
-    const proxManualInicio =
-      idxManual < manuais.length ? manuais[idxManual].inicioMin : fimREL;
-    const disponivelReal = Math.min(disponivel, proxManualInicio - tempoAtual);
-
-    // Duração: PE e ESC = 30 min; RURAL = 60-90; demais = 30-60
-    let dur: number;
-    if (modalidade === "PE" || modalidade === "ESC") {
-      dur = 30;
-    } else if (modalidade === "RURAL") {
-      dur = disponivelReal >= 120 ? (rng() > 0.5 ? 90 : 60) : 60;
-    } else {
-      dur = disponivelReal >= 90 ? (rng() > 0.6 ? 60 : 30) : 30;
-    }
-
-    // Nunca ultrapassa fimREL nem próximo bloco manual
-    dur = Math.min(dur, disponivelReal);
-
-    // RURAL que não cabe (gap < 60 min): substitui por PE ou FISC de 30 min
-    if (modalidade === "RURAL" && dur < 60) {
-      const alt: ModalidadePoliciamento = pesos.PE ? "PE" : "FISC";
+    // Ao terminar o segmento i (se houver i+1), insere DESL entre municípios
+    if (i < numMuns - 1 && tempoAtual < fimREL) {
+      const proxMun = municipiosList[i + 1];
       blocos.push(
         criarBloco(
           ordem++,
           tempoAtual,
           30,
-          alt,
-          selecionarLocal(municipio, alt, cobertura, rng),
-          selecionarProblema(alt, periodo),
-          JUSTIFICATIVAS[alt] || "Atividade de policiamento."
+          "DESL",
+          `Deslocamento ${currentMunName} → ${proxMun}`,
+          "Deslocamento ao setor",
+          `Deslocamento do município de ${currentMunName} para o município de ${proxMun}.`,
+          proxMun
         )
       );
       tempoAtual += 30;
-      historico.push(alt);
-      continue;
+      historico.push("DESL");
     }
-
-    if (dur < 30) break;
-
-    const local = selecionarLocal(municipio, modalidade, cobertura, rng);
-    blocos.push(
-      criarBloco(
-        ordem++,
-        tempoAtual,
-        dur,
-        modalidade,
-        local,
-        selecionarProblema(modalidade, periodo),
-        JUSTIFICATIVAS[modalidade] || "Atividade de policiamento."
-      )
-    );
-    tempoAtual += dur;
-    historico.push(modalidade);
   }
 
   // ── REL ────────────────────────────────────────────────────────────────────
@@ -560,7 +772,8 @@ export function gerarCPP({ configuracao, municipios }: GerarCPPParams): {
       "REL",
       "Base do Pelotão PM",
       "Elaboração do RSO",
-      JUSTIFICATIVAS.REL
+      JUSTIFICATIVAS.REL,
+      "Valparaíso"
     )
   );
 

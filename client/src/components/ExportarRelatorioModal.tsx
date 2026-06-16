@@ -30,8 +30,12 @@ export default function ExportarRelatorioModal({
 
     const linhas: string[] = [];
 
+    const muns = roteiroDia.configuracao.municipios || (roteiroDia.configuracao.municipio ? [roteiroDia.configuracao.municipio] : []);
+    const munsStr = muns.map(m => m.toUpperCase()).join(muns.length === 2 ? " E " : ", ").replace(/,\s([^,]+)$/, " E $1");
+    const labelMun = muns.length > 1 ? "PELOS MUNICÍPIOS DE" : "PELO MUNICÍPIO DE";
+
     linhas.push(
-      `*ÀS ${roteiroDia.configuracao.horaInicio.replace(":", "H")} INÍCIO DA ${roteiroDia.configuracao.tipoAtividade.toUpperCase()} PELO MUNICÍPIO DE ${roteiroDia.configuracao.municipio.toUpperCase()}-SP.`
+      `*ÀS ${roteiroDia.configuracao.horaInicio.replace(":", "H")} INÍCIO DA ${roteiroDia.configuracao.tipoAtividade.toUpperCase()} ${labelMun} ${munsStr}-SP.`
     );
 
     for (const bloco of blocos) {
@@ -42,9 +46,9 @@ export default function ExportarRelatorioModal({
       const temLocal = !["PREL", "REL", "REF", "DESL"].includes(
         bloco.modalidade
       );
-      const acao = temLocal
-        ? `${descRSO} ${bloco.local.toUpperCase()}`
-        : descRSO;
+      const acao = bloco.modalidade === "DESL"
+        ? `DESLOCAMENTO AO SETOR (${bloco.local.toUpperCase()})`
+        : (temLocal ? `${descRSO} ${bloco.local.toUpperCase()}` : descRSO);
       linhas.push(`*DAS ${hi} ÀS ${hf} ${acao}.`);
     }
 

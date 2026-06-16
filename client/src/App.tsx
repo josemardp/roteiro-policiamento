@@ -44,6 +44,24 @@ function AppContent() {
   );
   const [mostraDialogVoltar, setMostraDialogVoltar] = useState(false);
 
+  // Normalizador para retrocompatibilidade
+  const normalizarRoteiro = (r: any): RoteiroDia => {
+    if (!r) return r;
+    if (r.configuracao && !r.configuracao.municipios && r.configuracao.municipio) {
+      return {
+        ...r,
+        configuracao: {
+          ...r.configuracao,
+          municipios: [r.configuracao.municipio],
+        },
+      };
+    }
+    return r;
+  };
+
+  const roteiroDiaNormalizado = roteiroDia ? normalizarRoteiro(roteiroDia) : null;
+  const historicoNormalizado = historico.map(normalizarRoteiro);
+
   const handleGerarCPP = (config: ConfigType) => {
     const { blocos, avisos } = gerarCPP({
       configuracao: config,
@@ -148,9 +166,9 @@ function AppContent() {
         <ConfiguracaoServico onGerarCPP={handleGerarCPP} />
       )}
 
-      {telaAtual === "cpp" && roteiroDia && (
+      {telaAtual === "cpp" && roteiroDiaNormalizado && (
         <CPPTurno
-          roteiroDia={roteiroDia}
+          roteiroDia={roteiroDiaNormalizado}
           onAtualizar={handleAtualizarRoteiro}
           onVoltar={() => setMostraDialogVoltar(true)}
         />
@@ -165,7 +183,7 @@ function AppContent() {
           }
         >
           <Historico
-            historico={historico}
+            historico={historicoNormalizado}
             onReabrir={handleReabrir}
             onDuplicar={handleDuplicar}
             onExcluir={handleExcluir}

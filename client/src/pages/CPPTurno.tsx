@@ -6,7 +6,7 @@
 import { useState, useCallback } from "react";
 import { toast } from "sonner";
 import type { RoteiroDia, BlocoHorario } from "@/lib/types";
-import { MODALIDADES, NOTA_SUPERVISAO } from "@/lib/constants";
+import { MODALIDADES, NOTA_SUPERVISAO, DURACAO_TURNO_MIN } from "@/lib/constants";
 import { parseDataLocal } from "@/lib/gerarCPP";
 import BlocoCard from "@/components/BlocoCard";
 import EditBlocoModal from "@/components/EditBlocoModal";
@@ -112,10 +112,12 @@ export default function CPPTurno({
           <div className="grid grid-cols-2 gap-2 text-sm text-blue-100 mb-3">
             <div>
               <span className="font-semibold">
-                {roteiroDia.configuracao.tipoAtividade}
+                {roteiroDia.configuracao.tipoAtividade} ({DURACAO_TURNO_MIN[roteiroDia.configuracao.tipoAtividade] / 60}h)
               </span>
               <br />
-              {roteiroDia.configuracao.municipio}
+              <span className="text-white font-medium">
+                {roteiroDia.configuracao.municipios?.join(" → ") || roteiroDia.configuracao.municipio}
+              </span>
             </div>
             <div>
               <span className="font-semibold">
