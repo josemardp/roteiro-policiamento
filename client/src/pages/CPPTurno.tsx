@@ -7,10 +7,11 @@ import { useState, useCallback } from "react";
 import { toast } from "sonner";
 import type { RoteiroDia, BlocoHorario } from "@/lib/types";
 import { MODALIDADES, NOTA_SUPERVISAO, DURACAO_TURNO_MIN } from "@/lib/constants";
-import { parseDataLocal } from "@/lib/gerarCPP";
+import { parseDataLocal, gerarFundamentacao } from "@/lib/gerarCPP";
 import BlocoCard from "@/components/BlocoCard";
 import EditBlocoModal from "@/components/EditBlocoModal";
 import ExportarRelatorioModal from "@/components/ExportarRelatorioModal";
+import MapaCPP from "@/components/MapaCPP";
 
 interface CPPTurnoProps {
   roteiroDia: RoteiroDia;
@@ -25,6 +26,7 @@ export default function CPPTurno({
 }: CPPTurnoProps) {
   const [blocoEditando, setBlocoEditando] = useState<BlocoHorario | null>(null);
   const [mostraExportar, setMostraExportar] = useState(false);
+  const [tabAtiva, setTabAtiva] = useState<"lista" | "mapa">("lista");
 
   const total = roteiroDia.blocos.length;
   const concluidos = roteiroDia.blocos.filter(b => b.concluido).length;
@@ -146,39 +148,93 @@ export default function CPPTurno({
 
       {/* Conteúdo */}
       <div className="container py-6 max-w-2xl">
+        {/* Card de Fundamentação (PPI) */}
+        <div className="bg-white border border-gray-200 rounded-xl p-4 mb-4 shadow-sm">
+          <h3 className="text-sm font-bold text-gray-800 flex items-center gap-1.5 mb-2">
+            ⚖️ Fundamentação do Roteiro (PPI)
+          </h3>
+          <ul className="list-disc list-inside space-y-1.5 text-xs text-gray-600">
+            {gerarFundamentacao(roteiroDia.configuracao).map((linha, idx) => (
+              <li key={idx} className="leading-relaxed">
+                {linha}
+              </li>
+            ))}
+          </ul>
+        </div>
+        {/* Selector de Abas Mobile-Friendly */}
+        <div className="flex bg-gray-200/60 p-1 rounded-xl gap-1 mb-4 max-w-xs mx-auto">
+          <button
+            onClick={() => setTabAtiva("lista")}
+            className={`flex-1 text-center py-2 text-sm font-semibold rounded-lg transition-all min-h-[38px] ${
+              tabAtiva === "lista"
+                ? "bg-white text-gray-900 shadow-sm"
+                : "text-gray-600 hover:text-gray-900"
+            }`}
+          >
+            📋 Lista
+          </button>
+          <button
+            onClick={() => setTabAtiva("mapa")}
+            className={`flex-1 text-center py-2 text-sm font-semibold rounded-lg transition-all min-h-[38px] ${
+              tabAtiva === "mapa"
+                ? "bg-white text-gray-900 shadow-sm"
+                : "text-gray-600 hover:text-gray-900"
+            }`}
+          >
+            🗺️ Mapa
+          </button>
+        </div>
+
         <div className="space-y-4">
-          {blocosOrdenados.map(bloco => (
-            <BlocoCard
-              key={bloco.id}
-              bloco={bloco}
-              onMarcarConcluido={() => handleMarcarConcluido(bloco.id)}
-              onEditar={() => setBlocoEditando(bloco)}
-            />
-          ))}
+          {tabAtiva === "lista" ? (
+            <>
+              {blocosOrdenados.map(bloco => (
+                <BlocoCard
+                  key={bloco.id}
+                  bloco={bloco}
+                  onMarcarConcluido={() => handleMarcarConcluido(bloco.id)}
+                  onEditar={() => setBlocoEditando(bloco)}
+                />
+              ))}
 
-          {/* Nota de Supervisão */}
-          <div className="bg-blue-50 border-l-4 border-[#0a2540] p-4 rounded-r-lg">
-            <p className="text-xs text-gray-700 leading-relaxed">
-              <span className="font-semibold">Nota de Supervisão:</span>{" "}
-              {NOTA_SUPERVISAO}
-            </p>
-          </div>
+              {/* Nota de Supervisão */}
+              <div className="bg-blue-50 border-l-4 border-[#0a2540] p-4 rounded-r-lg">
+                <p className="text-xs text-gray-700 leading-relaxed">
+                  <span className="font-semibold">Nota de Supervisão:</span>{" "}
+                  {NOTA_SUPERVISAO}
+                </p>
+              </div>
 
-          {/* Botões de Ação */}
-          <div className="space-y-2 mt-6">
-            <button
-              onClick={handleAdicionarBloco}
-              className="w-full btn-tactical-secondary text-base font-bold py-3"
-            >
-              + Adicionar Bloco
-            </button>
-            <button
-              onClick={() => setMostraExportar(true)}
-              className="w-full btn-tactical text-base font-bold py-3"
-            >
-              📄 Exportar Relatório
-            </button>
-          </div>
+              {/* Botões de Ação */}
+              <div className="space-y-2 mt-6">
+                <button
+                  onClick={handleAdicionarBloco}
+                  className="w-full btn-tactical-secondary text-base font-bold py-3"
+                >
+                  + Adicionar Bloco
+                </button>
+                <button
+                  onClick={() => setMostraExportar(true)}
+                  className="w-full btn-tactical text-base font-bold py-3"
+                >
+                  📄 Exportar Relatório
+                </button>
+              </div>
+            </>
+          ) : (
+            <div className="space-y-4">
+              <MapaCPP blocos={roteiroDia.blocos} />
+
+              <div className="space-y-2 mt-6">
+                <button
+                  onClick={() => setMostraExportar(true)}
+                  className="w-full btn-tactical text-base font-bold py-3"
+                >
+                  📄 Exportar Relatório
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

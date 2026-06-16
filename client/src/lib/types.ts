@@ -71,6 +71,8 @@ export interface BlocoHorario {
   concluido: boolean;
   ordem: number; // Para reordenação
   municipio?: Municipio;
+  lat?: number | null;
+  lng?: number | null;
 }
 
 export interface ConfiguracaoServico {

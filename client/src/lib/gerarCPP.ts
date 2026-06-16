@@ -663,6 +663,53 @@ function selecionarAcoes(modalidade: ModalidadePoliciamento): string {
 
 // ─── Fábrica de bloco ─────────────────────────────────────────────────────────
 
+export function obterCoordenadasLocal(
+  local: string,
+  municipio: Municipio
+): { lat: number | null; lng: number | null } {
+  const normLocal = local.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+  if (normLocal.includes("base do pelotao")) {
+    return { lat: -21.2272, lng: -50.8660 }; // Valparaíso Base
+  }
+
+  const ppiMun = (PPI_5CIA as any)[municipio];
+  if (!ppiMun) {
+    return { lat: null, lng: null };
+  }
+
+  const keysToSearch: Array<{ key: string; nameField: string }> = [
+    { key: "escolas", nameField: "nome" },
+    { key: "hotspots", nameField: "local" },
+    { key: "saude", nameField: "nome" },
+    { key: "instituicoesFinanceiras", nameField: "nome" },
+    { key: "pontosAglomeracao", nameField: "nome" },
+    { key: "pontosEconomicos", nameField: "nome" },
+    { key: "entidadesSociais", nameField: "nome" },
+    { key: "unidadesPrisionais", nameField: "nome" }
+  ];
+
+  for (const item of keysToSearch) {
+    const list = ppiMun[item.key];
+    if (Array.isArray(list)) {
+      for (const entity of list) {
+        if (!entity) continue;
+        const nameVal = entity[item.nameField];
+        if (typeof nameVal === "string") {
+          const normName = nameVal.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+          if (normLocal.includes(normName) || normName.includes(normLocal)) {
+            if (typeof entity.lat === "number" && typeof entity.lng === "number") {
+              return { lat: entity.lat, lng: entity.lng };
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return { lat: null, lng: null };
+}
+
 function criarBloco(
   ordem: number,
   inicioMin: number,
@@ -673,6 +720,7 @@ function criarBloco(
   justificativa: string,
   municipio?: Municipio
 ): BlocoHorario {
+  const coords = municipio ? obterCoordenadasLocal(local, municipio) : { lat: null, lng: null };
   return {
     id: uuidv4(),
     horaInicio: minParaHora(inicioMin),
@@ -687,6 +735,8 @@ function criarBloco(
     concluido: false,
     ordem,
     municipio,
+    lat: coords.lat,
+    lng: coords.lng,
   };
 }
 
@@ -1209,4 +1259,129 @@ export function gerarCPP({ configuracao, municipios }: GerarCPPParams): {
   );
 
   return { blocos, avisos };
+}
+
+export function gerarFundamentacao(
+  configuracao: ConfiguracaoServico,
+  ppiDosMunicipios: typeof PPI_5CIA = PPI_5CIA
+): string[] {
+  const linhas: string[] = [];
+  const muns = configuracao.municipios && configuracao.municipios.length > 0
+    ? configuracao.municipios
+    : (configuracao.municipio ? [configuracao.municipio] : []);
+
+  if (muns.length === 0) return [];
+
+  const diaUtil = ehDiaUtil(configuracao.data);
+
+  muns.forEach((mun) => {
+    const ppiMun = (ppiDosMunicipios as any)[mun];
+    if (!ppiMun) return;
+
+    // 1. Indicadores criminais oficiais
+    const pc = ppiMun.perfilCriminal;
+    if (pc && pc.confianca === "oficial" && pc.fonteUrl && (pc.fonteUrl.startsWith("http") || pc.fonteUrl.startsWith("file:///"))) {
+      let countText = "";
+      if (pc.indicadorDominante === "furto" && typeof pc.furtoOutros === "number") {
+        countText = `${pc.furtoOutros} ocorrências`;
+      } else if (pc.indicadorDominante === "roubo" && typeof pc.rouboOutros === "number") {
+        countText = `${pc.rouboOutros} ocorrências`;
+      } else if (pc.indicadorDominante === "letalidade" && typeof pc.homicidioDoloso === "number") {
+        countText = `${pc.homicidioDoloso} ocorrências`;
+      } else if (pc.indicadorDominante === "furto_veiculo" && typeof pc.furtoVeiculo === "number") {
+        countText = `${pc.furtoVeiculo} ocorrências`;
+      } else if (pc.indicadorDominante === "roubo_veiculo" && typeof pc.rouboVeiculo === "number") {
+        countText = `${pc.rouboVeiculo} ocorrências`;
+      } else if (pc.indicadorDominante === "rural" && typeof pc.furtoOutros === "number") {
+        countText = `${pc.furtoOutros} ocorrências`;
+      }
+
+      if (countText) {
+        const indName = pc.indicadorDominante === "furto" ? "furto" :
+                        (pc.indicadorDominante === "roubo" ? "roubo" :
+                         (pc.indicadorDominante === "letalidade" ? "homicídio doloso" :
+                          (pc.indicadorDominante === "furto_veiculo" ? "furto de veículo" :
+                           (pc.indicadorDominante === "roubo_veiculo" ? "roubo de veículo" :
+                            (pc.indicadorDominante === "rural" ? "delito rural" : pc.indicadorDominante)))));
+        linhas.push(
+          `Ênfase em preventivo/ostensivo: indicador dominante em ${mun} é ${indName} (${countText}, ano-móvel ${pc.anoMovel}). Fonte: SSP-SP.`
+        );
+      }
+    }
+
+    // 2. Ronda escolar nos horários reais
+    if (diaUtil && ppiMun.escolas && ppiMun.escolas.length > 0) {
+      ppiMun.escolas.forEach((esc: any) => {
+        if (esc.turnoEntrada && esc.turnoSaida) {
+          linhas.push(
+            `Ronda escolar nos horários reais: ${esc.nome} (entrada ${esc.turnoEntrada}, saída ${esc.turnoSaida}).`
+          );
+        }
+      });
+    }
+
+    // 3. Fiscalização priorizada em trechos críticos de trânsito
+    const trans = ppiMun.transito;
+    if (trans && trans.confianca === "oficial" && trans.fonteUrl && (trans.fonteUrl.startsWith("http") || trans.fonteUrl.startsWith("file:///"))) {
+      if (trans.tiposViaCriticos && trans.tiposViaCriticos.length > 0) {
+        const trecho = trans.tiposViaCriticos[0];
+        const horasText = trans.horariosCriticos ? trans.horariosCriticos.map((h: number) => `${String(h).padStart(2, "0")}h`).join("/") : "";
+        linhas.push(
+          `Fiscalização priorizada em ${trecho}: maior sinistralidade (${horasText}).`
+        );
+      }
+    }
+
+    // 4. Saturação por eventos reais ativos na data
+    if (ppiMun.eventos && ppiMun.eventos.length > 0) {
+      const d = parseDataLocal(configuracao.data);
+      const mes = d.getMonth() + 1;
+      const dia = d.getDate();
+      const mmdd = `${String(mes).padStart(2, "0")}-${String(dia).padStart(2, "0")}`;
+
+      const diasSemanaMapa: Record<number, string> = {
+        0: "dom", 1: "seg", 2: "ter", 3: "qua", 4: "qui", 5: "sex", 6: "sab"
+      };
+      const diaSemana = diasSemanaMapa[d.getDay()];
+
+      ppiMun.eventos.forEach((e: any) => {
+        let ativo = false;
+        let janela = "";
+        if (e.inicio && e.fim) {
+          janela = `${e.inicio} a ${e.fim}`;
+          ativo = dentroDaJanela(mmdd, e.inicio, e.fim, d);
+        } else if (e.mes) {
+          janela = `Mês ${e.mes}`;
+          ativo = mes === e.mes;
+        }
+
+        if (ativo && e.diasSemana && !e.diasSemana.includes(diaSemana)) {
+          ativo = false;
+        }
+
+        if (ativo) {
+          linhas.push(
+            `Saturação em período crítico: evento ${e.nome} (${janela}).`
+          );
+        }
+      });
+    }
+  });
+
+  // 5. Linha neutra de pendências
+  const hasPending = muns.some((mun) => {
+    const ppiMun = (ppiDosMunicipios as any)[mun];
+    if (!ppiMun) return false;
+    const pc = ppiMun.perfilCriminal;
+    if (!pc) return true;
+    return pc.furtoVeiculo === null || pc.rouboVeiculo === null || pc.violenciaDomestica === null;
+  });
+
+  if (hasPending) {
+    linhas.push(
+      "Indicadores de furto/roubo de veículo e violência doméstica pendentes de validação pelo comando (Infocrim)."
+    );
+  }
+
+  return linhas;
 }

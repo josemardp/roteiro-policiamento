@@ -9,6 +9,7 @@ import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { Dialog, DialogPortal, DialogOverlay } from "@/components/ui/dialog";
 import type { RoteiroDia } from "@/lib/types";
 import { MODALIDADES } from "@/lib/constants";
+import { gerarFundamentacao } from "@/lib/gerarCPP";
 
 interface ExportarRelatorioModalProps {
   roteiroDia: RoteiroDia;
@@ -64,6 +65,15 @@ export default function ExportarRelatorioModal({
     linhas.push(
       `BLOCOS CONCLUÍDOS: ${roteiroDia.blocos.filter(b => b.concluido).length} de ${roteiroDia.blocos.length}`
     );
+
+    const fund = gerarFundamentacao(roteiroDia.configuracao);
+    if (fund.length > 0) {
+      linhas.push("");
+      linhas.push("FUNDAMENTAÇÃO (PPI):");
+      fund.forEach((linha) => {
+        linhas.push(`- ${linha}`);
+      });
+    }
 
     return linhas.join("\n");
   };
