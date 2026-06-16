@@ -24,6 +24,8 @@ export interface Hotspot {
   risco: "Alto" | "Médio" | "Baixo";
   fonte: string; // "comando_5cia" quando vier do comando
   confianca: "verificado" | "estimado" | "a_validar_comando";
+  lat?: number | null;
+  lng?: number | null;
 }
 
 export interface Escola {
@@ -39,6 +41,8 @@ export interface Escola {
   etapas?: Array<
     "Creche" | "Pre-escola" | "Fundamental" | "Medio" | "EJA" | "Tecnico"
   >;
+  lat?: number | null;
+  lng?: number | null;
 }
 
 interface Local {
@@ -90,6 +94,8 @@ export interface UnidadeSaude {
   telefone: string; // ou "[DADO_NÃO_ENCONTRADO]"
   funciona24h: boolean | null;
   fonte: string;
+  lat?: number | null;
+  lng?: number | null;
 }
 
 export interface InstituicaoFinanceira {
@@ -99,6 +105,8 @@ export interface InstituicaoFinanceira {
   endereco: string; // ou "[DADO_NÃO_ENCONTRADO]"
   alvoExplosaoCaixa: boolean; // true para agências/ATM isolados de madrugada
   fonte: string;
+  lat?: number | null;
+  lng?: number | null;
 }
 
 export interface RuralDetalhe {
@@ -115,6 +123,22 @@ export interface PontoAglomeracao {
   endereco: string;
   diasHorarios: string; // "Quarta e sábado 06:00-13:00" ou "[DADO_NÃO_ENCONTRADO]"
   fonte: string;
+  lat?: number | null;
+  lng?: number | null;
+}
+
+export interface PerfilCriminal {
+  anoMovel: string;                 // ex.: "2024-01 a 2024-12"
+  homicidioDoloso: number | null;
+  rouboOutros: number | null;
+  furtoOutros: number | null;
+  furtoVeiculo: number | null;
+  rouboVeiculo: number | null;
+  // indicador dominante calculado a partir dos números reais
+  indicadorDominante: "letalidade" | "roubo" | "furto" | "furto_veiculo" | "roubo_veiculo" | "rural" | null;
+  tendencia: "alta" | "estavel" | "queda" | null;
+  confianca: "oficial" | "estimado" | "a_validar_comando";
+  fonte: string;                    // URL + data de extração
 }
 
 export interface DadosPPI {
@@ -139,6 +163,7 @@ export interface DadosPPI {
     camposNaoEncontrados: string[]; // caminho de cada placeholder
   };
   // Campos complementares opcionais
+  perfilCriminal?: PerfilCriminal;
   transito?: SinistralidadeTransito;
   frota?: FrotaMunicipio;
   saude?: UnidadeSaude[];
@@ -149,5 +174,7 @@ export interface DadosPPI {
     nome: string;
     tipo: string;
     endereco: string;
+    lat?: number | null;
+    lng?: number | null;
   }> | null;
 }

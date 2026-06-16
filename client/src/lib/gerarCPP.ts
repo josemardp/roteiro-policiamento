@@ -27,7 +27,7 @@ import {
   type CategoriaAtividade,
 } from "./constants";
 import { PPI_5CIA } from "./municipios/ppi-5cia";
-import type { Escola, Hotspot } from "./municipios/types-ppi";
+import type { Escola, Hotspot, PerfilCriminal } from "./municipios/types-ppi";
 
 // ─── RNG reproduzível (mulberry32) ───────────────────────────────────────────
 
@@ -292,6 +292,39 @@ function ajustarPesosPorCategoria(pesos: Pesos, categoria: CategoriaAtividade): 
       if (novosPesos.POST !== undefined) novosPesos.POST = Math.max(0, Math.round(novosPesos.POST * 0.2));
       if (novosPesos.ESC !== undefined) novosPesos.ESC = Math.max(0, Math.round(novosPesos.ESC * 0.1));
       if (novosPesos.PREV !== undefined) novosPesos.PREV = Math.round(novosPesos.PREV * 0.6);
+      break;
+  }
+  return novosPesos;
+}
+
+function ajustarPesosPorPerfilCriminal(
+  pesos: Pesos,
+  perfil: PerfilCriminal | undefined
+): Pesos {
+  if (!perfil || !perfil.indicadorDominante) return pesos;
+  if (perfil.confianca === "a_validar_comando") return pesos;
+
+  const novosPesos: Pesos = { ...pesos };
+  switch (perfil.indicadorDominante) {
+    case "furto_veiculo":
+    case "roubo_veiculo":
+      novosPesos.FISC = (novosPesos.FISC ?? 0) + 2;
+      novosPesos.PE = (novosPesos.PE ?? 0) + 2;
+      break;
+    case "roubo":
+      novosPesos.POST = (novosPesos.POST ?? 0) + 2;
+      novosPesos.PE = (novosPesos.PE ?? 0) + 2;
+      break;
+    case "furto":
+      novosPesos.PREV = (novosPesos.PREV ?? 0) + 2;
+      novosPesos.POST = (novosPesos.POST ?? 0) + 2;
+      break;
+    case "letalidade":
+      novosPesos.PREV = (novosPesos.PREV ?? 0) + 1;
+      novosPesos.POST = (novosPesos.POST ?? 0) + 1;
+      break;
+    case "rural":
+      novosPesos.RURAL = (novosPesos.RURAL ?? 0) + 3;
       break;
   }
   return novosPesos;
@@ -975,6 +1008,14 @@ export function gerarCPP({ configuracao, municipios }: GerarCPPParams): {
       // Ajuste de pesos por categoria doutrinária
       const categoria = CATEGORIA_ATIVIDADE[configuracao.tipoAtividade] ?? "PATRULHA";
       pesos = ajustarPesosPorCategoria(pesos, categoria);
+
+      // Ponderar por Perfil Criminal (Fase 6)
+      pesos = ajustarPesosPorPerfilCriminal(pesos, ppiMun?.perfilCriminal);
+
+      // Ronda Escolar (ESC) não ocorre em fim de semana (Fase 0)
+      if (!diaUtil) {
+        delete pesos.ESC;
+      }
 
       // Fallback = modalidade de maior peso antes do anti-repetição
       const fallback = (
