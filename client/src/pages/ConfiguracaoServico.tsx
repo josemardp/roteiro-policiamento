@@ -163,7 +163,7 @@ export default function ConfiguracaoServico({
           {/* Tipo de Policiamento */}
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Tipo de Policiamento
+              Foco / Tipo de Policiamento
             </label>
             <select
               value={tipoPoliciamento}
@@ -172,8 +172,13 @@ export default function ConfiguracaoServico({
               }
               className="w-full px-4 py-3 rounded-lg border border-gray-300 text-base font-medium focus:outline-none focus:ring-2 focus:ring-[#0a2540]"
             >
-              <option>Urbano</option>
-              <option>Rural</option>
+              <option value="Misto (Urbano e Rural)">Misto (Urbano e Rural)</option>
+              <option value="Urbano">Urbano</option>
+              <option value="Rural">Rural</option>
+              <option value="Foco Urbano">Foco Urbano</option>
+              <option value="Foco Rural">Foco Rural</option>
+              <option value="Foco Escolar">Foco Escolar</option>
+              <option value="Foco Fiscalização">Foco Fiscalização de Trânsito</option>
             </select>
           </div>
 

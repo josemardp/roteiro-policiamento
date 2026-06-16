@@ -14,6 +14,7 @@ import type {
   MunicipioData,
   TipoAtividade,
   Municipio,
+  TipoPoliciamento,
 } from "./types";
 import {
   MODALIDADES,
@@ -138,6 +139,61 @@ function pesoSatNaData(eventos: any[] | undefined, dataStr: string): number {
     }
   }
   return pesoMax;
+}
+
+function ajustarPesosPorFoco(
+  pesos: Pesos,
+  tipoPoliciamento: TipoPoliciamento,
+  perfil: string,
+  periodo: string
+): Pesos {
+  const novosPesos: Pesos = { ...pesos };
+  switch (tipoPoliciamento) {
+    case "Misto (Urbano e Rural)":
+      if (perfil === "urbano_medio") {
+        if (novosPesos.RURAL === undefined) novosPesos.RURAL = 2;
+      } else if (perfil === "rural_pequeno") {
+        if (novosPesos.POST === undefined) novosPesos.POST = 2;
+        if (novosPesos.PREV === undefined) novosPesos.PREV = 2;
+      }
+      break;
+    case "Urbano":
+    case "Foco Urbano":
+      if (perfil === "rural_pequeno") {
+        if (novosPesos.POST === undefined) novosPesos.POST = 2;
+        if (novosPesos.PREV === undefined) novosPesos.PREV = 2;
+        if (novosPesos.RURAL !== undefined) novosPesos.RURAL = Math.max(0, Math.round(novosPesos.RURAL * 0.3));
+      } else {
+        if (novosPesos.RURAL !== undefined) delete novosPesos.RURAL;
+      }
+      if (tipoPoliciamento === "Foco Urbano") {
+        if (novosPesos.POST !== undefined) novosPesos.POST = Math.round(novosPesos.POST * 1.5);
+        if (novosPesos.PREV !== undefined) novosPesos.PREV = Math.round(novosPesos.PREV * 1.5);
+      }
+      break;
+    case "Rural":
+    case "Foco Rural":
+      if (perfil === "urbano_medio") {
+        if (novosPesos.RURAL === undefined) novosPesos.RURAL = 4;
+        if (novosPesos.POST !== undefined) novosPesos.POST = Math.max(0, Math.round(novosPesos.POST * 0.3));
+        if (novosPesos.PREV !== undefined) novosPesos.PREV = Math.max(0, Math.round(novosPesos.PREV * 0.3));
+        if (novosPesos.ESC !== undefined) novosPesos.ESC = Math.max(0, Math.round(novosPesos.ESC * 0.3));
+      } else {
+        if (novosPesos.RURAL !== undefined) novosPesos.RURAL = Math.round(novosPesos.RURAL * 2.0 + 1);
+      }
+      break;
+    case "Foco Escolar":
+      if (periodo === "manha" || periodo === "tarde") {
+        novosPesos.ESC = (novosPesos.ESC ?? 0) + 5;
+      } else {
+        if (novosPesos.ESC !== undefined) delete novosPesos.ESC;
+      }
+      break;
+    case "Foco Fiscalização":
+      novosPesos.FISC = (novosPesos.FISC ?? 0) + 5;
+      break;
+  }
+  return novosPesos;
 }
 
 function ajustarPesosPorCategoria(pesos: Pesos, categoria: CategoriaAtividade): Pesos {
@@ -632,6 +688,7 @@ export function gerarCPP({ configuracao, municipios }: GerarCPPParams): {
       const periodo = calcularPeriodo(tempoAtual);
       const usaRural =
         configuracao.tipoPoliciamento === "Rural" ||
+        configuracao.tipoPoliciamento === "Foco Rural" ||
         currentMunData.perfil === "rural_pequeno";
       const perfil: string = numMuns > 1
         ? currentMunData.perfil
@@ -640,6 +697,9 @@ export function gerarCPP({ configuracao, municipios }: GerarCPPParams): {
       let pesos: Pesos = {
         ...(MATRIZ_PESOS[perfil]?.[periodo] ?? { PREV: 3, PE: 2, FISC: 1 }),
       };
+
+      // Ajuste de pesos pelo Foco de Policiamento
+      pesos = ajustarPesosPorFoco(pesos, configuracao.tipoPoliciamento, perfil, periodo);
 
       // Sazonalidade: SAT com peso dinâmico de evento/saturação na data
       const pesoSat = pesoSatNaData(currentMunData.eventos, configuracao.data);

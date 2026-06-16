@@ -27,7 +27,14 @@ export type Municipio =
   | "Guararapes"
   | "Rubiácea"
   | "Bento de Abreu";
-export type TipoPoliciamento = "Urbano" | "Rural";
+export type TipoPoliciamento =
+  | "Misto (Urbano e Rural)"
+  | "Urbano"
+  | "Rural"
+  | "Foco Urbano"
+  | "Foco Rural"
+  | "Foco Escolar"
+  | "Foco Fiscalização";
 export type ModalidadePoliciamento =
   | "PREL" // Preleção / Assunção
   | "DESL" // Deslocamento
