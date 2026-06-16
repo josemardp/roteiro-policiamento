@@ -11,6 +11,7 @@ export const VALPARAISO: MunicipioData = {
     "Av. Nove de Julho (centro comercial)",
     "Rua Bartolomeu Bueno (zona comercial central)",
     "Centro (zona comercial de comércio geral)",
+    "Zona Comercial da Rua Eduardo Geraldi",
   ],
   bairros: [
     "Centro",

@@ -302,7 +302,13 @@ function ajustarPesosPorPerfilCriminal(
   perfil: PerfilCriminal | undefined
 ): Pesos {
   if (!perfil || !perfil.indicadorDominante) return pesos;
-  if (perfil.confianca === "a_validar_comando") return pesos;
+  if (
+    perfil.confianca !== "oficial" ||
+    !perfil.fonteUrl ||
+    !perfil.fonteUrl.startsWith("http")
+  ) {
+    return pesos;
+  }
 
   const novosPesos: Pesos = { ...pesos };
   switch (perfil.indicadorDominante) {
@@ -483,6 +489,48 @@ function determinarLocalFinal({
       const escolhido = pick(menosVisitados, Math.floor(rng() * menosVisitados.length), candidatos[0]);
       cobertura.set(escolhido, (cobertura.get(escolhido) ?? 0) + 1);
       return escolhido;
+    }
+  }
+
+  if (modalidade === "PREV" && ppiMun?.entidadesSociais) {
+    const crasCREAS = ppiMun.entidadesSociais.filter(
+      (e: any) =>
+        (e.tipo === "CRAS" || e.tipo === "CREAS") &&
+        e.fonteUrl &&
+        e.fonteUrl.startsWith("http")
+    );
+    if (crasCREAS.length > 0) {
+      const bairrosVulneraveis = new Set(
+        crasCREAS.map((e: any) => e.bairro).filter(Boolean)
+      );
+      if (bairrosVulneraveis.size > 0) {
+        const candidatos = currentMunData.bairros;
+        if (candidatos.length > 0) {
+          const minVisitas = Math.min(...candidatos.map(c => cobertura.get(c) ?? 0));
+          const menosVisitados = candidatos.filter(
+            c => (cobertura.get(c) ?? 0) === minVisitas
+          );
+          const menosVisitadosVulneraveis = menosVisitados.filter(c =>
+            bairrosVulneraveis.has(c)
+          );
+          let escolhido: string;
+          if (menosVisitadosVulneraveis.length > 0 && rng() < 0.6) {
+            escolhido = pick(
+              menosVisitadosVulneraveis,
+              Math.floor(rng() * menosVisitadosVulneraveis.length),
+              menosVisitadosVulneraveis[0]
+            );
+          } else {
+            escolhido = pick(
+              menosVisitados,
+              Math.floor(rng() * menosVisitados.length),
+              candidatos[0]
+            );
+          }
+          cobertura.set(escolhido, (cobertura.get(escolhido) ?? 0) + 1);
+          return obterLocalEventos(configuracao, focoAtivo, modalidade, escolhido);
+        }
+      }
     }
   }
 

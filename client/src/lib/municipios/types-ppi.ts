@@ -68,6 +68,8 @@ export interface SinistralidadeTransito {
   diasCriticos: string[]; // ex.: ["sexta","sabado"]
   observacao: string;
   fonte: string; // "Infosiga-SP"
+  confianca: "oficial" | "estimado" | "a_validar_comando";
+  fonteUrl: string | null;
 }
 
 export interface FrotaMunicipio {
@@ -78,6 +80,8 @@ export interface FrotaMunicipio {
   percentualMotos: number | null; // motocicletas / total
   dataReferencia: string; // "YYYY-MM"
   fonte: string;
+  confianca: "oficial" | "estimado" | "a_validar_comando";
+  fonteUrl: string | null;
 }
 
 export interface UnidadeSaude {
@@ -127,6 +131,30 @@ export interface PontoAglomeracao {
   lng?: number | null;
 }
 
+export interface PontoEconomico {
+  nome: string;
+  tipo: "EixoComercial" | "Supermercado" | "Posto" | "Farmacia" | "Mercado" | "Feira" | "Industria" | "Outro";
+  endereco: string;
+  bairro: string;
+  lat: number | null;
+  lng: number | null;
+  fonte: string;
+  fonteUrl: string | null;
+}
+
+export interface EntidadeSocial {
+  nome: string;
+  tipo: "CRAS" | "CREAS" | "ConselhoTutelar" | "AssociacaoBairro" | "Igreja" | "ONG" | "ProjetoSocial" | "CentroJuventude" | "Outro";
+  endereco: string;
+  bairro: string;
+  lat: number | null;
+  lng: number | null;
+  publicoAlvo: string;          // ex.: "crianças e adolescentes", "mulheres", "idosos"
+  relevanciaPrevencao: string;  // como conecta à prevenção primária / parceria PM
+  fonte: string;
+  fonteUrl: string | null;
+}
+
 export interface PerfilCriminal {
   anoMovel: string;                 // ex.: "2024-01 a 2024-12"
   homicidioDoloso: number | null;
@@ -134,11 +162,19 @@ export interface PerfilCriminal {
   furtoOutros: number | null;
   furtoVeiculo: number | null;
   rouboVeiculo: number | null;
+  // Foco comunitário / naturezas adicionais
+  violenciaDomestica: number | null;
+  lesaoCorporalDolosa: number | null;
+  trafico: number | null;
+  perturbacaoSossego: number | null;
+  danoVandalismo: number | null;
+  embriaguezVolante: number | null;
   // indicador dominante calculado a partir dos números reais
   indicadorDominante: "letalidade" | "roubo" | "furto" | "furto_veiculo" | "roubo_veiculo" | "rural" | null;
   tendencia: "alta" | "estavel" | "queda" | null;
   confianca: "oficial" | "estimado" | "a_validar_comando";
-  fonte: string;                    // URL + data de extração
+  fonte: string;                    // Descrição da fonte
+  fonteUrl: string | null;          // URL real verificável
 }
 
 export interface DadosPPI {
@@ -151,8 +187,20 @@ export interface DadosPPI {
     bombeiros: Local | null;
   };
   policiaComunitaria: {
-    conseg: { nome: string; endereco: string; reuniaoMensal: string } | null;
-    programas: string[]; // PROERD, Vizinhança Solidária, Patrulha Maria da Penha...
+    conseg: {
+      nome: string;
+      endereco: string;
+      reuniaoMensal: string;
+      ativo: boolean | null;
+      fonte: string;
+      fonteUrl: string | null;
+    } | null;
+    programas: Array<{
+      nome: string;
+      ativo: boolean | null;
+      fonte: string;
+      fonteUrl: string | null;
+    }>;
   };
   metadata: {
     versao: "3.3";
@@ -170,6 +218,8 @@ export interface DadosPPI {
   instituicoesFinanceiras?: InstituicaoFinanceira[];
   ruralDetalhe?: RuralDetalhe;
   pontosAglomeracao?: PontoAglomeracao[];
+  pontosEconomicos?: PontoEconomico[];
+  entidadesSociais?: EntidadeSocial[];
   unidadesPrisionais?: Array<{
     nome: string;
     tipo: string;

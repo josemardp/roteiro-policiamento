@@ -11,6 +11,7 @@ export const GUARARAPES: MunicipioData = {
     "Av. Rio Branco (eixo comercial central)",
     "Av. Marechal Floriano (eixo comercial central)",
     "Centro (zona comercial de comércio geral)",
+    "Zona Comercial do Jardim Acapulco (Rua Baguassu)",
   ],
   bairros: [
     "Centro",
