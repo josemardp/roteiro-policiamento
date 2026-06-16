@@ -15,6 +15,7 @@ import type {
   TipoAtividade,
   Municipio,
   TipoPoliciamento,
+  FocoDistribuicao,
 } from "./types";
 import {
   MODALIDADES,
@@ -192,8 +193,79 @@ function ajustarPesosPorFoco(
     case "Foco Fiscalização":
       novosPesos.FISC = (novosPesos.FISC ?? 0) + 5;
       break;
+    case "Foco Evento":
+      novosPesos.SAT = (novosPesos.SAT ?? 0) + 6;
+      novosPesos.PE = (novosPesos.PE ?? 0) + 4;
+      if (novosPesos.FISC !== undefined) novosPesos.FISC = Math.round(novosPesos.FISC * 1.5 + 1);
+      if (novosPesos.ESC !== undefined) delete novosPesos.ESC;
+      break;
   }
   return novosPesos;
+}
+
+function determinarFocoAtivo(
+  focos: FocoDistribuicao[] | undefined,
+  tipoPadrao: TipoPoliciamento,
+  progresso: number // 0.0 a 1.0
+): TipoPoliciamento {
+  if (!focos || focos.length === 0) return tipoPadrao;
+  if (focos.length === 1) return focos[0].tipo;
+
+  // Normaliza percentuais copiando para evitar mutar o estado original
+  const focosNorm = focos.map(f => ({ ...f }));
+  let totalFixo = 0;
+  let numSemPercentual = 0;
+  
+  for (const f of focosNorm) {
+    if (f.percentual !== undefined && f.percentual > 0) {
+      totalFixo += f.percentual;
+    } else {
+      numSemPercentual++;
+    }
+  }
+
+  // Se passar de 100%, reescalona
+  if (totalFixo > 100) {
+    for (const f of focosNorm) {
+      if (f.percentual !== undefined && f.percentual > 0) {
+        f.percentual = (f.percentual / totalFixo) * 100;
+      }
+    }
+    totalFixo = 100;
+  }
+
+  const restante = 100 - totalFixo;
+  const percPadrao = numSemPercentual > 0 ? restante / numSemPercentual : 0;
+
+  const ordemPos = { "Começo": 1, "Automático": 2, "Meio": 2, "Fim": 3 };
+  focosNorm.sort((a, b) => ordemPos[a.posicao] - ordemPos[b.posicao]);
+
+  let acumulado = 0;
+  for (const f of focosNorm) {
+    const p = (f.percentual !== undefined && f.percentual > 0) ? f.percentual : percPadrao;
+    const fracao = p / 100;
+    acumulado += fracao;
+    if (progresso <= acumulado || Math.abs(progresso - acumulado) < 0.001) {
+      return f.tipo;
+    }
+  }
+  return focosNorm[focosNorm.length - 1].tipo;
+}
+
+function obterLocalEventos(configuracao: ConfiguracaoServico, focoAtivo: TipoPoliciamento, modalidade: string, localPadrao: string): string {
+  if (focoAtivo !== "Foco Evento") return localPadrao;
+  const evNome = configuracao.nomeEvento || "Evento";
+  const evLocal = configuracao.localEvento || "Local do Evento";
+  if (modalidade === "PE") {
+    return `Ponto de Estacionamento - Imediações do Evento: ${evNome} (${evLocal})`;
+  } else if (modalidade === "SAT") {
+    return `Saturação - Entorno do Evento: ${evNome} (${evLocal})`;
+  } else if (modalidade === "POST" || modalidade === "PREV") {
+    return `Patrulhamento nas imediações do Evento: ${evNome}`;
+  } else if (modalidade === "FISC") {
+    return `Fiscalização no acesso ao Evento: ${evNome} (${evLocal})`;
+  }
+  return localPadrao;
 }
 
 function ajustarPesosPorCategoria(pesos: Pesos, categoria: CategoriaAtividade): Pesos {
@@ -686,9 +758,14 @@ export function gerarCPP({ configuracao, municipios }: GerarCPPParams): {
 
       // Seleção de modalidade com pesos
       const periodo = calcularPeriodo(tempoAtual);
+      
+      // Progressão do tempo real de patrulha para definir o foco
+      const progressoTurno = (tempoAtual - turnoInicio) / duracaoTurno;
+      const focoAtivo = determinarFocoAtivo(configuracao.focos, configuracao.tipoPoliciamento, progressoTurno);
+
       const usaRural =
-        configuracao.tipoPoliciamento === "Rural" ||
-        configuracao.tipoPoliciamento === "Foco Rural" ||
+        focoAtivo === "Rural" ||
+        focoAtivo === "Foco Rural" ||
         currentMunData.perfil === "rural_pequeno";
       const perfil: string = numMuns > 1
         ? currentMunData.perfil
@@ -698,8 +775,8 @@ export function gerarCPP({ configuracao, municipios }: GerarCPPParams): {
         ...(MATRIZ_PESOS[perfil]?.[periodo] ?? { PREV: 3, PE: 2, FISC: 1 }),
       };
 
-      // Ajuste de pesos pelo Foco de Policiamento
-      pesos = ajustarPesosPorFoco(pesos, configuracao.tipoPoliciamento, perfil, periodo);
+      // Ajuste de pesos pelo Foco de Policiamento Ativo
+      pesos = ajustarPesosPorFoco(pesos, focoAtivo, perfil, periodo);
 
       // Sazonalidade: SAT com peso dinâmico de evento/saturação na data
       const pesoSat = pesoSatNaData(currentMunData.eventos, configuracao.data);
@@ -759,13 +836,15 @@ export function gerarCPP({ configuracao, municipios }: GerarCPPParams): {
         const alt: ModalidadePoliciamento = pesos.PE ? "PE" : "FISC";
         const durAlt = Math.min(30, disponivelReal);
         if (durAlt >= 30) {
+          const localPadrao = selecionarLocal(currentMunData, alt, coberturas[currentMunName], rng);
+          const localReal = obterLocalEventos(configuracao, focoAtivo, alt, localPadrao);
           blocos.push(
             criarBloco(
               ordem++,
               tempoAtual,
               durAlt,
               alt,
-              selecionarLocal(currentMunData, alt, coberturas[currentMunName], rng),
+              localReal,
               selecionarProblema(alt, periodo),
               JUSTIFICATIVAS[alt] || "Atividade de policiamento.",
               currentMunName
@@ -785,14 +864,15 @@ export function gerarCPP({ configuracao, municipios }: GerarCPPParams): {
         break;
       }
 
-      const local = selecionarLocal(currentMunData, modalidade, coberturas[currentMunName], rng);
+      const localPadrao = selecionarLocal(currentMunData, modalidade, coberturas[currentMunName], rng);
+      const localReal = obterLocalEventos(configuracao, focoAtivo, modalidade, localPadrao);
       blocos.push(
         criarBloco(
           ordem++,
           tempoAtual,
           dur,
           modalidade,
-          local,
+          localReal,
           selecionarProblema(modalidade, periodo),
           JUSTIFICATIVAS[modalidade] || "Atividade de policiamento.",
           currentMunName

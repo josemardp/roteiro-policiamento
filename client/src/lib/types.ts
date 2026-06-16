@@ -34,7 +34,16 @@ export type TipoPoliciamento =
   | "Foco Urbano"
   | "Foco Rural"
   | "Foco Escolar"
-  | "Foco Fiscalização";
+  | "Foco Fiscalização"
+  | "Foco Evento";
+
+export interface FocoDistribuicao {
+  id: string; // Para React key
+  tipo: TipoPoliciamento;
+  percentual?: number; // Opcional, o motor preenche se faltar
+  posicao: "Começo" | "Meio" | "Fim" | "Automático";
+}
+
 export type ModalidadePoliciamento =
   | "PREL" // Preleção / Assunção
   | "DESL" // Deslocamento
@@ -68,7 +77,8 @@ export interface ConfiguracaoServico {
   tipoAtividade: TipoAtividade;
   municipio?: Municipio; // Mantido como opcional para retrocompatibilidade direta
   municipios: Municipio[];
-  tipoPoliciamento: TipoPoliciamento;
+  tipoPoliciamento: TipoPoliciamento; // Mantido para UI simples e fallback
+  focos?: FocoDistribuicao[]; // Modo avançado: distribuição dinâmica
   data: string; // YYYY-MM-DD
   horaInicio: string; // HH:MM
   horaTermino: string; // HH:MM (calculado)
@@ -77,6 +87,9 @@ export interface ConfiguracaoServico {
   efetivo: string; // Informativo
   viatura: string; // Informativo
   prefixoUS: string; // Informativo
+  nomeEvento?: string;
+  tipoEvento?: string;
+  localEvento?: string;
 }
 
 export interface RoteiroDia {

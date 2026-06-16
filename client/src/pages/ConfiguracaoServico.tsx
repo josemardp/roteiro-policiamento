@@ -10,6 +10,7 @@ import type {
   TipoAtividade,
   Municipio,
   TipoPoliciamento,
+  FocoDistribuicao,
 } from "@/lib/types";
 import { calcularHoraTermino, parseDataLocal } from "@/lib/gerarCPP";
 import { DURACAO_TURNO_MIN } from "@/lib/constants";
@@ -31,6 +32,13 @@ export default function ConfiguracaoServico({
   const [municipiosSel, setMunicipiosSel] = useState<Municipio[]>(["Valparaíso"]);
   const [tipoPoliciamento, setTipoPoliciamento] =
     useState<TipoPoliciamento>("Urbano");
+  const [modoAvancadoFoco, setModoAvancadoFoco] = useState(false);
+  const [focosAvancados, setFocosAvancados] = useState<FocoDistribuicao[]>([
+    { id: "1", tipo: "Urbano", posicao: "Automático" }
+  ]);
+  const [nomeEvento, setNomeEvento] = useState("");
+  const [tipoEvento, setTipoEvento] = useState("");
+  const [localEvento, setLocalEvento] = useState("");
   const [data, setData] = useState(new Date().toISOString().split("T")[0]);
   const [horaInicio, setHoraInicio] = useState("17:00");
   const [modalidadeGeracao, setModalidadeGeracao] = useState<
@@ -56,8 +64,15 @@ export default function ConfiguracaoServico({
     }
   };
 
+  const temFocoEvento = modoAvancadoFoco
+    ? focosAvancados.some(f => f.tipo === "Foco Evento")
+    : tipoPoliciamento === "Foco Evento";
+
   const validacao = schema.safeParse({ data, horaInicio });
-  const camposValidos = validacao.success && municipiosSel.length > 0;
+  const camposValidos =
+    validacao.success &&
+    municipiosSel.length > 0 &&
+    (!temFocoEvento || (nomeEvento.trim() !== "" && localEvento.trim() !== ""));
   const erros = !validacao.success ? validacao.error.flatten().fieldErrors : {};
 
   const handleGerarCPP = () => {
@@ -67,6 +82,7 @@ export default function ConfiguracaoServico({
       municipios: municipiosSel,
       municipio: municipiosSel[0],
       tipoPoliciamento,
+      focos: modoAvancadoFoco ? focosAvancados : undefined,
       data,
       horaInicio,
       horaTermino,
@@ -75,6 +91,9 @@ export default function ConfiguracaoServico({
       efetivo,
       viatura,
       prefixoUS,
+      nomeEvento: temFocoEvento ? nomeEvento : undefined,
+      tipoEvento: temFocoEvento ? tipoEvento : undefined,
+      localEvento: temFocoEvento ? localEvento : undefined,
     };
     onGerarCPP(config);
   };
@@ -160,27 +179,156 @@ export default function ConfiguracaoServico({
             )}
           </div>
 
-          {/* Tipo de Policiamento */}
+          {/* Tipo de Policiamento / Focos */}
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Foco / Tipo de Policiamento
-            </label>
-            <select
-              value={tipoPoliciamento}
-              onChange={e =>
-                setTipoPoliciamento(e.target.value as TipoPoliciamento)
-              }
-              className="w-full px-4 py-3 rounded-lg border border-gray-300 text-base font-medium focus:outline-none focus:ring-2 focus:ring-[#0a2540]"
-            >
-              <option value="Misto (Urbano e Rural)">Misto (Urbano e Rural)</option>
-              <option value="Urbano">Urbano</option>
-              <option value="Rural">Rural</option>
-              <option value="Foco Urbano">Foco Urbano</option>
-              <option value="Foco Rural">Foco Rural</option>
-              <option value="Foco Escolar">Foco Escolar</option>
-              <option value="Foco Fiscalização">Foco Fiscalização de Trânsito</option>
-            </select>
+            <div className="flex justify-between items-center mb-2">
+              <label className="block text-sm font-semibold text-gray-700">
+                Foco / Tipo de Policiamento
+              </label>
+              <button
+                type="button"
+                onClick={() => setModoAvancadoFoco(!modoAvancadoFoco)}
+                className="text-xs font-bold text-blue-600 hover:text-blue-800"
+              >
+                {modoAvancadoFoco ? "Voltar ao Modo Simples" : "Modo Avançado (Múltiplos Focos)"}
+              </button>
+            </div>
+
+            {!modoAvancadoFoco ? (
+              <select
+                value={tipoPoliciamento}
+                onChange={e =>
+                  setTipoPoliciamento(e.target.value as TipoPoliciamento)
+                }
+                className="w-full px-4 py-3 rounded-lg border border-gray-300 text-base font-medium focus:outline-none focus:ring-2 focus:ring-[#0a2540]"
+              >
+                <option value="Misto (Urbano e Rural)">Misto (Urbano e Rural)</option>
+                <option value="Urbano">Urbano</option>
+                <option value="Rural">Rural</option>
+                <option value="Foco Urbano">Foco Urbano</option>
+                <option value="Foco Rural">Foco Rural</option>
+                <option value="Foco Escolar">Foco Escolar</option>
+                <option value="Foco Fiscalização">Foco Fiscalização de Trânsito</option>
+                <option value="Foco Evento">Foco em Evento</option>
+              </select>
+            ) : (
+              <div className="space-y-3">
+                {focosAvancados.map((foco, index) => (
+                  <div key={foco.id} className="flex gap-2 items-start bg-gray-50 p-3 rounded-xl border border-gray-200">
+                    <div className="flex-1 space-y-2">
+                      <select
+                        value={foco.tipo}
+                        onChange={e => {
+                          const newFocos = [...focosAvancados];
+                          newFocos[index].tipo = e.target.value as TipoPoliciamento;
+                          setFocosAvancados(newFocos);
+                        }}
+                        className="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#0a2540]"
+                      >
+                        <option value="Urbano">Urbano</option>
+                        <option value="Rural">Rural</option>
+                        <option value="Foco Urbano">Foco Urbano</option>
+                        <option value="Foco Rural">Foco Rural</option>
+                        <option value="Foco Escolar">Foco Escolar</option>
+                        <option value="Foco Fiscalização">Foco Fiscalização</option>
+                        <option value="Foco Evento">Foco em Evento</option>
+                      </select>
+                      <div className="flex gap-2">
+                        <select
+                          value={foco.posicao}
+                          onChange={e => {
+                            const newFocos = [...focosAvancados];
+                            newFocos[index].posicao = e.target.value as any;
+                            setFocosAvancados(newFocos);
+                          }}
+                          className="flex-1 px-3 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-[#0a2540]"
+                        >
+                          <option value="Automático">Automático</option>
+                          <option value="Começo">Começo do Turno</option>
+                          <option value="Meio">Meio do Turno</option>
+                          <option value="Fim">Final do Turno</option>
+                        </select>
+                        <input
+                          type="number"
+                          placeholder="% (opc)"
+                          value={foco.percentual || ""}
+                          onChange={e => {
+                            const newFocos = [...focosAvancados];
+                            newFocos[index].percentual = e.target.value ? parseInt(e.target.value, 10) : undefined;
+                            setFocosAvancados(newFocos);
+                          }}
+                          className="w-24 px-3 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-[#0a2540]"
+                          min="1"
+                          max="100"
+                        />
+                      </div>
+                    </div>
+                    {focosAvancados.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => setFocosAvancados(focosAvancados.filter(f => f.id !== foco.id))}
+                        className="text-red-500 hover:text-red-700 p-2 text-xl font-bold rounded-lg hover:bg-red-50"
+                        title="Remover foco"
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => setFocosAvancados([...focosAvancados, { id: Date.now().toString(), tipo: "Urbano", posicao: "Automático" }])}
+                  className="w-full py-3 border-2 border-dashed border-gray-300 text-gray-600 rounded-xl text-sm font-bold hover:border-gray-400 hover:text-[#0a2540] hover:bg-gray-50 transition-colors"
+                >
+                  + Adicionar Foco
+                </button>
+              </div>
+            )}
           </div>
+
+          {/* Inputs do Evento (Condicional) */}
+          {temFocoEvento && (
+            <div className="space-y-3 p-4 bg-blue-50/50 border border-blue-100 rounded-xl">
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                  Nome do Evento
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ex: Festa do Peão, Show na Praça"
+                  value={nomeEvento}
+                  onChange={e => setNomeEvento(e.target.value)}
+                  className="w-full px-3 py-2.5 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-[#0a2540] bg-white"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">
+                    Tipo de Evento
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Ex: Rodeio, Show, Religioso"
+                    value={tipoEvento}
+                    onChange={e => setTipoEvento(e.target.value)}
+                    className="w-full px-3 py-2.5 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-[#0a2540] bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">
+                    Local do Evento
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Ex: Recinto, Praça Matriz"
+                    value={localEvento}
+                    onChange={e => setLocalEvento(e.target.value)}
+                    className="w-full px-3 py-2.5 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-[#0a2540] bg-white"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Data */}
           <div>
