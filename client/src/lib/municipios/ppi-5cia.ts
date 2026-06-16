@@ -154,7 +154,6 @@ export const PPI_5CIA: Record<Municipio, DadosPPI> = {
       bombeiros: null,
     },
     policiaComunitaria: {
-      conseg: null,
       programas: [
         {
           nome: "PROERD",
@@ -381,7 +380,6 @@ export const PPI_5CIA: Record<Municipio, DadosPPI> = {
         "DadosPPI.Guararapes.frota.motocicletas",
         "DadosPPI.Guararapes.frota.caminhoes",
         "DadosPPI.Guararapes.frota.percentualMotos",
-        "DadosPPI.Guararapes.policiaComunitaria.conseg",
         "DadosPPI.Guararapes.hotspots[0].horaInicioCritico",
         "DadosPPI.Guararapes.hotspots[0].horaFimCritico",
         "DadosPPI.Guararapes.hotspots[0].diasCriticos",
@@ -505,7 +503,6 @@ export const PPI_5CIA: Record<Municipio, DadosPPI> = {
       bombeiros: null,
     },
     policiaComunitaria: {
-      conseg: null,
       programas: [
         {
           nome: "PROERD",
@@ -751,7 +748,6 @@ export const PPI_5CIA: Record<Municipio, DadosPPI> = {
         "DadosPPI.Valparaíso.frota.motocicletas",
         "DadosPPI.Valparaíso.frota.caminhoes",
         "DadosPPI.Valparaíso.frota.percentualMotos",
-        "DadosPPI.Valparaíso.policiaComunitaria.conseg",
         "DadosPPI.Valparaíso.hotspots[0].horaInicioCritico",
         "DadosPPI.Valparaíso.hotspots[0].horaFimCritico",
         "DadosPPI.Valparaíso.hotspots[0].diasCriticos",
@@ -838,7 +834,6 @@ export const PPI_5CIA: Record<Municipio, DadosPPI> = {
       bombeiros: null,
     },
     policiaComunitaria: {
-      conseg: null,
       programas: [
         {
           nome: "PROERD",
@@ -988,7 +983,6 @@ export const PPI_5CIA: Record<Municipio, DadosPPI> = {
         "DadosPPI.Rubiácea.frota.motocicletas",
         "DadosPPI.Rubiácea.frota.caminhoes",
         "DadosPPI.Rubiácea.frota.percentualMotos",
-        "DadosPPI.Rubiácea.policiaComunitaria.conseg",
         "DadosPPI.Rubiácea.hotspots[0].horaInicioCritico",
         "DadosPPI.Rubiácea.hotspots[0].horaFimCritico",
         "DadosPPI.Rubiácea.hotspots[0].diasCriticos",
@@ -1061,7 +1055,6 @@ export const PPI_5CIA: Record<Municipio, DadosPPI> = {
       bombeiros: null,
     },
     policiaComunitaria: {
-      conseg: null,
       programas: [
         {
           nome: "PROERD",
@@ -1214,7 +1207,6 @@ export const PPI_5CIA: Record<Municipio, DadosPPI> = {
         "DadosPPI.Bento de Abreu.frota.motocicletas",
         "DadosPPI.Bento de Abreu.frota.caminhoes",
         "DadosPPI.Bento de Abreu.frota.percentualMotos",
-        "DadosPPI.Bento de Abreu.policiaComunitaria.conseg",
         "DadosPPI.Bento de Abreu.hotspots[0].horaInicioCritico",
         "DadosPPI.Bento de Abreu.hotspots[0].horaFimCritico",
         "DadosPPI.Bento de Abreu.hotspots[0].diasCriticos",

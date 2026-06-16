@@ -187,14 +187,6 @@ export interface DadosPPI {
     bombeiros: Local | null;
   };
   policiaComunitaria: {
-    conseg: {
-      nome: string;
-      endereco: string;
-      reuniaoMensal: string;
-      ativo: boolean | null;
-      fonte: string;
-      fonteUrl: string | null;
-    } | null;
     programas: Array<{
       nome: string;
       ativo: boolean | null;
