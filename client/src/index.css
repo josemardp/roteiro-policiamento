@@ -272,7 +272,79 @@
   }
 }
 
+/* Leaflet Dark Mode Tiles Filter */
+.dark .leaflet-container {
+  background: #111827 !important;
+}
+
+.dark .leaflet-tile-pane {
+  filter: invert(100%) hue-rotate(180deg) brightness(85%) contrast(90%);
+}
+
+.dark .leaflet-bar a {
+  background-color: #1f2937 !important;
+  color: #f3f4f6 !important;
+  border-bottom: 1px solid #374151 !important;
+}
+
+.dark .leaflet-bar a:hover {
+  background-color: #374151 !important;
+}
+
+.dark .leaflet-popup-content-wrapper,
+.dark .leaflet-popup-tip {
+  background: #1f2937 !important;
+  color: #f3f4f6 !important;
+  box-shadow: 0 3px 14px rgba(0, 0, 0, 0.4);
+}
+
+/* GPS Pulse Dot for "Você está aqui" */
+.gps-pulse-container {
+  position: relative;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gps-pulse-dot {
+  width: 14px;
+  height: 14px;
+  background-color: #2563eb; /* Blue-600 */
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  box-shadow: 0 0 8px rgba(37, 99, 235, 0.8);
+  z-index: 2;
+}
+
+.gps-pulse-ring {
+  position: absolute;
+  width: 28px;
+  height: 28px;
+  border: 3px solid #2563eb;
+  border-radius: 50%;
+  animation: gps-pulse-anim 2s ease-out infinite;
+  opacity: 0;
+  z-index: 1;
+}
+
+@keyframes gps-pulse-anim {
+  0% {
+    transform: scale(0.5);
+    opacity: 0;
+  }
+  50% {
+    opacity: 0.5;
+  }
+  100% {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}
+
 /* Utility: Ensure content not hidden under keyboard */
 body {
   padding-bottom: env(safe-area-inset-bottom);
 }
+

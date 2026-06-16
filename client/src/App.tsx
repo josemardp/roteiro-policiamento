@@ -33,7 +33,14 @@ import { useLocalStorage } from "@/hooks/useLocalStorage";
 type Tela = "configuracao" | "cpp" | "historico";
 
 function AppContent() {
-  const [telaAtual, setTelaAtual] = useState<Tela>("configuracao");
+  const [telaAtual, setTelaAtual] = useState<Tela>(() => {
+    try {
+      const item = window.localStorage.getItem("roteiro_dia_atual");
+      return item && item !== "null" ? "cpp" : "configuracao";
+    } catch (e) {
+      return "configuracao";
+    }
+  });
   const [roteiroDia, setRoteiroDia] = useLocalStorage<RoteiroDia | null>(
     "roteiro_dia_atual",
     null
@@ -234,7 +241,7 @@ function AppContent() {
 function App() {
   return (
     <ErrorBoundary>
-      <ThemeProvider defaultTheme="light">
+      <ThemeProvider defaultTheme="light" switchable={true}>
         <TooltipProvider>
           <AppContent />
         </TooltipProvider>

@@ -1,0 +1,18 @@
+{
+  "short_name": "CPP 5ª Cia",
+  "name": "Roteiro de Policiamento - CPP 5ª Cia",
+  "description": "Modo Patrulha ao vivo, Roteiro e Fundamentação CPP da PMESP 5ª Cia do 2º BPM/I.",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#0a2540",
+  "theme_color": "#0a2540",
+  "display": "standalone",
+  "orientation": "portrait"
+}

@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0a2540" />
+      <stop offset="100%" stop-color="#1e3a8a" />
+    </linearGradient>
+    <linearGradient id="gold-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fbbf24" />
+      <stop offset="100%" stop-color="#d97706" />
+    </linearGradient>
+  </defs>
+  <!-- Rounded Base -->
+  <rect width="512" height="512" rx="128" fill="url(#bg-grad)" />
+  <!-- Shield Outline -->
+  <path d="M256 64 C330 64, 400 96, 400 176 C400 320, 256 432, 256 432 C256 432, 112 320, 112 176 C112 96, 182 64, 256 64 Z" fill="none" stroke="url(#gold-grad)" stroke-width="16" stroke-linejoin="round" />
+  <!-- Inner Shield -->
+  <path d="M256 88 C315 88, 376 114, 376 176 C376 295, 256 395, 256 395 C256 395, 136 295, 136 176 C136 114, 197 88, 256 88 Z" fill="#0c2340" opacity="0.9" />
+  <!-- Star -->
+  <polygon points="256,136 276,180 324,180 285,210 300,256 256,228 212,256 227,210 188,180 236,180" fill="url(#gold-grad)" />
+  <!-- Text PMESP -->
+  <text x="256" y="320" font-family="sans-serif" font-size="44" font-weight="900" fill="#ffffff" text-anchor="middle" letter-spacing="4">PMESP</text>
+  <text x="256" y="360" font-family="sans-serif" font-size="28" font-weight="700" fill="url(#gold-grad)" text-anchor="middle" letter-spacing="2">5ª CIA - 2º BPM/I</text>
+</svg>

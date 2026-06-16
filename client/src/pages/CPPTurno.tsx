@@ -1,17 +1,20 @@
 /**
  * Tela 2 — CPP do Turno (Execução)
- * Design: Operacional Moderno — Cartões com checkbox, edição modal, progresso
+ * Design: Mobile-First Operacional — "Modo Patrulha" ao vivo, navegação inferior, swipe, modo noturno
  */
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { toast } from "sonner";
 import type { RoteiroDia, BlocoHorario } from "@/lib/types";
-import { MODALIDADES, NOTA_SUPERVISAO, DURACAO_TURNO_MIN } from "@/lib/constants";
+import { NOTA_SUPERVISAO, DURACAO_TURNO_MIN } from "@/lib/constants";
 import { parseDataLocal, gerarFundamentacao } from "@/lib/gerarCPP";
 import BlocoCard from "@/components/BlocoCard";
 import EditBlocoModal from "@/components/EditBlocoModal";
 import ExportarRelatorioModal from "@/components/ExportarRelatorioModal";
 import MapaCPP from "@/components/MapaCPP";
+import ModoPatrulha from "@/components/ModoPatrulha";
+import { useTheme } from "@/contexts/ThemeContext";
+import { Sun, Moon, Clock, ListTodo, Map } from "lucide-react";
 
 interface CPPTurnoProps {
   roteiroDia: RoteiroDia;
@@ -26,7 +29,29 @@ export default function CPPTurno({
 }: CPPTurnoProps) {
   const [blocoEditando, setBlocoEditando] = useState<BlocoHorario | null>(null);
   const [mostraExportar, setMostraExportar] = useState(false);
-  const [tabAtiva, setTabAtiva] = useState<"lista" | "mapa">("lista");
+  const [tabAtiva, setTabAtiva] = useState<"agora" | "lista" | "mapa">("agora");
+  const { theme, toggleTheme } = useTheme();
+
+  // Online/Offline tracking
+  const [isOnline, setIsOnline] = useState(() => typeof navigator !== "undefined" ? navigator.onLine : true);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
+
+  // Swiping state
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [touchEnd, setTouchEnd] = useState<number | null>(null);
+  const minSwipeDistance = 50;
 
   const total = roteiroDia.blocos.length;
   const concluidos = roteiroDia.blocos.filter(b => b.concluido).length;
@@ -40,6 +65,17 @@ export default function CPPTurno({
   const dataTurno = parseDataLocal(
     roteiroDia.configuracao.data
   ).toLocaleDateString("pt-BR");
+
+  const startHour = parseInt(roteiroDia.configuracao.horaInicio.split(":")[0]);
+
+  // Auto-dark mode for night shifts: starts >= 18h or < 5h
+  useEffect(() => {
+    const isNightTurn = startHour >= 18 || startHour < 5;
+    const themePreference = localStorage.getItem("theme");
+    if (isNightTurn && !themePreference && toggleTheme && theme !== "dark") {
+      toggleTheme();
+    }
+  }, [startHour, theme, toggleTheme]);
 
   const handleMarcarConcluido = useCallback(
     (blocoId: string) => {
@@ -64,7 +100,6 @@ export default function CPPTurno({
   );
 
   const handleAdicionarBloco = useCallback(() => {
-    // Calcula horário a partir do último bloco
     const ultimo = [...roteiroDia.blocos]
       .sort((a, b) => a.ordem - b.ordem)
       .at(-1);
@@ -93,101 +128,126 @@ export default function CPPTurno({
     toast.success("Bloco adicionado — edite para detalhar.");
   }, [roteiroDia, onAtualizar]);
 
+  // Touch Swipe handlers for tab transitions (Lista ⇄ Mapa ⇄ Agora)
+  const onTouchStart = (e: React.TouchEvent) => {
+    // Prevent swiping tab when interacting with Leaflet map
+    if ((e.target as HTMLElement).closest(".leaflet-container")) return;
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const onTouchMove = (e: React.TouchEvent) => {
+    // Avoid tracking if swipe is not relevant
+    if (touchStart === null) return;
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+
+  const onTouchEnd = () => {
+    if (touchStart === null || touchEnd === null) return;
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > minSwipeDistance;
+    const isRightSwipe = distance < -minSwipeDistance;
+
+    const tabs: Array<"agora" | "lista" | "mapa"> = ["agora", "lista", "mapa"];
+    const currentIndex = tabs.indexOf(tabAtiva);
+
+    if (isLeftSwipe && currentIndex < tabs.length - 1) {
+      setTabAtiva(tabs[currentIndex + 1]);
+    } else if (isRightSwipe && currentIndex > 0) {
+      setTabAtiva(tabs[currentIndex - 1]);
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50 pb-32">
-      {/* Cabeçalho Sticky */}
-      <div className="header-sticky">
-        <div className="container py-4">
-          <div className="flex items-center justify-between mb-3">
-            <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-              👮 CPP do Turno
-            </h1>
+    <div
+      className="min-h-screen bg-gray-50 dark:bg-slate-950 pb-[calc(72px+env(safe-area-inset-bottom))] transition-colors duration-300"
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
+    >
+      {/* Cabeçalho Sticky Compacto */}
+      <div className="header-sticky select-none">
+        <div className="container py-3">
+          <div className="flex items-center justify-between gap-2">
             <button
               onClick={onVoltar}
-              className="text-white hover:bg-white/20 px-3 py-2 rounded-lg transition-colors min-h-[44px]"
+              className="text-white hover:bg-white/20 px-2.5 py-1.5 rounded-lg transition-colors min-h-[40px] text-sm font-semibold flex items-center justify-center cursor-pointer"
             >
               ← Voltar
             </button>
+
+            <h1 className="text-base font-black text-white text-center flex-1 truncate uppercase tracking-wide">
+              👮 CPP: {roteiroDia.configuracao.municipios?.join(" / ") || roteiroDia.configuracao.municipio}
+            </h1>
+
+            <div className="flex items-center gap-1.5">
+              <span className={`px-2 py-1 rounded-md text-[9px] font-black uppercase flex items-center gap-1 border ${
+                isOnline 
+                  ? "bg-emerald-950/45 text-emerald-450 border-emerald-500/20" 
+                  : "bg-amber-950/45 text-amber-450 border-amber-500/20"
+              }`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${isOnline ? "bg-emerald-400" : "bg-amber-400"} ${isOnline ? "" : "animate-pulse"}`} />
+                {isOnline ? "Online" : "Offline"}
+              </span>
+
+              {toggleTheme && (
+                <button
+                  onClick={toggleTheme}
+                  className="text-white hover:bg-white/20 px-2 py-2 rounded-lg transition-colors min-h-[40px] min-w-[40px] flex items-center justify-center cursor-pointer"
+                  title="Alternar tema"
+                >
+                  {theme === "dark" ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+                </button>
+              )}
+            </div>
           </div>
 
-          {/* Resumo do Turno */}
-          <div className="grid grid-cols-2 gap-2 text-sm text-blue-100 mb-3">
+          {/* Compact Details Grid */}
+          <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 text-[11px] text-blue-100 mt-2 font-medium">
             <div>
-              <span className="font-semibold">
+              <span className="font-bold text-white uppercase">
                 {roteiroDia.configuracao.tipoAtividade} ({DURACAO_TURNO_MIN[roteiroDia.configuracao.tipoAtividade] / 60}h)
               </span>
-              <br />
-              <span className="text-white font-medium">
-                {roteiroDia.configuracao.municipios?.join(" → ") || roteiroDia.configuracao.municipio}
-              </span>
+            </div>
+            <div className="text-right">
+              <span>{dataTurno}</span>
             </div>
             <div>
-              <span className="font-semibold">
-                {roteiroDia.configuracao.horaInicio} —{" "}
-                {roteiroDia.configuracao.horaTermino}
-              </span>
-              <br />
-              {dataTurno}
+              <span>Horário: {roteiroDia.configuracao.horaInicio} - {roteiroDia.configuracao.horaTermino}</span>
             </div>
-          </div>
-
-          {/* Barra de Progresso */}
-          <div className="space-y-1">
-            <div className="progress-bar">
-              <div
-                className="progress-fill"
-                style={{ width: `${percentualConcluido}%` }}
-              />
+            <div className="text-right">
+              <span className="text-emerald-400 font-bold">{percentualConcluido}% concluído</span>
             </div>
-            <p className="text-xs text-blue-100 font-semibold">
-              {concluidos} de {total} blocos concluídos ({percentualConcluido}%)
-            </p>
           </div>
         </div>
       </div>
 
-      {/* Conteúdo */}
-      <div className="container py-6 max-w-2xl">
-        {/* Card de Fundamentação (PPI) */}
-        <div className="bg-white border border-gray-200 rounded-xl p-4 mb-4 shadow-sm">
-          <h3 className="text-sm font-bold text-gray-800 flex items-center gap-1.5 mb-2">
-            ⚖️ Fundamentação do Roteiro (PPI)
-          </h3>
-          <ul className="list-disc list-inside space-y-1.5 text-xs text-gray-600">
-            {gerarFundamentacao(roteiroDia.configuracao).map((linha, idx) => (
-              <li key={idx} className="leading-relaxed">
-                {linha}
-              </li>
-            ))}
-          </ul>
-        </div>
-        {/* Selector de Abas Mobile-Friendly */}
-        <div className="flex bg-gray-200/60 p-1 rounded-xl gap-1 mb-4 max-w-xs mx-auto">
-          <button
-            onClick={() => setTabAtiva("lista")}
-            className={`flex-1 text-center py-2 text-sm font-semibold rounded-lg transition-all min-h-[38px] ${
-              tabAtiva === "lista"
-                ? "bg-white text-gray-900 shadow-sm"
-                : "text-gray-600 hover:text-gray-900"
-            }`}
-          >
-            📋 Lista
-          </button>
-          <button
-            onClick={() => setTabAtiva("mapa")}
-            className={`flex-1 text-center py-2 text-sm font-semibold rounded-lg transition-all min-h-[38px] ${
-              tabAtiva === "mapa"
-                ? "bg-white text-gray-900 shadow-sm"
-                : "text-gray-600 hover:text-gray-900"
-            }`}
-          >
-            🗺️ Mapa
-          </button>
-        </div>
+      {/* Conteúdo Central */}
+      <div className="container py-4 max-w-md mx-auto">
+        {tabAtiva === "agora" && (
+          <ModoPatrulha
+            roteiroDia={roteiroDia}
+            onMarcarConcluido={handleMarcarConcluido}
+          />
+        )}
 
-        <div className="space-y-4">
-          {tabAtiva === "lista" ? (
-            <>
+        {tabAtiva === "lista" && (
+          <div className="space-y-4">
+            {/* Card de Fundamentação (PPI) */}
+            <div className="bg-white dark:bg-slate-900 border border-gray-150 dark:border-slate-850 rounded-xl p-4 shadow-xs">
+              <h3 className="text-xs font-bold text-gray-800 dark:text-white flex items-center gap-1.5 mb-2">
+                ⚖️ Fundamentação do Roteiro (PPI)
+              </h3>
+              <ul className="list-disc list-inside space-y-1 text-[11px] text-gray-500 dark:text-slate-400">
+                {gerarFundamentacao(roteiroDia.configuracao).map((linha, idx) => (
+                  <li key={idx} className="leading-relaxed pl-1 -indent-4 ml-4">
+                    {linha}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="space-y-3">
               {blocosOrdenados.map(bloco => (
                 <BlocoCard
                   key={bloco.id}
@@ -196,45 +256,82 @@ export default function CPPTurno({
                   onEditar={() => setBlocoEditando(bloco)}
                 />
               ))}
-
-              {/* Nota de Supervisão */}
-              <div className="bg-blue-50 border-l-4 border-[#0a2540] p-4 rounded-r-lg">
-                <p className="text-xs text-gray-700 leading-relaxed">
-                  <span className="font-semibold">Nota de Supervisão:</span>{" "}
-                  {NOTA_SUPERVISAO}
-                </p>
-              </div>
-
-              {/* Botões de Ação */}
-              <div className="space-y-2 mt-6">
-                <button
-                  onClick={handleAdicionarBloco}
-                  className="w-full btn-tactical-secondary text-base font-bold py-3"
-                >
-                  + Adicionar Bloco
-                </button>
-                <button
-                  onClick={() => setMostraExportar(true)}
-                  className="w-full btn-tactical text-base font-bold py-3"
-                >
-                  📄 Exportar Relatório
-                </button>
-              </div>
-            </>
-          ) : (
-            <div className="space-y-4">
-              <MapaCPP blocos={roteiroDia.blocos} />
-
-              <div className="space-y-2 mt-6">
-                <button
-                  onClick={() => setMostraExportar(true)}
-                  className="w-full btn-tactical text-base font-bold py-3"
-                >
-                  📄 Exportar Relatório
-                </button>
-              </div>
             </div>
-          )}
+
+            {/* Nota de Supervisão */}
+            <div className="bg-blue-50/50 dark:bg-slate-900/40 border-l-4 border-[#0a2540] dark:border-blue-400 p-4 rounded-r-lg">
+              <p className="text-[11px] text-gray-650 dark:text-slate-400 leading-relaxed">
+                <span className="font-semibold dark:text-white">Nota de Supervisão:</span>{" "}
+                {NOTA_SUPERVISAO}
+              </p>
+            </div>
+
+            {/* Botões de Ação */}
+            <div className="space-y-2 mt-6">
+              <button
+                onClick={handleAdicionarBloco}
+                className="w-full btn-tactical-secondary text-base font-bold py-3 min-h-[48px] cursor-pointer"
+              >
+                + Adicionar Bloco
+              </button>
+              <button
+                onClick={() => setMostraExportar(true)}
+                className="w-full btn-tactical text-base font-bold py-3 min-h-[48px] cursor-pointer"
+              >
+                📄 Exportar Relatório
+              </button>
+            </div>
+          </div>
+        )}
+
+        {tabAtiva === "mapa" && (
+          <div className="space-y-4">
+            <MapaCPP blocos={roteiroDia.blocos} />
+
+            <div className="space-y-2 mt-4">
+              <button
+                onClick={() => setMostraExportar(true)}
+                className="w-full btn-tactical text-base font-bold py-3 min-h-[48px] cursor-pointer"
+              >
+                📄 Exportar Relatório
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Barra de Navegação Inferior Fixa */}
+      <div className="fixed bottom-0 left-0 right-0 z-50 bg-[#0a2540] dark:bg-slate-950 text-white pb-[env(safe-area-inset-bottom)] border-t border-blue-900/20 dark:border-slate-800/80 shadow-lg">
+        <div className="max-w-md mx-auto h-16 flex items-center justify-around">
+          <button
+            onClick={() => setTabAtiva("agora")}
+            className={`flex flex-col items-center justify-center flex-1 h-full py-1 transition-all min-h-[48px] cursor-pointer ${
+              tabAtiva === "agora" ? "text-emerald-450 dark:text-emerald-400 scale-105" : "text-gray-400 hover:text-white"
+            }`}
+          >
+            <Clock className="w-5 h-5 mb-0.5" />
+            <span className="text-[10px] font-bold uppercase tracking-wider">Agora</span>
+          </button>
+
+          <button
+            onClick={() => setTabAtiva("lista")}
+            className={`flex flex-col items-center justify-center flex-1 h-full py-1 transition-all min-h-[48px] cursor-pointer ${
+              tabAtiva === "lista" ? "text-emerald-450 dark:text-emerald-400 scale-105" : "text-gray-400 hover:text-white"
+            }`}
+          >
+            <ListTodo className="w-5 h-5 mb-0.5" />
+            <span className="text-[10px] font-bold uppercase tracking-wider">Lista</span>
+          </button>
+
+          <button
+            onClick={() => setTabAtiva("mapa")}
+            className={`flex flex-col items-center justify-center flex-1 h-full py-1 transition-all min-h-[48px] cursor-pointer ${
+              tabAtiva === "mapa" ? "text-emerald-450 dark:text-emerald-400 scale-105" : "text-gray-400 hover:text-white"
+            }`}
+          >
+            <Map className="w-5 h-5 mb-0.5" />
+            <span className="text-[10px] font-bold uppercase tracking-wider">Mapa</span>
+          </button>
         </div>
       </div>
 
