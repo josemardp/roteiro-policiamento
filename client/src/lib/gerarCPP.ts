@@ -26,6 +26,8 @@ import {
   CATEGORIA_ATIVIDADE,
   type CategoriaAtividade,
 } from "./constants";
+import { PPI_5CIA } from "./municipios/ppi-5cia";
+import type { Escola, Hotspot } from "./municipios/types-ppi";
 
 // ─── RNG reproduzível (mulberry32) ───────────────────────────────────────────
 
@@ -325,6 +327,134 @@ function uuidv4(): string {
 // Acesso seguro a arrays — nunca retorna undefined
 function pick<T>(arr: T[], i: number, fallback: T): T {
   return arr.length > 0 ? arr[i % arr.length] : fallback;
+}
+
+const hhmmParaMin = (s: string): number => {
+  const [h, m] = s.split(":").map(Number);
+  return h * 60 + m;
+};
+
+function obterEscolasEmJanela(escolas: Escola[], minutoDia: number, W = 40): Escola[] {
+  const ativas: Escola[] = [];
+  for (const e of escolas) {
+    let escolaAtiva = false;
+    for (const h of [e.turnoEntrada, e.turnoSaida, e.turnoEntradaTarde, e.turnoSaidaTarde]) {
+      if (!h) continue;
+      const alvo = hhmmParaMin(h);
+      const dist = Math.min(Math.abs(minutoDia - alvo), 1440 - Math.abs(minutoDia - alvo));
+      if (dist <= W) {
+        escolaAtiva = true;
+        break;
+      }
+    }
+    if (escolaAtiva) {
+      ativas.push(e);
+    }
+  }
+  return ativas;
+}
+
+function obterBoostEscola(escolas: Escola[], minutoDia: number, W = 40): number {
+  const ativas = obterEscolasEmJanela(escolas, minutoDia, W);
+  if (ativas.length === 0) return 0;
+  const temCrechePre = ativas.some(e =>
+    e.etapas?.some(stage => stage === "Creche" || stage === "Pre-escola")
+  );
+  return temCrechePre ? 7 : 6;
+}
+
+function normalizeDia(d: string): string {
+  return d.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace("-feira", "");
+}
+
+function hotspotsAtivos(hotspots: Hotspot[], periodo: string, hora: number, diaSemana: string): Hotspot[] {
+  return hotspots.filter(h => {
+    if (h.confianca === "a_validar_comando") return false;
+    
+    const periodoOk = h.periodosCriticos.includes(periodo as any) ||
+      (h.horaInicioCritico !== null && h.horaFimCritico !== null &&
+       (h.horaInicioCritico <= h.horaFimCritico
+         ? (hora >= h.horaInicioCritico && hora <= h.horaFimCritico)
+         : (hora >= h.horaInicioCritico || hora <= h.horaFimCritico)
+       ));
+         
+    if (!periodoOk) return false;
+    
+    if (h.diasCriticos.length > 0) {
+      const diasNorm = h.diasCriticos.map(normalizeDia);
+      const diaSemanaNorm = normalizeDia(diaSemana);
+      if (!diasNorm.includes(diaSemanaNorm)) return false;
+    }
+    
+    return true;
+  });
+}
+
+function determinarLocalFinal({
+  modalidade,
+  tempoAtual,
+  diaUtil,
+  escolasMun,
+  hotspotsAtivosMun,
+  currentMunData,
+  cobertura,
+  rng,
+  configuracao,
+  focoAtivo,
+  ppiMun
+}: {
+  modalidade: ModalidadePoliciamento;
+  tempoAtual: number;
+  diaUtil: boolean;
+  escolasMun: Escola[];
+  hotspotsAtivosMun: Hotspot[];
+  currentMunData: MunicipioData;
+  cobertura: CoberturaMapa;
+  rng: () => number;
+  configuracao: ConfiguracaoServico;
+  focoAtivo: TipoPoliciamento;
+  ppiMun: any;
+}): string {
+  if (modalidade === "ESC") {
+    const minutoDia = tempoAtual % 1440;
+    const escolasAtivas = diaUtil ? obterEscolasEmJanela(escolasMun, minutoDia) : [];
+    if (escolasAtivas.length > 0) {
+      const candidatos = escolasAtivas.map(e => `Ronda escolar — ${e.nome} (${e.bairro})`);
+      const minVisitas = Math.min(...candidatos.map((c: string) => cobertura.get(c) ?? 0));
+      const menosVisitados = candidatos.filter((c: string) => (cobertura.get(c) ?? 0) === minVisitas);
+      const escolhido = pick(menosVisitados, Math.floor(rng() * menosVisitados.length), candidatos[0]);
+      cobertura.set(escolhido, (cobertura.get(escolhido) ?? 0) + 1);
+      return escolhido;
+    }
+  }
+
+  if (modalidade === "FISC" && ppiMun?.transito) {
+    const horaAtual = Math.floor((tempoAtual % 1440) / 60);
+    const transito = ppiMun.transito;
+    if (transito.horariosCriticos?.includes(horaAtual) && transito.tiposViaCriticos?.length > 0) {
+      const candidatos = transito.tiposViaCriticos;
+      const minVisitas = Math.min(...candidatos.map((c: string) => cobertura.get(c) ?? 0));
+      const menosVisitados = candidatos.filter((c: string) => (cobertura.get(c) ?? 0) === minVisitas);
+      const escolhido = pick(menosVisitados, Math.floor(rng() * menosVisitados.length), candidatos[0]);
+      cobertura.set(escolhido, (cobertura.get(escolhido) ?? 0) + 1);
+      return escolhido;
+    }
+  }
+
+  if (hotspotsAtivosMun.length > 0) {
+    const hsRecomendados = hotspotsAtivosMun.filter(h => h.modalidadesRecomendadas.includes(modalidade as any));
+    if (hsRecomendados.length > 0) {
+      const candidatos = hsRecomendados.map(h => `${h.local} (${h.bairro})`);
+      const minVisitas = Math.min(...candidatos.map((c: string) => cobertura.get(c) ?? 0));
+      const menosVisitados = candidatos.filter((c: string) => (cobertura.get(c) ?? 0) === minVisitas);
+      const escolhido = pick(menosVisitados, Math.floor(rng() * menosVisitados.length), candidatos[0]);
+      cobertura.set(escolhido, (cobertura.get(escolhido) ?? 0) + 1);
+      return escolhido;
+    }
+  }
+
+  const localPadrao = selecionarLocal(currentMunData, modalidade, cobertura, rng);
+  return obterLocalEventos(configuracao, focoAtivo, modalidade, localPadrao);
 }
 
 // ─── Matriz de pesos (perfil × período) ──────────────────────────────────────
@@ -689,6 +819,21 @@ export function gerarCPP({ configuracao, municipios }: GerarCPPParams): {
       const disponivel = fimREL - tempoAtual;
       if (disponivel < 30) break;
 
+      const ppiMun = (PPI_5CIA as any)[currentMunName];
+      const escolasMun = ppiMun?.escolas ?? [];
+      const hotspotsMun = ppiMun?.hotspots ?? [];
+
+      const periodo = calcularPeriodo(tempoAtual);
+      const progressoTurno = (tempoAtual - turnoInicio) / duracaoTurno;
+      const focoAtivo = determinarFocoAtivo(configuracao.focos, configuracao.tipoPoliciamento, progressoTurno);
+
+      const diasSemanaMapa: Record<number, string> = {
+        0: "domingo", 1: "segunda", 2: "terca", 3: "quarta", 4: "quinta", 5: "sexta", 6: "sabado"
+      };
+      const diaSemana = diasSemanaMapa[parseDataLocal(configuracao.data).getDay()];
+      const horaAtual = Math.floor((tempoAtual % 1440) / 60);
+      const hotspotsAtivosMun = hotspotsAtivos(hotspotsMun, periodo, horaAtual, diaSemana);
+
       // Bloco manual prioritário para este horário
       if (idxManual < manuais.length) {
         const bm = manuais[idxManual];
@@ -705,8 +850,19 @@ export function gerarCPP({ configuracao, municipios }: GerarCPPParams): {
             : 30;
           const proxMin = manuais[idxManual + 1]?.inicioMin ?? fimREL;
           const durSafe = Math.min(dur, disponivel, proxMin - tempoAtual);
-          const local = selecionarLocal(currentMunData, bm.modalidade, coberturas[currentMunName], rng);
-          const periodo = calcularPeriodo(tempoAtual);
+          const local = determinarLocalFinal({
+            modalidade: bm.modalidade,
+            tempoAtual,
+            diaUtil,
+            escolasMun,
+            hotspotsAtivosMun,
+            currentMunData,
+            cobertura: coberturas[currentMunName],
+            rng,
+            configuracao,
+            focoAtivo,
+            ppiMun
+          });
           blocos.push(
             criarBloco(
               ordem++,
@@ -756,13 +912,6 @@ export function gerarCPP({ configuracao, municipios }: GerarCPPParams): {
         continue;
       }
 
-      // Seleção de modalidade com pesos
-      const periodo = calcularPeriodo(tempoAtual);
-      
-      // Progressão do tempo real de patrulha para definir o foco
-      const progressoTurno = (tempoAtual - turnoInicio) / duracaoTurno;
-      const focoAtivo = determinarFocoAtivo(configuracao.focos, configuracao.tipoPoliciamento, progressoTurno);
-
       const usaRural =
         focoAtivo === "Rural" ||
         focoAtivo === "Foco Rural" ||
@@ -782,14 +931,45 @@ export function gerarCPP({ configuracao, municipios }: GerarCPPParams): {
       const pesoSat = pesoSatNaData(currentMunData.eventos, configuracao.data);
       if (pesoSat > 0) pesos.SAT = (pesos.SAT ?? 0) + pesoSat;
 
-      // Força ESC em dia útil manhã/tarde (urbano) — só se ainda não está nos últimos 2
-      if (
-        diaUtil &&
-        (periodo === "manha" || periodo === "tarde") &&
-        perfil === "urbano_medio" &&
-        !historico.slice(-2).includes("ESC")
-      ) {
-        pesos.ESC = (pesos.ESC ?? 0) + 3;
+      // ESC por horário real de escola (Fase 2)
+      const temEscolasMapeadas = escolasMun.length > 0;
+      if (temEscolasMapeadas) {
+        if (diaUtil) {
+          const boost = obterBoostEscola(escolasMun, tempoAtual % 1440);
+          if (boost > 0) {
+            pesos.ESC = (pesos.ESC ?? 0) + boost;
+          }
+        }
+      } else {
+        // Fallback heurístico anterior
+        if (
+          diaUtil &&
+          (periodo === "manha" || periodo === "tarde") &&
+          perfil === "urbano_medio" &&
+          !historico.slice(-2).includes("ESC")
+        ) {
+          pesos.ESC = (pesos.ESC ?? 0) + 3;
+        }
+      }
+
+      // Hotspots Dirigidos (Fase 3)
+      const RISCO_VALOR = { Alto: 5, Médio: 3, Baixo: 2 };
+      for (const h of hotspotsAtivosMun) {
+        const valorRisco = RISCO_VALOR[h.risco] ?? 2;
+        const boostPorMod = valorRisco / h.modalidadesRecomendadas.length;
+        for (const mod of h.modalidadesRecomendadas) {
+          pesos[mod] = (pesos[mod] ?? 0) + boostPorMod;
+        }
+      }
+
+      // Sinistralidade & Alvos de Explosão (Fase 4)
+      if (ppiMun) {
+        if (ppiMun.transito?.horariosCriticos?.includes(horaAtual)) {
+          pesos.FISC = (pesos.FISC ?? 0) + 3;
+        }
+        if (periodo === "madrugada" && ppiMun.instituicoesFinanceiras?.some((f: any) => f.alvoExplosaoCaixa)) {
+          pesos.FISC = (pesos.FISC ?? 0) + 3;
+        }
       }
 
       // Ajuste de pesos por categoria doutrinária
@@ -836,8 +1016,19 @@ export function gerarCPP({ configuracao, municipios }: GerarCPPParams): {
         const alt: ModalidadePoliciamento = pesos.PE ? "PE" : "FISC";
         const durAlt = Math.min(30, disponivelReal);
         if (durAlt >= 30) {
-          const localPadrao = selecionarLocal(currentMunData, alt, coberturas[currentMunName], rng);
-          const localReal = obterLocalEventos(configuracao, focoAtivo, alt, localPadrao);
+          const localReal = determinarLocalFinal({
+            modalidade: alt,
+            tempoAtual,
+            diaUtil,
+            escolasMun,
+            hotspotsAtivosMun,
+            currentMunData,
+            cobertura: coberturas[currentMunName],
+            rng,
+            configuracao,
+            focoAtivo,
+            ppiMun
+          });
           blocos.push(
             criarBloco(
               ordem++,
@@ -864,8 +1055,19 @@ export function gerarCPP({ configuracao, municipios }: GerarCPPParams): {
         break;
       }
 
-      const localPadrao = selecionarLocal(currentMunData, modalidade, coberturas[currentMunName], rng);
-      const localReal = obterLocalEventos(configuracao, focoAtivo, modalidade, localPadrao);
+      const localReal = determinarLocalFinal({
+        modalidade,
+        tempoAtual,
+        diaUtil,
+        escolasMun,
+        hotspotsAtivosMun,
+        currentMunData,
+        cobertura: coberturas[currentMunName],
+        rng,
+        configuracao,
+        focoAtivo,
+        ppiMun
+      });
       blocos.push(
         criarBloco(
           ordem++,

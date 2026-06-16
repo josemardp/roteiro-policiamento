@@ -1,3 +1,13 @@
+/**
+ * INSTRUÇÃO DE ATIVAÇÃO DE HOTSPOTS:
+ * Para que um hotspot influencie o roteiro de policiamento (pesos de modalidades e locais recomendados):
+ * 1. O comando deve preencher `periodosCriticos` (ex: ["manha", "tarde"]) e/ou `horaInicioCritico`/`horaFimCritico`.
+ * 2. Opcionalmente, pode especificar os `diasCriticos` (ex: ["sexta", "sabado"]).
+ * 3. O campo `confianca` DEVE ser alterado de `"a_validar_comando"` para `"estimado"` ou `"verificado"`.
+ * 
+ * Enquanto a confiança permanecer como `"a_validar_comando"`, o hotspot funcionará apenas como stub
+ * e será completamente ignorado pelo motor de geração para evitar direcionamento baseado em dados não validados.
+ */
 import type { DadosPPI } from "./types-ppi";
 import type { Municipio } from "../types";
 
