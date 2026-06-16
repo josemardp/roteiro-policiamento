@@ -10,34 +10,36 @@
 
 ---
 
-## 2. Perfil Criminal (SSP-SP 2024)
-- **Homicídios Dolosos (RAC-II):** 1 ocorrência (a validar pelo comando — Infocrim).
-- **Roubo (outros):** 12 ocorrências (a validar pelo comando — Infocrim).
-- **Furtos (outros):** 287 ocorrências (a validar pelo comando — Infocrim).
-- **Furtos de Veículos:** 14 ocorrências (a validar pelo comando — Infocrim).
-- **Roubos de Veículos:** 2 ocorrências (a validar pelo comando — Infocrim).
-- **Indicador Dominante:** Furtos em Geral (furto simples/qualificado a residências e comércios) (a validar pelo comando — Infocrim).
-- **Tendência:** Estável no último ano-móvel (a validar pelo comando — Infocrim).
-- **Análise Curta:** A letalidade violenta é extremamente baixa. A criminalidade é predominantemente patrimonial (furtos de oportunidade e furto comercial no centro) (a validar pelo comando — Infocrim).
+## 2. Perfil Criminal (SSP-SP 2025)
+- **Homicídios Dolosos:** 3 ocorrências ([SSP-SP Ocorrências Anuais (Guararapes)](file:///G:/Meu%20Drive/Arquivos%20Josemar/Projetos%20n%C3%A3o%20vercionados/5%20Cia/Roteiro%20de%20policiamento/dados%20criminais/OcorrenciaAnual-Guararapes_20260616_124113.xlsx)).
+- **Roubo (outros):** 13 ocorrências ([SSP-SP Ocorrências Anuais (Guararapes)](file:///G:/Meu%20Drive/Arquivos%20Josemar/Projetos%20n%C3%A3o%20vercionados/5%20Cia/Roteiro%20de%20policiamento/dados%20criminais/OcorrenciaAnual-Guararapes_20260616_124113.xlsx)).
+- **Furtos (outros):** 184 ocorrências ([SSP-SP Ocorrências Anuais (Guararapes)](file:///G:/Meu%20Drive/Arquivos%20Josemar/Projetos%20n%C3%A3o%20vercionados/5%20Cia/Roteiro%20de%20policiamento/dados%20criminais/OcorrenciaAnual-Guararapes_20260616_124113.xlsx)).
+- **Furto e Roubo de Veículos:** 7 ocorrências ([SSP-SP Ocorrências Anuais (Guararapes)](file:///G:/Meu%20Drive/Arquivos%20Josemar/Projetos%20n%C3%A3o%20vercionados/5%20Cia/Roteiro%20de%20policiamento/dados%20criminais/OcorrenciaAnual-Guararapes_20260616_124113.xlsx)).
+- **Indicador Dominante:** Furtos em Geral (furto simples/qualificado a residências e comércios).
+- **Tendência:** Queda no último ano-móvel (de 195 em 2024 para 184 em 2025).
+- **Pontos Críticos Mapeados (Hotspots):**
+  - *Av. Rio Branco (Área Comercial/Bancária):* Quintas, sextas e sábados, das 09h às 18h (frequência estimada de 45 a 100 ocorrências/ano).
+  - *Usina Unialco (Área Rural/Industrial):* Quintas a domingos, das 22h às 06h (frequência estimada de 12 a 30 ocorrências/ano).
+- **Análise Curta:** A letalidade violenta é extremamente baixa. A criminalidade é predominantemente patrimonial (furtos de oportunidade e furto comercial no centro).
 
 ---
 
-## 3. Sinistralidade de Trânsito (Infosiga-SP 2024)
-- **Sinistros com Vítima:** 48 ocorrências (a validar pelo comando — Infosiga).
-- **Sinistros sem Vítima:** 92 ocorrências (a validar pelo comando — Infosiga).
-- **Sinistros Fatais:** 4 ocorrências (a validar pelo comando — Infosiga).
-- **Veículo mais envolvido:** Motocicletas (a validar pelo comando — Infosiga).
-- **Horários Críticos:** 17:00 às 19:30 (coincidindo com retorno do trabalho/escolas) (a validar pelo comando — Infosiga).
-- **Vias Críticas:** Rodovia Marechal Rondon (SP-300 km 550-555), Avenida Rio Branco e Rodovia SP-473 (a validar pelo comando — Infosiga).
+## 3. Sinistralidade de Trânsito (Infosiga-SP 2021-06 a 2026-06)
+- **Sinistros com Vítima (não fatal):** 388 ocorrências ([Infosiga-SP Painel de Sinistros (Guararapes)](file:///G:/Meu%20Drive/Arquivos%20Josemar/Projetos%20n%C3%A3o%20vercionados/5%20Cia/Roteiro%20de%20policiamento/sinistros/Painel_de_Sinistros%20guararapes.pdf)).
+- **Sinistros sem Vítima (notificações):** 416 ocorrências ([Infosiga-SP Painel de Sinistros (Guararapes)](file:///G:/Meu%20Drive/Arquivos%20Josemar/Projetos%20n%C3%A3o%20vercionados/5%20Cia/Roteiro%20de%20policiamento/sinistros/Painel_de_Sinistros%20guararapes.pdf)).
+- **Sinistros Fatais:** 18 ocorrências ([Infosiga-SP Painel de Sinistros (Guararapes)](file:///G:/Meu%20Drive/Arquivos%20Josemar/Projetos%20n%C3%A3o%20vercionados/5%20Cia/Roteiro%20de%20policiamento/sinistros/Painel_de_Sinistros%20guararapes.pdf)).
+- **Veículo mais envolvido:** Motocicletas.
+- **Horários Críticos:** 17:00 às 19:30 (coincidindo com retorno do trabalho/escolas).
+- **Vias Críticas:** Rodovia Marechal Rondon (SP-300 km 550-555), Avenida Rio Branco e Rodovia SP-473.
 
 ---
 
 ## 4. Frota (Senatran 2026-05)
-- **Frota Total:** 25.469 veículos (a validar pelo comando — Senatran).
-- **Automóveis:** 12.436 (a validar pelo comando — Senatran).
-- **Motocicletas:** 4.947 (representando 19,4% da frota ativa) (a validar pelo comando — Senatran).
-- **Caminhões:** 1.080 (a validar pelo comando — Senatran).
-- **Contexto de Risco:** A proporção de motocicletas na frota eleva a gravidade das lesões em sinistros de trânsito locais (a validar pelo comando — Senatran).
+- **Frota Total:** 26.933 veículos ([Senatran 2026-05](file:///G:/Meu%20Drive/Arquivos%20Josemar/Projetos%20n%C3%A3o%20vercionados/5%20Cia/Roteiro%20de%20policiamento/Frota_por_municipio_e_tipo_Maio_2026.xlsx)).
+- **Automóveis:** 12.769 ([Senatran 2026-05](file:///G:/Meu%20Drive/Arquivos%20Josemar/Projetos%20n%C3%A3o%20vercionados/5%20Cia/Roteiro%20de%20policiamento/Frota_por_municipio_e_tipo_Maio_2026.xlsx)).
+- **Motocicletas:** 5.191 (representando 19,3% da frota ativa) ([Senatran 2026-05](file:///G:/Meu%20Drive/Arquivos%20Josemar/Projetos%20n%C3%A3o%20vercionados/5%20Cia/Roteiro%20de%20policiamento/Frota_por_municipio_e_tipo_Maio_2026.xlsx)).
+- **Caminhões:** 721 ([Senatran 2026-05](file:///G:/Meu%20Drive/Arquivos%20Josemar/Projetos%20n%C3%A3o%20vercionados/5%20Cia/Roteiro%20de%20policiamento/Frota_por_municipio_e_tipo_Maio_2026.xlsx)).
+- **Contexto de Risco:** A proporção de motocicletas na frota eleva a gravidade das lesões em sinistros de trânsito locais.
 
 ---
 

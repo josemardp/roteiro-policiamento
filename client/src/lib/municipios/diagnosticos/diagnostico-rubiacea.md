@@ -10,34 +10,35 @@
 
 ---
 
-## 2. Perfil Criminal (SSP-SP 2024)
-- **Homicídios Dolosos (RAC-II):** 0 ocorrências (a validar pelo comando — Infocrim).
-- **Roubo (outros):** 1 ocorrência (a validar pelo comando — Infocrim).
-- **Furtos (outros):** 15 ocorrências (a validar pelo comando — Infocrim).
-- **Furtos de Veículos:** 1 ocorrência (a validar pelo comando — Infocrim).
-- **Roubos de Veículos:** 0 ocorrências (a validar pelo comando — Infocrim).
-- **Indicador Dominante:** Furto Rural (defensivos agrícolas, fios de cobre, implementos) (a validar pelo comando — Infocrim).
-- **Tendência:** Estável (a validar pelo comando — Infocrim).
-- **Análise Curta:** A criminalidade violenta urbana é muito reduzida. A principal perturbação e impacto reside nos furtos contra propriedades rurais e instalações elétricas/pedágio na rodovia SP-300 (a validar pelo comando — Infocrim).
+## 2. Perfil Criminal (SSP-SP 2025)
+- **Homicídios Dolosos:** 0 ocorrências ([SSP-SP Ocorrências Anuais (Rubiácea)](file:///G:/Meu%20Drive/Arquivos%20Josemar/Projetos%20n%C3%A3o%20vercionados/5%20Cia/Roteiro%20de%20policiamento/dados%20criminais/OcorrenciaAnual-Rubiácea_20260616_124124.xlsx)).
+- **Roubo (outros):** 0 ocorrências ([SSP-SP Ocorrências Anuais (Rubiácea)](file:///G:/Meu%20Drive/Arquivos%20Josemar/Projetos%20n%C3%A3o%20vercionados/5%20Cia/Roteiro%20de%20policiamento/dados%20criminais/OcorrenciaAnual-Rubiácea_20260616_124124.xlsx)).
+- **Furtos (outros):** 9 ocorrências ([SSP-SP Ocorrências Anuais (Rubiácea)](file:///G:/Meu%20Drive/Arquivos%20Josemar/Projetos%20n%C3%A3o%20vercionados/5%20Cia/Roteiro%20de%20policiamento/dados%20criminais/OcorrenciaAnual-Rubiácea_20260616_124124.xlsx)).
+- **Furto e Roubo de Veículos:** 0 ocorrências ([SSP-SP Ocorrências Anuais (Rubiácea)](file:///G:/Meu%20Drive/Arquivos%20Josemar/Projetos%20n%C3%A3o%20vercionados/5%20Cia/Roteiro%20de%20policiamento/dados%20criminais/OcorrenciaAnual-Rubiácea_20260616_124124.xlsx)).
+- **Indicador Dominante:** Furtos em Geral.
+- **Tendência:** Alta (furtos caíram de 13 em 2021 para 5 em 2024, mas subiram para 9 em 2025).
+- **Pontos Críticos Mapeados (Hotspots):**
+  - *Trevo de Acesso à SP-300 / Praça de Pedágio:* Terças a sextas-feiras, das 21h às 05h (frequência estimada de 8 a 10 ocorrências/ano).
+- **Análise Curta:** A criminalidade urbana é extremamente reduzida (zero homicídios e zero roubos em 2025). A principal perturbação reside nos pequenos furtos residenciais/comerciais e na segurança de propriedades rurais.
 
 ---
 
-## 3. Sinistralidade de Trânsito (Infosiga-SP 2024)
-- **Sinistros com Vítima:** 6 ocorrências (a validar pelo comando — Infosiga).
-- **Sinistros sem Vítima:** 14 ocorrências (a validar pelo comando — Infosiga).
-- **Sinistros Fatais:** 1 ocorrência (a validar pelo comando — Infosiga).
-- **Veículo mais envolvido:** Automóveis (a validar pelo comando — Infosiga).
-- **Horários Críticos:** 07:00 (início da manhã) e 18:00 (fim de tarde) (a validar pelo comando — Infosiga).
-- **Vias Críticas:** SP-300 km 560-564 e Vicinal Geraldo Stringhetta (a validar pelo comando — Infosiga).
+## 3. Sinistralidade de Trânsito (Infosiga-SP 2021-06 a 2026-06)
+- **Sinistros com Vítima (não fatal):** 7 ocorrências ([Infosiga-SP Painel de Sinistros (Rubiácea)](file:///G:/Meu%20Drive/Arquivos%20Josemar/Projetos%20n%C3%A3o%20vercionados/5%20Cia/Roteiro%20de%20policiamento/sinistros/Painel_de_Sinistros%20rubiacea.pdf)).
+- **Sinistros sem Vítima (notificações):** 18 ocorrências ([Infosiga-SP Painel de Sinistros (Rubiácea)](file:///G:/Meu%20Drive/Arquivos%20Josemar/Projetos%20n%C3%A3o%20vercionados/5%20Cia/Roteiro%20de%20policiamento/sinistros/Painel_de_Sinistros%20rubiacea.pdf)).
+- **Sinistros Fatais:** 0 ocorrências ([Infosiga-SP Painel de Sinistros (Rubiácea)](file:///G:/Meu%20Drive/Arquivos%20Josemar/Projetos%20n%C3%A3o%20vercionados/5%20Cia/Roteiro%20de%20policiamento/sinistros/Painel_de_Sinistros%20rubiacea.pdf)).
+- **Veículo mais envolvido:** Automóveis.
+- **Horários Críticos:** 07:00 (início da manhã) e 18:00 (fim de tarde).
+- **Vias Críticas:** SP-300 km 560-564 e Vicinal Geraldo Stringhetta.
 
 ---
 
 ## 4. Frota (Senatran 2026-05)
-- **Frota Total:** 2.100 veículos (a validar pelo comando — Senatran).
-- **Automóveis:** 1.050 (a validar pelo comando — Senatran).
-- **Motocicletas:** 420 (20,0%) (a validar pelo comando — Senatran).
-- **Caminhões:** 90 (a validar pelo comando — Senatran).
-- **Contexto de Risco:** Risco concentrado no pedágio da rodovia Rondon (SP-300) e fluxo agrícola na vicinal principal (a validar pelo comando — Senatran).
+- **Frota Total:** 1.675 veículos ([Senatran 2026-05](file:///G:/Meu%20Drive/Arquivos%20Josemar/Projetos%20n%C3%A3o%20vercionados/5%20Cia/Roteiro%20de%20policiamento/Frota_por_municipio_e_tipo_Maio_2026.xlsx)).
+- **Automóveis:** 998 ([Senatran 2026-05](file:///G:/Meu%20Drive/Arquivos%20Josemar/Projetos%20n%C3%A3o%20vercionados/5%20Cia/Roteiro%20de%20policiamento/Frota_por_municipio_e_tipo_Maio_2026.xlsx)).
+- **Motocicletas:** 284 (16,9% da frota ativa) ([Senatran 2026-05](file:///G:/Meu%20Drive/Arquivos%20Josemar/Projetos%20n%C3%A3o%20vercionados/5%20Cia/Roteiro%20de%20policiamento/Frota_por_municipio_e_tipo_Maio_2026.xlsx)).
+- **Caminhões:** 39 ([Senatran 2026-05](file:///G:/Meu%20Drive/Arquivos%20Josemar/Projetos%20n%C3%A3o%20vercionados/5%20Cia/Roteiro%20de%20policiamento/Frota_por_municipio_e_tipo_Maio_2026.xlsx)).
+- **Contexto de Risco:** Risco concentrado no pedágio da rodovia Rondon (SP-300) e fluxo agrícola na vicinal principal.
 
 ---
 

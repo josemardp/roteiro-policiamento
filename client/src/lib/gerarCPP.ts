@@ -305,7 +305,7 @@ function ajustarPesosPorPerfilCriminal(
   if (
     perfil.confianca !== "oficial" ||
     !perfil.fonteUrl ||
-    !perfil.fonteUrl.startsWith("http")
+    (!perfil.fonteUrl.startsWith("http") && !perfil.fonteUrl.startsWith("file:///"))
   ) {
     return pesos;
   }

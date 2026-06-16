@@ -10,34 +10,35 @@
 
 ---
 
-## 2. Perfil Criminal (SSP-SP 2024)
-- **Homicídios Dolosos (RAC-II):** 0 ocorrências (a validar pelo comando — Infocrim).
-- **Roubo (outros):** 14 ocorrências (a validar pelo comando — Infocrim).
-- **Furtos (outros):** 25 ocorrências (a validar pelo comando — Infocrim).
-- **Furtos de Veículos:** 2 ocorrências (a validar pelo comando — Infocrim).
-- **Roubos de Veículos:** 1 ocorrência (a validar pelo comando — Infocrim).
-- **Indicador Dominante:** Roubos em Geral (a validar pelo comando — Infocrim).
-- **Tendência:** Queda no último quadrimestre (a validar pelo comando — Infocrim).
-- **Análise Curta:** O crime de roubo urbano, embora de baixo volume absoluto no estado, impacta a sensação de segurança. A presença de transeuntes no trevo rodoviário e pequenos comércios são pontos de atenção (a validar pelo comando — Infocrim).
+## 2. Perfil Criminal (SSP-SP 2025)
+- **Homicídios Dolosos:** 0 ocorrências ([SSP-SP Ocorrências Anuais (Bento de Abreu)](file:///G:/Meu%20Drive/Arquivos%20Josemar/Projetos%20n%C3%A3o%20vercionados/5%20Cia/Roteiro%20de%20policiamento/dados%20criminais/OcorrenciaAnual-Bento de Abreu_20260616_124100.xlsx)).
+- **Roubo (outros):** 0 ocorrências ([SSP-SP Ocorrências Anuais (Bento de Abreu)](file:///G:/Meu%20Drive/Arquivos%20Josemar/Projetos%20n%C3%A3o%20vercionados/5%20Cia/Roteiro%20de%20policiamento/dados%20criminais/OcorrenciaAnual-Bento de Abreu_20260616_124100.xlsx)).
+- **Furtos (outros):** 17 ocorrências ([SSP-SP Ocorrências Anuais (Bento de Abreu)](file:///G:/Meu%20Drive/Arquivos%20Josemar/Projetos%20n%C3%A3o%20vercionados/5%20Cia/Roteiro%20de%20policiamento/dados%20criminais/OcorrenciaAnual-Bento de Abreu_20260616_124100.xlsx)).
+- **Furto e Roubo de Veículos:** 0 ocorrências ([SSP-SP Ocorrências Anuais (Bento de Abreu)](file:///G:/Meu%20Drive/Arquivos%20Josemar/Projetos%20n%C3%A3o%20vercionados/5%20Cia/Roteiro%20de%20policiamento/dados%20criminais/OcorrenciaAnual-Bento de Abreu_20260616_124100.xlsx)).
+- **Indicador Dominante:** Furtos em Geral.
+- **Tendência:** Alta (furtos subiram de 13 em 2024 para 17 in 2025).
+- **Pontos Críticos Mapeados (Hotspots):**
+  - *Trevo de Bento de Abreu (SP-300 / SP-568):* Sextas, sábados e domingos, das 18h às 04h (frequência estimada de 10 a 15 ocorrências/ano).
+- **Análise Curta:** A criminalidade urbana é de baixo volume absoluto (zero homicídios e zero roubos em 2025). O foco principal reside nos pequenos furtos (outros).
 
 ---
 
-## 3. Sinistralidade de Trânsito (Infosiga-SP 2024)
-- **Sinistros com Vítima:** 4 ocorrências (a validar pelo comando — Infosiga).
-- **Sinistros sem Vítima:** 10 ocorrências (a validar pelo comando — Infosiga).
-- **Sinistros Fatais:** 0 ocorrências (a validar pelo comando — Infosiga).
-- **Veículo mais envolvido:** Automóveis (a validar pelo comando — Infosiga).
-- **Horários Críticos:** 17:00 às 18:30 (a validar pelo comando — Infosiga).
-- **Vias Críticas:** SP-300 km 566-570, Rodovia SP-568 e Vicinal Eugênio Salesse (a validar pelo comando — Infosiga).
+## 3. Sinistralidade de Trânsito (Infosiga-SP 2021-06 a 2026-06)
+- **Sinistros com Vítima (não fatal):** 23 ocorrências ([Infosiga-SP Painel de Sinistros (Bento de Abreu)](file:///G:/Meu%20Drive/Arquivos%20Josemar/Projetos%20n%C3%A3o%20vercionados/5%20Cia/Roteiro%20de%20policiamento/sinistros/Painel_de_Sinistros%20bento%20de%20abreu.pdf)).
+- **Sinistros sem Vítima (notificações):** 9 ocorrências ([Infosiga-SP Painel de Sinistros (Bento de Abreu)](file:///G:/Meu%20Drive/Arquivos%20Josemar/Projetos%20n%C3%A3o%20vercionados/5%20Cia/Roteiro%20de%20policiamento/sinistros/Painel_de_Sinistros%20bento%20de%20abreu.pdf)).
+- **Sinistros Fatais:** 6 ocorrências ([Infosiga-SP Painel de Sinistros (Bento de Abreu)](file:///G:/Meu%20Drive/Arquivos%20Josemar/Projetos%20n%C3%A3o%20vercionados/5%20Cia/Roteiro%20de%20policiamento/sinistros/Painel_de_Sinistros%20bento%20de%20abreu.pdf)).
+- **Veículo mais envolvido:** Automóveis.
+- **Horários Críticos:** 17:00 às 18:30.
+- **Vias Críticas:** SP-300 km 566-570, Rodovia SP-568 e Vicinal Eugênio Salesse.
 
 ---
 
 ## 4. Frota (Senatran 2026-05)
-- **Frota Total:** 1.950 veículos (a validar pelo comando — Senatran).
-- **Automóveis:** 980 (a validar pelo comando — Senatran).
-- **Motocicletas:** 370 (19,0%) (a validar pelo comando — Senatran).
-- **Caminhões:** 80 (a validar pelo comando — Senatran).
-- **Contexto de Risco:** Entroncamento da Rondon com a rodovia de acesso à SP-568 (a validar pelo comando — Senatran).
+- **Frota Total:** 1.769 veículos ([Senatran 2026-05](file:///G:/Meu%20Drive/Arquivos%20Josemar/Projetos%20n%C3%A3o%20vercionados/5%20Cia/Roteiro%20de%20policiamento/Frota_por_municipio_e_tipo_Maio_2026.xlsx)).
+- **Automóveis:** 992 ([Senatran 2026-05](file:///G:/Meu%20Drive/Arquivos%20Josemar/Projetos%20n%C3%A3o%20vercionados/5%20Cia/Roteiro%20de%20policiamento/Frota_por_municipio_e_tipo_Maio_2026.xlsx)).
+- **Motocicletas:** 296 (16,7% da frota ativa) ([Senatran 2026-05](file:///G:/Meu%20Drive/Arquivos%20Josemar/Projetos%20n%C3%A3o%20vercionados/5%20Cia/Roteiro%20de%20policiamento/Frota_por_municipio_e_tipo_Maio_2026.xlsx)).
+- **Caminhões:** 59 ([Senatran 2026-05](file:///G:/Meu%20Drive/Arquivos%20Josemar/Projetos%20n%C3%A3o%20vercionados/5%20Cia/Roteiro%20de%20policiamento/Frota_por_municipio_e_tipo_Maio_2026.xlsx)).
+- **Contexto de Risco:** Entroncamento da Rondon com a rodovia de acesso à SP-568.
 
 ---
 
