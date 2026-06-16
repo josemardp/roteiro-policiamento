@@ -14,13 +14,15 @@
 - **Homicídios Dolosos:** 3 ocorrências ([SSP-SP Ocorrências Anuais (Guararapes)](file:///G:/Meu%20Drive/Arquivos%20Josemar/Projetos%20n%C3%A3o%20vercionados/5%20Cia/Roteiro%20de%20policiamento/dados%20criminais/OcorrenciaAnual-Guararapes_20260616_124113.xlsx)).
 - **Roubo (outros):** 13 ocorrências ([SSP-SP Ocorrências Anuais (Guararapes)](file:///G:/Meu%20Drive/Arquivos%20Josemar/Projetos%20n%C3%A3o%20vercionados/5%20Cia/Roteiro%20de%20policiamento/dados%20criminais/OcorrenciaAnual-Guararapes_20260616_124113.xlsx)).
 - **Furtos (outros):** 184 ocorrências ([SSP-SP Ocorrências Anuais (Guararapes)](file:///G:/Meu%20Drive/Arquivos%20Josemar/Projetos%20n%C3%A3o%20vercionados/5%20Cia/Roteiro%20de%20policiamento/dados%20criminais/OcorrenciaAnual-Guararapes_20260616_124113.xlsx)).
-- **Furto e Roubo de Veículos:** 7 ocorrências ([SSP-SP Ocorrências Anuais (Guararapes)](file:///G:/Meu%20Drive/Arquivos%20Josemar/Projetos%20n%C3%A3o%20vercionados/5%20Cia/Roteiro%20de%20policiamento/dados%20criminais/OcorrenciaAnual-Guararapes_20260616_124113.xlsx)).
+- **Furtos de Veículos:** 7 ocorrências, **Roubos de Veículos:** 0 ocorrências ([SSP-SP Ocorrências Mensais (Guararapes)](file:///G:/Meu%20Drive/Arquivos%20Josemar/Projetos%20n%C3%A3o%20vercionados/5%20Cia/Roteiro%20de%20policiamento/dados%20criminais/OcorrenciaMensal(Criminal)-Guararapes_20260616_141447.xlsx)).
+- **Lesão Corporal Dolosa:** 85 ocorrências ([SSP-SP Ocorrências Mensais (Guararapes)](file:///G:/Meu%20Drive/Arquivos%20Josemar/Projetos%20n%C3%A3o%20vercionados/5%20Cia/Roteiro%20de%20policiamento/dados%20criminais/OcorrenciaMensal(Criminal)-Guararapes_20260616_141447.xlsx)).
+- **Tráfico de Entorpecentes:** 28 ocorrências ([SSP-SP Produtividade Policial (Guararapes)](file:///G:/Meu%20Drive/Arquivos%20Josemar/Projetos%20n%C3%A3o%20vercionados/5%20Cia/Roteiro%20de%20policiamento/dados%20criminais/OcorrenciaMensal(ProdutividadePolicial)-Guararapes_20260616_141308.xlsx)).
 - **Indicador Dominante:** Furtos em Geral (furto simples/qualificado a residências e comércios).
 - **Tendência:** Queda no último ano-móvel (de 195 em 2024 para 184 em 2025).
 - **Pontos Críticos Mapeados (Hotspots):**
   - *Av. Rio Branco (Área Comercial/Bancária):* Quintas, sextas e sábados, das 09h às 18h (frequência estimada de 45 a 100 ocorrências/ano).
   - *Usina Unialco (Área Rural/Industrial):* Quintas a domingos, das 22h às 06h (frequência estimada de 12 a 30 ocorrências/ano).
-- **Análise Curta:** A letalidade violenta é extremamente baixa. A criminalidade é predominantemente patrimonial (furtos de oportunidade e furto comercial no centro).
+- **Análise Curta:** A letalidade violenta é extremamente baixa. A criminalidade é predominantemente patrimonial (furtos de oportunidade e furto comercial no centro), com destaque quantitativo também para lesões corporais dolosas.
 
 ---
 
