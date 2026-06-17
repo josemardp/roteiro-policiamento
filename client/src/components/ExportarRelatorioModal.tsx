@@ -33,11 +33,13 @@ export default function ExportarRelatorioModal({
 
     const muns = roteiroDia.configuracao.municipios || (roteiroDia.configuracao.municipio ? [roteiroDia.configuracao.municipio] : []);
     const munsStr = muns.map(m => m.toUpperCase()).join(muns.length === 2 ? " E " : ", ").replace(/,\s([^,]+)$/, " E $1");
+    const sequenciaStr = muns.join(" → ");
     const labelMun = muns.length > 1 ? "PELOS MUNICÍPIOS DE" : "PELO MUNICÍPIO DE";
 
     linhas.push(
       `*ÀS ${roteiroDia.configuracao.horaInicio.replace(":", "H")} INÍCIO DA ${roteiroDia.configuracao.tipoAtividade.toUpperCase()} ${labelMun} ${munsStr}-SP.`
     );
+    linhas.push(`*SEQUÊNCIA OPERACIONAL: ${sequenciaStr.toUpperCase()}.`);
 
     for (const bloco of blocos) {
       const hi = bloco.horaInicio.replace(":", "H");
@@ -49,8 +51,30 @@ export default function ExportarRelatorioModal({
       );
       const acao = bloco.modalidade === "DESL"
         ? `DESLOCAMENTO AO SETOR (${bloco.local.toUpperCase()})`
-        : (temLocal ? `${descRSO} ${bloco.local.toUpperCase()}` : descRSO);
+        : bloco.modalidade === "REF"
+          ? `${descRSO} (${bloco.local.toUpperCase()})`
+          : (temLocal ? `${descRSO} ${bloco.local.toUpperCase()}` : descRSO);
       linhas.push(`*DAS ${hi} ÀS ${hf} ${acao}.`);
+      if (bloco.execucao) {
+        const estado =
+          bloco.execucao.estado === "cumprido"
+            ? "CUMPRIDO"
+            : bloco.execucao.estado === "parcial"
+              ? "PARCIAL"
+              : "NÃO REALIZADO";
+        const horario = bloco.execucao.horarioEfetivo
+          ? new Date(bloco.execucao.horarioEfetivo).toLocaleTimeString("pt-BR", {
+              hour: "2-digit",
+              minute: "2-digit",
+            })
+          : "SEM HORÁRIO";
+        const gps = typeof bloco.execucao.lat === "number" && typeof bloco.execucao.lng === "number"
+          ? ` GPS ${bloco.execucao.lat.toFixed(6)}, ${bloco.execucao.lng.toFixed(6)}`
+          : " GPS NÃO REGISTRADO";
+        const nota = bloco.execucao.nota ? ` NOTA: ${bloco.execucao.nota}` : "";
+        const motivo = bloco.execucao.motivo ? ` MOTIVO: ${bloco.execucao.motivo}` : "";
+        linhas.push(`  EXECUTADO: ${estado} ÀS ${horario}.${gps}.${nota}${motivo}`);
+      }
     }
 
     linhas.push(

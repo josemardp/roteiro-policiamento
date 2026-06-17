@@ -23,10 +23,14 @@ import {
   JUSTIFICATIVAS,
   MODUS_OPERANDI_DEFAULT,
   DURACAO_TURNO_MIN,
+  ATIVIDADE_MONO_MUNICIPIO,
+  DURACAO_REFEICAO,
   CATEGORIA_ATIVIDADE,
   type CategoriaAtividade,
+  type TipoRefeicao,
 } from "./constants";
 import { PPI_5CIA } from "./municipios/ppi-5cia";
+import { obterCoordenadaPonto, obterCoordenadaReferenciaMunicipio } from "./municipios/coordenadas-pontos";
 import type { Escola, Hotspot, PerfilCriminal } from "./municipios/types-ppi";
 
 // ─── RNG reproduzível (mulberry32) ───────────────────────────────────────────
@@ -70,6 +74,114 @@ function minParaHora(min: number): string {
 
 function snapGrid30(min: number): number {
   return Math.round(min / 30) * 30;
+}
+
+export interface RefeicaoPlanejada {
+  tipo: TipoRefeicao;
+  alvoMin: number;
+  duracaoMin: number;
+}
+
+function clockMinAbsoluto(clockMin: number, depoisDeMin: number): number {
+  let alvo = clockMin;
+  while (alvo < depoisDeMin) alvo += 1440;
+  return alvo;
+}
+
+function refeicao(tipo: TipoRefeicao, alvoMin: number): RefeicaoPlanejada {
+  return {
+    tipo,
+    alvoMin: snapGrid30(alvoMin),
+    duracaoMin: DURACAO_REFEICAO[tipo],
+  };
+}
+
+function proximaJanelaRefeicao(
+  depoisDeMin: number,
+  turnoInicioMin: number,
+  tipoAnterior?: TipoRefeicao
+): RefeicaoPlanejada | null {
+  const candidatos: RefeicaoPlanejada[] = [
+    refeicao("Almoço", clockMinAbsoluto(12 * 60, depoisDeMin)),
+    refeicao("Almoço", clockMinAbsoluto(13 * 60, depoisDeMin)),
+    refeicao("Café da tarde", clockMinAbsoluto(16 * 60 + 30, depoisDeMin)),
+    refeicao("Janta", clockMinAbsoluto(20 * 60, depoisDeMin)),
+    refeicao("Janta", clockMinAbsoluto(21 * 60, depoisDeMin)),
+    refeicao("Janta", clockMinAbsoluto(22 * 60, depoisDeMin)),
+    refeicao("Ceia", clockMinAbsoluto(2 * 60, depoisDeMin)),
+    refeicao("Ceia", clockMinAbsoluto(3 * 60, depoisDeMin)),
+  ].filter(
+    r =>
+      r.alvoMin >= depoisDeMin + 180 &&
+      r.alvoMin >= turnoInicioMin + 30 &&
+      r.tipo !== tipoAnterior
+  );
+
+  return candidatos.sort((a, b) => a.alvoMin - b.alvoMin)[0] ?? null;
+}
+
+export function planejarRefeicoes(
+  horaInicioMin: number,
+  turnoFimMin: number,
+  duracaoTurno: number
+): RefeicaoPlanejada[] {
+  const inicio = snapGrid30(horaInicioMin);
+  const fimRel = turnoFimMin - 30;
+  const horaCheia = Math.floor((inicio % 1440) / 60);
+  const planejadas: RefeicaoPlanejada[] = [];
+  const add = (tipo: TipoRefeicao, alvoMin: number) => {
+    const item = refeicao(tipo, alvoMin);
+    const espacoDisponivel = fimRel - item.alvoMin;
+    if (
+      item.alvoMin >= inicio + 30 &&
+      espacoDisponivel >= 30 &&
+      !planejadas.some(r => r.alvoMin === item.alvoMin && r.tipo === item.tipo)
+    ) {
+      item.duracaoMin = Math.min(item.duracaoMin, espacoDisponivel);
+      planejadas.push(item);
+    }
+  };
+
+  if (horaCheia >= 5 && horaCheia <= 8) {
+    add("Café da manhã", inicio + 30);
+    add("Almoço", clockMinAbsoluto(horaCheia === 6 ? 13 * 60 : 12 * 60, inicio));
+  } else if (horaCheia === 9) {
+    add("Almoço", clockMinAbsoluto(12 * 60, inicio));
+  } else if (horaCheia === 10) {
+    add("Almoço", clockMinAbsoluto(13 * 60, inicio));
+  } else if (horaCheia >= 11 && horaCheia <= 13) {
+    add("Almoço", inicio + 30);
+  } else if (horaCheia === 14) {
+    add("Café da tarde", clockMinAbsoluto(16 * 60 + 30, inicio));
+  } else if (horaCheia === 15) {
+    add("Café da tarde", clockMinAbsoluto(17 * 60 + 30, inicio));
+  } else if (horaCheia === 16) {
+    add("Janta", clockMinAbsoluto(20 * 60, inicio));
+  } else if (horaCheia === 17 || horaCheia === 18) {
+    add("Janta", clockMinAbsoluto(21 * 60, inicio));
+  } else if (horaCheia === 19 || horaCheia === 20) {
+    add("Janta", clockMinAbsoluto(22 * 60, inicio));
+  } else if (horaCheia === 21) {
+    add("Janta", clockMinAbsoluto(0, inicio));
+  } else if (horaCheia === 22) {
+    add("Ceia", clockMinAbsoluto(2 * 60, inicio));
+  } else if (horaCheia === 23) {
+    add("Ceia", clockMinAbsoluto(2 * 60 + 30, inicio));
+  } else {
+    add("Ceia", inicio + 180);
+  }
+
+  if (duracaoTurno >= 600 && planejadas.length < 2) {
+    const ultima = planejadas.at(-1);
+    const candidata = proximaJanelaRefeicao(
+      ultima ? ultima.alvoMin : inicio,
+      inicio,
+      ultima?.tipo
+    );
+    if (candidata) add(candidata.tipo, candidata.alvoMin);
+  }
+
+  return planejadas.sort((a, b) => a.alvoMin - b.alvoMin).slice(0, 2);
 }
 
 function parseMMDD(mmdd: string, year: number): Date {
@@ -669,8 +781,17 @@ export function obterCoordenadasLocal(
 ): { lat: number | null; lng: number | null } {
   const normLocal = local.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
-  if (normLocal.includes("base do pelotao")) {
-    return { lat: -21.2272, lng: -50.8660 }; // Valparaíso Base
+  if (
+    normLocal.includes("base do pelotao") ||
+    normLocal.includes("inicio do servico") ||
+    normLocal.includes("preliminares") ||
+    normLocal.includes("elaboracao do rso") ||
+    normLocal.includes("refeicao")
+  ) {
+    const referencia = obterCoordenadaReferenciaMunicipio(municipio);
+    return referencia
+      ? { lat: referencia.lat, lng: referencia.lng }
+      : { lat: null, lng: null };
   }
 
   const ppiMun = (PPI_5CIA as any)[municipio];
@@ -705,6 +826,11 @@ export function obterCoordenadasLocal(
         }
       }
     }
+  }
+
+  const coordenadaPonto = obterCoordenadaPonto(municipio, local);
+  if (coordenadaPonto) {
+    return { lat: coordenadaPonto.lat, lng: coordenadaPonto.lng };
   }
 
   return { lat: null, lng: null };
@@ -813,12 +939,23 @@ export function gerarCPP({ configuracao, municipios }: GerarCPPParams): {
   blocos: BlocoHorario[];
   avisos: string[];
 } {
-  const municipiosList: Municipio[] = configuracao.municipios && configuracao.municipios.length > 0
+  const municipiosOriginais: Municipio[] = configuracao.municipios && configuracao.municipios.length > 0
     ? configuracao.municipios
     : (configuracao.municipio ? [configuracao.municipio] : []);
+  const avisos: string[] = [];
+  const isMonoMunicipio = ATIVIDADE_MONO_MUNICIPIO.has(configuracao.tipoAtividade);
+  const municipiosList: Municipio[] =
+    isMonoMunicipio && municipiosOriginais.length > 0
+      ? [municipiosOriginais[0]]
+      : municipiosOriginais;
+  if (isMonoMunicipio && municipiosOriginais.length > 1) {
+    avisos.push(`Atividade Delegada restrita a um município — usado: ${municipiosOriginais[0]}.`);
+  }
   if (municipiosList.length === 0) return { blocos: [], avisos: [] };
 
   const numMuns = municipiosList.length;
+  const municipioInicio = municipiosList[0];
+  const municipioTermino = municipiosList[municipiosList.length - 1];
   const munsStr = municipiosList.join(",");
 
   // RNG com seed: mesma config → mesmo roteiro; outra data/hora/municípios → outro
@@ -838,33 +975,38 @@ export function gerarCPP({ configuracao, municipios }: GerarCPPParams): {
   const turnoFim = turnoInicio + duracaoTurno;
   const fimREL = turnoFim - 30; // REL ocupa os últimos 30 min
 
+  const manuais =
+    configuracao.modalidadeGeracao === "manual" &&
+    configuracao.blocosManuais.trim()
+      ? parseBlocosManuais(configuracao.blocosManuais)
+      : [];
+  const temRefManual = manuais.some(m => m.modalidade === "REF");
+  const refeicoesPlanejadas = temRefManual
+    ? []
+    : planejarRefeicoes(turnoInicio, turnoFim, duracaoTurno);
+
   // Cálculo de deslocamentos
   const deslEntre = numMuns - 1;
-  const deslInicial = (municipiosList[0] !== "Valparaíso") ? 1 : 0;
-  const totalDESL = (deslEntre + deslInicial) * 30;
+  const totalDESL = deslEntre * 30;
 
-  // Refeições: 12h (>= 600 min) -> 2 refeições, 8h (< 600 min) -> 1 refeição
-  let numRefeicoes = duracaoTurno >= 600 ? 2 : 1;
-  let miolo = duracaoTurno - 30 - 30 - numRefeicoes * 60 - totalDESL;
-  const avisos: string[] = [];
+  let totalREF = refeicoesPlanejadas.reduce((total, ref) => total + ref.duracaoMin, 0);
+  let miolo = duracaoTurno - 30 - 30 - totalREF - totalDESL;
 
-  if (miolo < numMuns * 30 && numRefeicoes > 1) {
-    numRefeicoes = 1;
-    miolo = duracaoTurno - 30 - 30 - numRefeicoes * 60 - totalDESL;
+  if (miolo < numMuns * 30 && refeicoesPlanejadas.length > 0) {
+    refeicoesPlanejadas.pop();
+    totalREF = refeicoesPlanejadas.reduce((total, ref) => total + ref.duracaoMin, 0);
+    miolo = duracaoTurno - 30 - 30 - totalREF - totalDESL;
     avisos.push(`Turno curto para ${numMuns} municípios — refeições/segmentos reduzidos`);
   }
-  if (miolo < numMuns * 30 && numRefeicoes > 0) {
-    numRefeicoes = 0;
-    miolo = duracaoTurno - 30 - 30 - numRefeicoes * 60 - totalDESL;
+  if (miolo < numMuns * 30 && refeicoesPlanejadas.length > 0) {
+    refeicoesPlanejadas.pop();
+    totalREF = refeicoesPlanejadas.reduce((total, ref) => total + ref.duracaoMin, 0);
+    miolo = duracaoTurno - 30 - 30 - totalREF - totalDESL;
     avisos.push(`Turno curto para ${numMuns} municípios — refeições/segmentos reduzidos`);
   }
   if (miolo < numMuns * 30) {
     miolo = numMuns * 30;
   }
-
-  const alvosRef = numRefeicoes === 2
-    ? [snapGrid30(turnoInicio + duracaoTurno * 0.33), snapGrid30(turnoInicio + duracaoTurno * 0.66)]
-    : (numRefeicoes === 1 ? [snapGrid30(turnoInicio + duracaoTurno * 0.40)] : []);
 
   // Distribuição do miolo entre os segmentos (multiplos de 30 min)
   const duracoesSegmento = Array(numMuns).fill(snapGrid30(miolo / numMuns));
@@ -901,41 +1043,17 @@ export function gerarCPP({ configuracao, municipios }: GerarCPPParams): {
       tempoAtual,
       30,
       "PREL",
-      "Base do Pelotão PM",
+      municipioInicio === "Valparaíso"
+        ? "Base do Pelotão PM (Valparaíso)"
+        : `Início do serviço / preliminares — ${municipioInicio}`,
       "Assunção do serviço",
       JUSTIFICATIVAS.PREL,
-      "Valparaíso"
+      municipioInicio
     )
   );
   tempoAtual += 30;
   historico.push("PREL");
 
-  // ── DESL Inicial ───────────────────────────────────────────────────────────
-  if (deslInicial === 1) {
-    const primMun = municipiosList[0];
-    blocos.push(
-      criarBloco(
-        ordem++,
-        tempoAtual,
-        30,
-        "DESL",
-        `Deslocamento para ${primMun}`,
-        "Deslocamento ao setor",
-        "Deslocamento ao setor de policiamento.",
-        primMun
-      )
-    );
-    tempoAtual += 30;
-    historico.push("DESL");
-  }
-
-  // Blocos manuais pré-analisados
-  const manuais =
-    configuracao.modalidadeGeracao === "manual" &&
-    configuracao.blocosManuais.trim()
-      ? parseBlocosManuais(configuracao.blocosManuais)
-      : [];
-  const temRefManual = manuais.some(m => m.modalidade === "REF");
   let idxManual = 0;
 
   // ── Miolo Segmentado por Município ─────────────────────────────────────────
@@ -946,9 +1064,15 @@ export function gerarCPP({ configuracao, municipios }: GerarCPPParams): {
 
     let patrolBudget = duracoesSegmento[i];
 
-    while (patrolBudget > 0 && tempoAtual < fimREL) {
+    while (tempoAtual < fimREL) {
       const disponivel = fimREL - tempoAtual;
       if (disponivel < 30) break;
+      const proximaRefeicao = refeicoesPlanejadas[proximoRefIdx] ?? null;
+      const refeicaoNoHorario =
+        !temRefManual &&
+        proximaRefeicao !== null &&
+        tempoAtual >= proximaRefeicao.alvoMin;
+      if (patrolBudget <= 0 && !refeicaoNoHorario) break;
 
       const ppiMun = (PPI_5CIA as any)[currentMunName];
       const escolasMun = ppiMun?.escolas ?? [];
@@ -1018,29 +1142,31 @@ export function gerarCPP({ configuracao, municipios }: GerarCPPParams): {
         }
       }
 
-      // REF no ponto alvo — apenas se não há REF manual e se o espaço restante comporta a refeição
+      // REF no ponto alvo de relogio, conforme costume brasileiro.
       if (
-        !temRefManual &&
-        proximoRefIdx < alvosRef.length &&
-        tempoAtual >= alvosRef[proximoRefIdx] &&
-        disponivel >= 90
+        refeicaoNoHorario &&
+        proximaRefeicao &&
+        tempoAtual + proximaRefeicao.duracaoMin <= fimREL
       ) {
         blocos.push(
           criarBloco(
             ordem++,
             tempoAtual,
-            60,
+            proximaRefeicao.duracaoMin,
             "REF",
-            "Base do Pelotão PM",
+            `Refeição — ${proximaRefeicao.tipo} — ${currentMunName}`,
             "Refeição",
             JUSTIFICATIVAS.REF,
-            "Valparaíso"
+            currentMunName
           )
         );
-        tempoAtual += 60;
+        tempoAtual += proximaRefeicao.duracaoMin;
         proximoRefIdx++;
         historico.push("REF");
         continue;
+      }
+      if (refeicaoNoHorario) {
+        proximoRefIdx++;
       }
 
       const usaRural =
@@ -1132,10 +1258,19 @@ export function gerarCPP({ configuracao, municipios }: GerarCPPParams): {
 
       const modalidade = selecionarModalidade(pesos, rng, fallback);
 
-      // Nunca ultrapassa o início do próximo bloco manual ou o orçamento de patrulha
+      // Nunca ultrapassa o próximo bloco manual, a próxima REF ou o orçamento de patrulha
       const proxManualInicio =
         idxManual < manuais.length ? manuais[idxManual].inicioMin : fimREL;
-      const disponivelReal = Math.min(disponivel, proxManualInicio - tempoAtual, patrolBudget);
+      const proxRefInicio =
+        !temRefManual && proximaRefeicao && proximaRefeicao.alvoMin > tempoAtual
+          ? proximaRefeicao.alvoMin
+          : fimREL;
+      const disponivelReal = Math.min(
+        disponivel,
+        proxManualInicio - tempoAtual,
+        proxRefInicio - tempoAtual,
+        patrolBudget
+      );
 
       // Duração: PE e ESC = 30 min; RURAL = 60-90; demais = 30-60
       let dur: number;
@@ -1251,10 +1386,10 @@ export function gerarCPP({ configuracao, municipios }: GerarCPPParams): {
       fimREL,
       30,
       "REL",
-      "Base do Pelotão PM",
+      `Elaboração do RSO — ${municipioTermino}`,
       "Elaboração do RSO",
       JUSTIFICATIVAS.REL,
-      "Valparaíso"
+      municipioTermino
     )
   );
 

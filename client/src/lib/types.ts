@@ -57,6 +57,18 @@ export type ModalidadePoliciamento =
   | "REF" // Refeição
   | "REL"; // Relatório / Encerramento
 
+export type EstadoExecucaoBloco = "cumprido" | "nao_realizado" | "parcial";
+
+export interface ExecucaoBloco {
+  estado: EstadoExecucaoBloco;
+  nota?: string;
+  motivo?: string;
+  horarioEfetivo?: string;
+  lat?: number | null;
+  lng?: number | null;
+  gpsStatus?: "capturado" | "negado" | "indisponivel";
+}
+
 export interface BlocoHorario {
   id: string;
   horaInicio: string; // HH:MM
@@ -73,6 +85,7 @@ export interface BlocoHorario {
   municipio?: Municipio;
   lat?: number | null;
   lng?: number | null;
+  execucao?: ExecucaoBloco;
 }
 
 export interface ConfiguracaoServico {

@@ -13,7 +13,7 @@ import type {
   FocoDistribuicao,
 } from "@/lib/types";
 import { calcularHoraTermino, parseDataLocal } from "@/lib/gerarCPP";
-import { DURACAO_TURNO_MIN } from "@/lib/constants";
+import { ATIVIDADE_MONO_MUNICIPIO, DURACAO_TURNO_MIN } from "@/lib/constants";
 
 const schema = z.object({
   data: z.string().min(1, "Data é obrigatória"),
@@ -50,6 +50,7 @@ export default function ConfiguracaoServico({
   const [prefixoUS, setPrefixoUS] = useState("");
 
   const horaTermino = calcularHoraTermino(horaInicio, tipoAtividade);
+  const atividadeMonoMunicipio = ATIVIDADE_MONO_MUNICIPIO.has(tipoAtividade);
 
   // parseDataLocal evita bug de fuso: new Date("YYYY-MM-DD") interpreta como UTC
   const diaSemana = data
@@ -57,11 +58,23 @@ export default function ConfiguracaoServico({
     : "";
 
   const handleToggleMunicipio = (mun: Municipio) => {
+    if (atividadeMonoMunicipio) {
+      setMunicipiosSel([mun]);
+      return;
+    }
     if (municipiosSel.includes(mun)) {
       setMunicipiosSel(municipiosSel.filter(m => m !== mun));
     } else {
       setMunicipiosSel([...municipiosSel, mun]);
     }
+  };
+
+  const moverMunicipio = (index: number, direction: -1 | 1) => {
+    const nextIndex = index + direction;
+    if (nextIndex < 0 || nextIndex >= municipiosSel.length) return;
+    const novos = [...municipiosSel];
+    [novos[index], novos[nextIndex]] = [novos[nextIndex], novos[index]];
+    setMunicipiosSel(novos);
   };
 
   const temFocoEvento = modoAvancadoFoco
@@ -120,7 +133,13 @@ export default function ConfiguracaoServico({
             </label>
             <select
               value={tipoAtividade}
-              onChange={e => setTipoAtividade(e.target.value as TipoAtividade)}
+              onChange={e => {
+                const novoTipo = e.target.value as TipoAtividade;
+                setTipoAtividade(novoTipo);
+                if (ATIVIDADE_MONO_MUNICIPIO.has(novoTipo) && municipiosSel.length > 1) {
+                  setMunicipiosSel([municipiosSel[0]]);
+                }
+              }}
               className="w-full px-4 py-3 rounded-lg border border-gray-300 text-base font-medium focus:outline-none focus:ring-2 focus:ring-[#0a2540]"
             >
               <optgroup label="Ordinário 12h">
@@ -144,11 +163,18 @@ export default function ConfiguracaoServico({
             </select>
           </div>
 
-          {/* Municípios (Multi-seleção) */}
+          {/* Municípios */}
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Municípios de Atuação (Selecione na ordem de patrulhamento)
+              {atividadeMonoMunicipio
+                ? "Município da Atividade Delegada"
+                : "Sequência de Municípios (início → término)"}
             </label>
+            <p className="text-xs text-gray-600 mb-3">
+              {atividadeMonoMunicipio
+                ? "Atividade Delegada é municipal e usa exatamente um município."
+                : "A ordem selecionada define onde o serviço começa, por onde passa e onde termina."}
+            </p>
             <div className="grid grid-cols-2 gap-3">
               {(["Valparaíso", "Guararapes", "Rubiácea", "Bento de Abreu"] as Municipio[]).map(mun => {
                 const orderIdx = municipiosSel.indexOf(mun);
@@ -176,6 +202,49 @@ export default function ConfiguracaoServico({
             </div>
             {municipiosSel.length === 0 && (
               <p className="text-xs text-red-600 mt-1">Selecione pelo menos um município.</p>
+            )}
+            {municipiosSel.length > 0 && (
+              <div className="mt-3 rounded-xl border border-blue-100 bg-blue-50/50 p-3">
+                <p className="text-xs font-bold text-[#0a2540]">
+                  {atividadeMonoMunicipio
+                    ? `Município: ${municipiosSel[0]}`
+                    : `Início: ${municipiosSel[0]} · Término: ${municipiosSel[municipiosSel.length - 1]}`}
+                </p>
+                {!atividadeMonoMunicipio && municipiosSel.length > 1 && (
+                  <div className="mt-2 space-y-2">
+                    {municipiosSel.map((mun, index) => (
+                      <div
+                        key={mun}
+                        className="flex items-center justify-between gap-2 rounded-lg bg-white border border-blue-100 px-3 py-2 text-sm"
+                      >
+                        <span className="font-semibold text-gray-800">
+                          {index + 1}. {mun}
+                        </span>
+                        <div className="flex gap-1">
+                          <button
+                            type="button"
+                            onClick={() => moverMunicipio(index, -1)}
+                            disabled={index === 0}
+                            className="min-h-[36px] min-w-[36px] rounded-md border border-gray-200 text-gray-700 disabled:opacity-40"
+                            title="Mover para cima"
+                          >
+                            ↑
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => moverMunicipio(index, 1)}
+                            disabled={index === municipiosSel.length - 1}
+                            className="min-h-[36px] min-w-[36px] rounded-md border border-gray-200 text-gray-700 disabled:opacity-40"
+                            title="Mover para baixo"
+                          >
+                            ↓
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             )}
           </div>
 

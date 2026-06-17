@@ -130,7 +130,7 @@ function AppContent() {
       id: `roteiro-${Date.now()}`,
       dataCriacao: new Date().toISOString(),
       dataAtualizacao: new Date().toISOString(),
-      blocos: roteiro.blocos.map(b => ({ ...b, concluido: false })),
+      blocos: roteiro.blocos.map(b => ({ ...b, concluido: false, execucao: undefined })),
       percentualConcluido: 0,
     };
     setRoteiroDia(novoRoteiro);

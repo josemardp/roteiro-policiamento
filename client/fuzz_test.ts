@@ -1,11 +1,27 @@
-import { gerarCPP } from "./src/lib/gerarCPP";
-import { MUNICIPIOS_V33, DURACAO_TURNO_MIN } from "./src/lib/constants";
+import { gerarCPP, planejarRefeicoes } from "./src/lib/gerarCPP";
+import { ATIVIDADE_MONO_MUNICIPIO, MUNICIPIOS_V33, DURACAO_TURNO_MIN } from "./src/lib/constants";
 import type { ConfiguracaoServico, Municipio, TipoAtividade } from "./src/lib/types";
 
 function toMin(h: string): number {
   const [hrs, mins] = h.split(":").map(Number);
   return hrs * 60 + mins;
 }
+
+function semIds(value: unknown): unknown {
+  return JSON.parse(JSON.stringify(value, (key, val) => key === "id" ? undefined : val));
+}
+
+function minToHora(min: number): string {
+  const normalizado = ((min % 1440) + 1440) % 1440;
+  const h = Math.floor(normalizado / 60);
+  const m = normalizado % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
+const horasInicio = Array.from({ length: 48 }, (_, index) => {
+  const min = index * 30;
+  return minToHora(min);
+});
 
 function runFuzzTests() {
   const munsList: Municipio[] = ["Valparaíso", "Guararapes", "Rubiácea", "Bento de Abreu"];
@@ -30,7 +46,7 @@ function runFuzzTests() {
   for (const tipo of atividades) {
     const duracaoEsperada = DURACAO_TURNO_MIN[tipo];
     for (let numMuns = 1; numMuns <= 4; numMuns++) {
-      for (const horaInicio of ["07:00", "19:00", "22:00", "00:00", "04:30"]) {
+      for (const horaInicio of horasInicio) {
         for (const data of ["2026-03-15", "2026-08-15", "2026-11-20"]) {
           testCount++;
 
@@ -69,6 +85,10 @@ function runFuzzTests() {
           for (const config of [configSingle, configMulti]) {
             const result = gerarCPP({ configuracao: config, municipios: MUNICIPIOS_V33 });
             const { blocos, avisos } = result;
+            const resultRepetido = gerarCPP({ configuracao: config, municipios: MUNICIPIOS_V33 });
+            const municipiosEfetivos = ATIVIDADE_MONO_MUNICIPIO.has(config.tipoAtividade)
+              ? [config.municipios[0]]
+              : config.municipios;
 
             let erroRoteiro = false;
 
@@ -90,6 +110,67 @@ function runFuzzTests() {
                 console.error(`[FALHA DE CONTIGUIDADE] Desconexão entre blocos: ${blocos[i - 1].horaFim} -> ${b.horaInicio}`);
                 erroRoteiro = true;
               }
+              if (b.ordem !== i) {
+                console.error(`[FALHA DE ORDEM] Ordem ${b.ordem} fora da posição ${i}`);
+                erroRoteiro = true;
+              }
+              const dur = (toMin(b.horaFim) - toMin(b.horaInicio) + 1440) % 1440;
+              if (dur % 30 !== 0) {
+                console.error(`[FALHA DE GRADE] Bloco ${b.modalidade} com duração ${dur}`);
+                erroRoteiro = true;
+              }
+            }
+
+            const primeiro = blocos[0];
+            const ultimo = blocos[blocos.length - 1];
+            if (primeiro?.modalidade !== "PREL" || primeiro?.municipio !== municipiosEfetivos[0]) {
+              console.error(`[FALHA PREL] Esperado PREL em ${municipiosEfetivos[0]}, veio ${primeiro?.modalidade}/${primeiro?.municipio}`);
+              erroRoteiro = true;
+            }
+            if (ultimo?.modalidade !== "REL" || ultimo?.municipio !== municipiosEfetivos[municipiosEfetivos.length - 1]) {
+              console.error(`[FALHA REL] Esperado REL em ${municipiosEfetivos[municipiosEfetivos.length - 1]}, veio ${ultimo?.modalidade}/${ultimo?.municipio}`);
+              erroRoteiro = true;
+            }
+            if (ATIVIDADE_MONO_MUNICIPIO.has(config.tipoAtividade)) {
+              const munUnico = municipiosEfetivos[0];
+              if (blocos.some(b => b.municipio !== munUnico) || blocos.some(b => b.modalidade === "DESL")) {
+                console.error(`[FALHA DELEGADA] ${config.tipoAtividade} deve ficar em ${munUnico} e sem DESL`);
+                erroRoteiro = true;
+              }
+              if (config.municipios.length > 1 && !avisos.some(a => a.includes("restrita a um município"))) {
+                console.error(`[FALHA AVISO DELEGADA] Sem aviso para municípios extras em ${config.tipoAtividade}`);
+                erroRoteiro = true;
+              }
+            }
+            const turnoInicio = toMin(config.horaInicio);
+            const turnoFim = turnoInicio + duracaoEsperada;
+            const refsEsperadas = planejarRefeicoes(turnoInicio, turnoFim, duracaoEsperada);
+            const refsGeradas = blocos.filter(b => b.modalidade === "REF");
+            if (refsGeradas.length !== refsEsperadas.length) {
+              console.error(`[FALHA REF] ${tipo} ${horaInicio}: esperadas ${refsEsperadas.length}, geradas ${refsGeradas.length}`);
+              erroRoteiro = true;
+            }
+            refsGeradas.forEach((ref, index) => {
+              const esperada = refsEsperadas[index];
+              const refInicioAbs = turnoInicio + ((toMin(ref.horaInicio) - (turnoInicio % 1440) + 1440) % 1440);
+              const refFimAbs = refInicioAbs + ((toMin(ref.horaFim) - toMin(ref.horaInicio) + 1440) % 1440 || 1440);
+              if (!esperada || refInicioAbs !== esperada.alvoMin || !ref.local.includes(esperada.tipo)) {
+                console.error(`[FALHA REF HORÁRIO] ${tipo} ${horaInicio}: REF ${ref.horaInicio}/${ref.local}, esperado ${esperada ? `${minToHora(esperada.alvoMin)} ${esperada.tipo}` : "nenhuma"}`);
+                erroRoteiro = true;
+              }
+              if (
+                refInicioAbs < turnoInicio + 30 ||
+                refFimAbs > turnoFim - 30 ||
+                refInicioAbs % 30 !== 0 ||
+                refFimAbs % 30 !== 0
+              ) {
+                console.error(`[FALHA REF BOUNDS] ${tipo} ${horaInicio}: ${ref.horaInicio}-${ref.horaFim}`);
+                erroRoteiro = true;
+              }
+            });
+            if (JSON.stringify(semIds(blocos)) !== JSON.stringify(semIds(resultRepetido.blocos))) {
+              console.error("[FALHA REPRODUTIBILIDADE] Mesma config gerou blocos diferentes ignorando id");
+              erroRoteiro = true;
             }
 
             if (erroRoteiro) violations++;

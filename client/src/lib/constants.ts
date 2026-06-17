@@ -18,6 +18,27 @@ export const DURACAO_TURNO_MIN: Record<TipoAtividade, number> = {
   "CGP DEJEM": 480,
 };
 
+export const ATIVIDADE_MONO_MUNICIPIO = new Set<TipoAtividade>([
+  "Atividade Delegada",
+  "Comando Delegada",
+  "CGP Delegada",
+]);
+
+export type TipoRefeicao =
+  | "Café da manhã"
+  | "Almoço"
+  | "Café da tarde"
+  | "Janta"
+  | "Ceia";
+
+export const DURACAO_REFEICAO: Record<TipoRefeicao, number> = {
+  "Café da manhã": 30,
+  "Almoço": 60,
+  "Café da tarde": 30,
+  "Janta": 60,
+  "Ceia": 60,
+};
+
 export type CategoriaAtividade = "PATRULHA" | "CGP" | "COMANDO" | "SUPERVISAO";
 export const CATEGORIA_ATIVIDADE: Record<TipoAtividade, CategoriaAtividade> = {
   "Radiopatrulha (RP)": "PATRULHA",

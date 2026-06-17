@@ -14,6 +14,7 @@ L.Icon.Default.mergeOptions({
 
 interface MapaCPPProps {
   blocos: BlocoHorario[];
+  blocoEmFocoId?: string;
 }
 
 // Haversine formula to compute distance in km
@@ -59,13 +60,14 @@ const getBearingCardinalAndArrow = (angle: number) => {
   return directions[index];
 };
 
-export default function MapaCPP({ blocos }: MapaCPPProps) {
+export default function MapaCPP({ blocos, blocoEmFocoId }: MapaCPPProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const leafletMap = useRef<L.Map | null>(null);
   const userMarkerRef = useRef<L.Marker | null>(null);
 
   const [userPos, setUserPos] = useState<L.LatLngLiteral | null>(null);
   const [gpsError, setGpsError] = useState<string | null>(null);
+  const [seguirPosicao, setSeguirPosicao] = useState(false);
 
   // Filter blocks with coordinates
   const blocksWithCoords = useMemo(() => {
@@ -217,26 +219,28 @@ export default function MapaCPP({ blocos }: MapaCPPProps) {
 
       const color = getModalityColor(b.modalidade);
       const isBase = b.modalidade === "PREL" || b.modalidade === "REL";
+      const isFocused = b.id === blocoEmFocoId || b.id === nextPendingBlock?.id;
       const markerText = isBase ? "⭐" : String(b.ordem);
+      const markerSize = isFocused ? 34 : 26;
 
       const customIcon = L.divIcon({
         html: `<div style="
           background-color: ${color};
           color: white;
-          width: 26px;
-          height: 26px;
+          width: ${markerSize}px;
+          height: ${markerSize}px;
           border-radius: 50%;
           display: flex;
           align-items: center;
           justify-content: center;
           font-weight: bold;
           font-size: 11px;
-          border: 2px solid white;
-          box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+          border: ${isFocused ? 3 : 2}px solid white;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.38);
         ">${markerText}</div>`,
         className: "custom-leaflet-marker",
-        iconSize: [26, 26],
-        iconAnchor: [13, 13],
+        iconSize: [markerSize, markerSize],
+        iconAnchor: [markerSize / 2, markerSize / 2],
       });
 
       const popupContent = `
@@ -280,7 +284,7 @@ export default function MapaCPP({ blocos }: MapaCPPProps) {
     if (points.length > 0) {
       map.fitBounds(L.latLngBounds(points), { padding: [45, 45] });
     }
-  }, [blocksWithCoords, points]);
+  }, [blocksWithCoords, points, blocoEmFocoId, nextPendingBlock?.id]);
 
   // Keep track of user position marker reactively
   useEffect(() => {
@@ -310,13 +314,27 @@ export default function MapaCPP({ blocos }: MapaCPPProps) {
           .addTo(map)
           .bindPopup("<strong>Você está aqui</strong><br/>Posição GPS em tempo real.");
       }
+      if (seguirPosicao) {
+        map.setView([userPos.lat, userPos.lng], Math.max(map.getZoom(), 16));
+      }
     } else {
       if (userMarkerRef.current) {
         map.removeLayer(userMarkerRef.current);
         userMarkerRef.current = null;
       }
     }
-  }, [userPos]);
+  }, [userPos, seguirPosicao]);
+
+  useEffect(() => {
+    const map = leafletMap.current;
+    if (!map || !blocoEmFocoId) return;
+    const bloco = blocos.find(
+      b => b.id === blocoEmFocoId && typeof b.lat === "number" && typeof b.lng === "number"
+    );
+    if (bloco) {
+      map.setView([bloco.lat!, bloco.lng!], Math.max(map.getZoom(), 16), { animate: true });
+    }
+  }, [blocoEmFocoId, blocos]);
 
   // Clean up Leaflet on unmount
   useEffect(() => {
@@ -332,6 +350,7 @@ export default function MapaCPP({ blocos }: MapaCPPProps) {
   const handleCentrarEmMim = () => {
     const map = leafletMap.current;
     if (map && userPos) {
+      setSeguirPosicao(true);
       map.setView([userPos.lat, userPos.lng], 16);
     }
   };
@@ -339,6 +358,7 @@ export default function MapaCPP({ blocos }: MapaCPPProps) {
   const handleCentrarTurno = () => {
     const map = leafletMap.current;
     if (map && points.length > 0) {
+      setSeguirPosicao(false);
       map.fitBounds(L.latLngBounds(points), { padding: [40, 40] });
     }
   };
@@ -443,4 +463,3 @@ export default function MapaCPP({ blocos }: MapaCPPProps) {
     </div>
   );
 }
-

@@ -5,7 +5,7 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { toast } from "sonner";
-import type { RoteiroDia, BlocoHorario } from "@/lib/types";
+import type { RoteiroDia, BlocoHorario, ExecucaoBloco } from "@/lib/types";
 import { NOTA_SUPERVISAO, DURACAO_TURNO_MIN } from "@/lib/constants";
 import { parseDataLocal, gerarFundamentacao } from "@/lib/gerarCPP";
 import BlocoCard from "@/components/BlocoCard";
@@ -14,7 +14,7 @@ import ExportarRelatorioModal from "@/components/ExportarRelatorioModal";
 import MapaCPP from "@/components/MapaCPP";
 import ModoPatrulha from "@/components/ModoPatrulha";
 import { useTheme } from "@/contexts/ThemeContext";
-import { Sun, Moon, Clock, ListTodo, Map } from "lucide-react";
+import { Sun, Moon, Clock, ListTodo, Map, Bell, BellOff } from "lucide-react";
 
 interface CPPTurnoProps {
   roteiroDia: RoteiroDia;
@@ -30,6 +30,14 @@ export default function CPPTurno({
   const [blocoEditando, setBlocoEditando] = useState<BlocoHorario | null>(null);
   const [mostraExportar, setMostraExportar] = useState(false);
   const [tabAtiva, setTabAtiva] = useState<"agora" | "lista" | "mapa">("agora");
+  const [blocoEmFocoId, setBlocoEmFocoId] = useState<string | undefined>(undefined);
+  const [alertasAtivos, setAlertasAtivos] = useState(() => {
+    try {
+      return window.localStorage.getItem("alertas_patrulha") === "true";
+    } catch {
+      return false;
+    }
+  });
   const { theme, toggleTheme } = useTheme();
 
   // Online/Offline tracking
@@ -86,6 +94,122 @@ export default function CPPTurno({
     },
     [roteiroDia, onAtualizar]
   );
+
+  const handleRegistrarExecucao = useCallback(
+    (blocoId: string, execucao: ExecucaoBloco) => {
+      const novosBlocos = roteiroDia.blocos.map(b =>
+        b.id === blocoId
+          ? { ...b, execucao, concluido: execucao.estado === "cumprido" }
+          : b
+      );
+      onAtualizar({ ...roteiroDia, blocos: novosBlocos });
+    },
+    [roteiroDia, onAtualizar]
+  );
+
+  const handleAbrirMapaNoBloco = useCallback((blocoId: string) => {
+    setBlocoEmFocoId(blocoId);
+    setTabAtiva("mapa");
+  }, []);
+
+  const enviarNotificacao = useCallback(async (title: string, body: string) => {
+    if (!("Notification" in window) || Notification.permission !== "granted") return;
+    const options: NotificationOptions = {
+      body,
+      tag: `cpp-${title}-${body}`,
+      icon: "/icon.svg",
+    };
+    try {
+      if ("serviceWorker" in navigator) {
+        const reg = await navigator.serviceWorker.ready;
+        await reg.showNotification(title, options);
+        return;
+      }
+    } catch {
+      // fallback abaixo
+    }
+    new Notification(title, options);
+  }, []);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem("alertas_patrulha", String(alertasAtivos));
+    } catch {
+      // ignore storage errors
+    }
+  }, [alertasAtivos]);
+
+  useEffect(() => {
+    if (!alertasAtivos || !("Notification" in window) || Notification.permission !== "granted") return;
+
+    const timers: number[] = [];
+    const now = Date.now();
+    let cursor = new Date(`${roteiroDia.configuracao.data}T${roteiroDia.configuracao.horaInicio}`).getTime();
+    const ordenados = [...roteiroDia.blocos].sort((a, b) => a.ordem - b.ordem);
+
+    const min = (hora: string) => {
+      const [h, m] = hora.split(":").map(Number);
+      return h * 60 + m;
+    };
+
+    ordenados.forEach((bloco, idx) => {
+      const inicio = cursor;
+      let dur = min(bloco.horaFim) - min(bloco.horaInicio);
+      if (dur < 0) dur += 1440;
+      const fim = inicio + dur * 60 * 1000;
+      const proximo = ordenados[idx + 1];
+      const avisoTransicao = fim - 5 * 60 * 1000;
+
+      if (proximo && avisoTransicao > now) {
+        timers.push(window.setTimeout(() => {
+          enviarNotificacao(
+            `Proximo: ${proximo.horaInicio} - ${proximo.modalidade}`,
+            proximo.local
+          );
+        }, avisoTransicao - now));
+      }
+
+      if ((bloco.modalidade === "ESC" || bloco.modalidade === "SAT") && inicio > now) {
+        timers.push(window.setTimeout(() => {
+          enviarNotificacao(
+            `${bloco.horaInicio} - ${bloco.modalidade}`,
+            bloco.local
+          );
+        }, inicio - now));
+      }
+
+      cursor = fim;
+    });
+
+    return () => timers.forEach(timer => window.clearTimeout(timer));
+  }, [alertasAtivos, enviarNotificacao, roteiroDia.blocos, roteiroDia.configuracao.data, roteiroDia.configuracao.horaInicio]);
+
+  const handleToggleAlertas = useCallback(async () => {
+    if (alertasAtivos) {
+      setAlertasAtivos(false);
+      toast.info("Alertas do turno desligados.");
+      return;
+    }
+
+    if (!("Notification" in window)) {
+      toast.info("Este aparelho não suporta notificações locais.");
+      return;
+    }
+
+    const permissao =
+      Notification.permission === "granted"
+        ? "granted"
+        : await Notification.requestPermission();
+
+    if (permissao !== "granted") {
+      setAlertasAtivos(false);
+      toast.info("Sem permissão de notificação. O turno segue normal.");
+      return;
+    }
+
+    setAlertasAtivos(true);
+    toast.success("Alertas do turno ligados.");
+  }, [alertasAtivos]);
 
   const handleEditarBloco = useCallback(
     (blocoId: string, novoBloco: BlocoHorario) => {
@@ -177,7 +301,7 @@ export default function CPPTurno({
             </button>
 
             <h1 className="text-base font-black text-white text-center flex-1 truncate uppercase tracking-wide">
-              👮 CPP: {roteiroDia.configuracao.municipios?.join(" / ") || roteiroDia.configuracao.municipio}
+              👮 CPP: {roteiroDia.configuracao.municipios?.join(" → ") || roteiroDia.configuracao.municipio}
             </h1>
 
             <div className="flex items-center gap-1.5">
@@ -199,6 +323,13 @@ export default function CPPTurno({
                   {theme === "dark" ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
                 </button>
               )}
+              <button
+                onClick={handleToggleAlertas}
+                className="text-white hover:bg-white/20 px-2 py-2 rounded-lg transition-colors min-h-[40px] min-w-[40px] flex items-center justify-center cursor-pointer"
+                title={alertasAtivos ? "Desligar alertas" : "Ligar alertas"}
+              >
+                {alertasAtivos ? <Bell className="w-5 h-5" /> : <BellOff className="w-5 h-5" />}
+              </button>
             </div>
           </div>
 
@@ -228,6 +359,8 @@ export default function CPPTurno({
           <ModoPatrulha
             roteiroDia={roteiroDia}
             onMarcarConcluido={handleMarcarConcluido}
+            onRegistrarExecucao={handleRegistrarExecucao}
+            onAbrirMapa={handleAbrirMapaNoBloco}
           />
         )}
 
@@ -286,7 +419,7 @@ export default function CPPTurno({
 
         {tabAtiva === "mapa" && (
           <div className="space-y-4">
-            <MapaCPP blocos={roteiroDia.blocos} />
+            <MapaCPP blocos={roteiroDia.blocos} blocoEmFocoId={blocoEmFocoId} />
 
             <div className="space-y-2 mt-4">
               <button

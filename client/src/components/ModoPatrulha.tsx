@@ -1,13 +1,15 @@
 import { useState, useEffect, useMemo } from "react";
-import type { RoteiroDia, BlocoHorario } from "@/lib/types";
+import type { RoteiroDia, BlocoHorario, EstadoExecucaoBloco, ExecucaoBloco } from "@/lib/types";
 import { DURACAO_TURNO_MIN } from "@/lib/constants";
 import { gerarFundamentacao } from "@/lib/gerarCPP";
-import { Info, CheckCircle2, ChevronDown, ChevronUp, MapPin, Shield, Clock, HelpCircle } from "lucide-react";
+import { CheckCircle2, ChevronDown, ChevronUp, MapPin, Shield, Clock, HelpCircle, Navigation, AlertTriangle, CircleDashed } from "lucide-react";
 import { toast } from "sonner";
 
 interface ModoPatrulhaProps {
   roteiroDia: RoteiroDia;
   onMarcarConcluido: (blocoId: string) => void;
+  onRegistrarExecucao: (blocoId: string, execucao: ExecucaoBloco) => void;
+  onAbrirMapa: (blocoId: string) => void;
 }
 
 const horaParaMin = (hora: string): number => {
@@ -32,10 +34,13 @@ const formatRemainingTime = (totalSeconds: number): string => {
 
 export default function ModoPatrulha({
   roteiroDia,
-  onMarcarConcluido,
+  onRegistrarExecucao,
+  onAbrirMapa,
 }: ModoPatrulhaProps) {
   const [currentTime, setCurrentTime] = useState(() => new Date());
   const [mostrarFundamentacao, setMostrarFundamentacao] = useState(false);
+  const [notaCampo, setNotaCampo] = useState("");
+  const [motivoCampo, setMotivoCampo] = useState("");
 
   // Update clock every second for precise countdowns
   useEffect(() => {
@@ -123,7 +128,37 @@ export default function ModoPatrulha({
     };
   }, [currentTime, turnStart, turnEnd, blocksWithTimes, durationMin]);
 
-  const handleCumpridoClick = (blocoId: string) => {
+  const activeBlockForForm =
+    status.type === "active" ? (status as { activeItem: { bloco: BlocoHorario } }).activeItem.bloco : null;
+
+  useEffect(() => {
+    setNotaCampo(activeBlockForForm?.execucao?.nota ?? "");
+    setMotivoCampo(activeBlockForForm?.execucao?.motivo ?? "");
+  }, [activeBlockForForm?.id, activeBlockForForm?.execucao?.nota, activeBlockForForm?.execucao?.motivo]);
+
+  const capturarGPS = (): Promise<Pick<ExecucaoBloco, "lat" | "lng" | "gpsStatus">> => {
+    if (!navigator.geolocation) {
+      return Promise.resolve({ lat: null, lng: null, gpsStatus: "indisponivel" });
+    }
+
+    return new Promise(resolve => {
+      navigator.geolocation.getCurrentPosition(
+        pos => resolve({
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+          gpsStatus: "capturado",
+        }),
+        err => resolve({
+          lat: null,
+          lng: null,
+          gpsStatus: err.code === err.PERMISSION_DENIED ? "negado" : "indisponivel",
+        }),
+        { enableHighAccuracy: true, maximumAge: 15000, timeout: 8000 }
+      );
+    });
+  };
+
+  const registrarExecucao = async (bloco: BlocoHorario, estado: EstadoExecucaoBloco) => {
     // Haptic feedback if supported
     if ("vibrate" in navigator) {
       try {
@@ -132,8 +167,22 @@ export default function ModoPatrulha({
         // ignore vibrate blocks
       }
     }
-    onMarcarConcluido(blocoId);
-    toast.success("Bloco marcado como cumprido!");
+
+    const gps = await capturarGPS();
+    onRegistrarExecucao(bloco.id, {
+      estado,
+      nota: notaCampo.trim() || undefined,
+      motivo: motivoCampo.trim() || undefined,
+      horarioEfetivo: new Date().toISOString(),
+      ...gps,
+    });
+
+    const labels: Record<EstadoExecucaoBloco, string> = {
+      cumprido: "cumprido",
+      parcial: "parcial",
+      nao_realizado: "não realizado",
+    };
+    toast.success(`Bloco registrado como ${labels[estado]}.`);
   };
 
   const getModalityStyles = (mod: string) => {
@@ -335,8 +384,7 @@ export default function ModoPatrulha({
         {/* Action Button - Giant Checkmark */}
         <div className="mt-4">
           <button
-            onClick={() => handleCumpridoClick(activeItem.bloco.id)}
-            disabled={activeItem.bloco.concluido}
+            onClick={() => registrarExecucao(activeItem.bloco, "cumprido")}
             className={`w-full py-4 px-6 rounded-xl text-base font-black flex items-center justify-center gap-2 transition-all min-h-[52px] select-none shadow-md ${
               activeItem.bloco.concluido
                 ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/45 dark:text-emerald-400 border border-emerald-500/20"
@@ -346,6 +394,95 @@ export default function ModoPatrulha({
             <CheckCircle2 className="w-5 h-5" />
             {activeItem.bloco.concluido ? "✓ CUMPRIDO" : "MARCAR COMO CUMPRIDO"}
           </button>
+        </div>
+
+        <div className="mt-3 space-y-3">
+          {typeof activeItem.bloco.lat === "number" && typeof activeItem.bloco.lng === "number" ? (
+            <div className="grid grid-cols-3 gap-2">
+              <a
+                href={`https://www.google.com/maps/dir/?api=1&destination=${activeItem.bloco.lat},${activeItem.bloco.lng}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="min-h-[48px] rounded-xl bg-[#0a2540] text-white text-xs font-black flex items-center justify-center gap-1.5"
+              >
+                <Navigation className="w-4 h-4" /> Maps
+              </a>
+              <a
+                href={`waze://?ll=${activeItem.bloco.lat},${activeItem.bloco.lng}&navigate=yes`}
+                className="min-h-[48px] rounded-xl bg-emerald-600 text-white text-xs font-black flex items-center justify-center gap-1.5"
+              >
+                <Navigation className="w-4 h-4" /> Waze
+              </a>
+              <button
+                onClick={() => onAbrirMapa(activeItem.bloco.id)}
+                className="min-h-[48px] rounded-xl bg-white/80 dark:bg-slate-950 border border-gray-200 dark:border-slate-800 text-gray-800 dark:text-white text-xs font-black flex items-center justify-center gap-1.5"
+              >
+                <MapPin className="w-4 h-4" /> Mapa
+              </button>
+            </div>
+          ) : (
+            <div className="rounded-xl border border-amber-200 dark:border-amber-900/50 bg-amber-50 dark:bg-amber-950/40 px-3 py-2 text-xs font-bold text-amber-900 dark:text-amber-300 flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 shrink-0" />
+              <span>Ponto sem localização cadastrada.</span>
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={() => registrarExecucao(activeItem.bloco, "parcial")}
+              className={`min-h-[48px] rounded-xl text-xs font-black flex items-center justify-center gap-1.5 border ${
+                activeItem.bloco.execucao?.estado === "parcial"
+                  ? "bg-amber-600 text-white border-amber-600"
+                  : "bg-white dark:bg-slate-950 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-900/50"
+              }`}
+            >
+              <CircleDashed className="w-5 h-5" /> Parcial
+            </button>
+            <button
+              onClick={() => registrarExecucao(activeItem.bloco, "nao_realizado")}
+              className={`min-h-[48px] rounded-xl text-xs font-black flex items-center justify-center gap-1.5 border ${
+                activeItem.bloco.execucao?.estado === "nao_realizado"
+                  ? "bg-red-600 text-white border-red-600"
+                  : "bg-white dark:bg-slate-950 text-red-700 dark:text-red-400 border-red-200 dark:border-red-900/50"
+              }`}
+            >
+              <AlertTriangle className="w-5 h-5" /> Não realizado
+            </button>
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex gap-1.5 overflow-x-auto pb-1">
+              {["Ponto sem movimento", "Abordagem realizada", "Ocorrência atendida", "Orientação ao público"].map(nota => (
+                <button
+                  key={nota}
+                  type="button"
+                  onClick={() => setNotaCampo(nota)}
+                  className="shrink-0 min-h-[36px] px-3 rounded-full border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-[11px] font-bold text-gray-700 dark:text-slate-300"
+                >
+                  {nota}
+                </button>
+              ))}
+            </div>
+            <textarea
+              value={notaCampo}
+              onChange={e => setNotaCampo(e.target.value)}
+              maxLength={160}
+              placeholder="Nota rápida opcional"
+              className="w-full min-h-[68px] rounded-xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-3 py-2 text-sm text-gray-900 dark:text-white resize-none"
+            />
+            <input
+              value={motivoCampo}
+              onChange={e => setMotivoCampo(e.target.value)}
+              maxLength={120}
+              placeholder="Motivo, se parcial ou não realizado"
+              className="w-full min-h-[44px] rounded-xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-3 py-2 text-sm text-gray-900 dark:text-white"
+            />
+            {activeItem.bloco.execucao && (
+              <p className="text-[11px] font-bold text-gray-500 dark:text-slate-400">
+                Registrado {activeItem.bloco.execucao.horarioEfetivo ? new Date(activeItem.bloco.execucao.horarioEfetivo).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : ""} · GPS {activeItem.bloco.execucao.gpsStatus === "capturado" ? "capturado" : "sem coordenada"}
+              </p>
+            )}
+          </div>
         </div>
 
         {/* COLLAPSIBLE DOUTRINA / JUSTIFICATION */}
