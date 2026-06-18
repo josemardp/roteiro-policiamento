@@ -175,13 +175,215 @@ export const COORDENADAS_PONTOS: Record<string, CoordenadaPonto> = {
     lng: -50.7462247,
     fonte: "Nominatim/OSM: Rodovia Marechal Rondon, Bento de Abreu, Sao Paulo, Brasil",
   },
+  [chaveCoordenadaPonto("Guararapes", "Centro")]: {
+    lat: -21.2620857,
+    lng: -50.6415857,
+    fonte: "PPI 5CIA: centroide de 7 pontos georreferenciados no bairro Centro",
+  },
+  [chaveCoordenadaPonto("Guararapes", "Centro (zona comercial de comércio geral)")]: {
+    lat: -21.2620857,
+    lng: -50.6415857,
+    fonte: "PPI 5CIA: centroide de 7 pontos georreferenciados no bairro Centro",
+  },
+  [chaveCoordenadaPonto("Guararapes", "Bairro Industrial")]: {
+    lat: -21.2592,
+    lng: -50.6492,
+    fonte: "PPI 5CIA: EMEB Professora Brigida Cagnin Zancaner, Bairro Industrial",
+  },
+  [chaveCoordenadaPonto("Guararapes", "Jardim Dom Luiz Orione")]: {
+    lat: -21.2655,
+    lng: -50.6358,
+    fonte: "PPI 5CIA: CRAS Guararapes, Jardim Dom Luiz Orione",
+  },
+  [chaveCoordenadaPonto("Guararapes", "Jardim Aeroporto")]: {
+    lat: -21.255,
+    lng: -50.635,
+    fonte: "PPI 5CIA: EE Prof. Waldemar Queiroz, Jardim Aeroporto",
+  },
+  [chaveCoordenadaPonto("Guararapes", "Jardim Continental")]: {
+    lat: -21.2531,
+    lng: -50.6515,
+    fonte: "PPI 5CIA: EMEB Professora Ivete Abdo Theodoro de Oliveira, Jardim Continental",
+  },
+  [chaveCoordenadaPonto("Guararapes", "Zona Comercial do Jardim Acapulco (Rua Baguassu)")]: {
+    lat: -21.2536,
+    lng: -50.6415,
+    fonte: "PPI 5CIA: Supermercado Big Mart - Loja Baguassu, Jardim Acapulco",
+  },
+  [chaveCoordenadaPonto("Guararapes", "Entrada principal pela Av. Rio Branco")]: {
+    lat: -21.2616981,
+    lng: -50.6468503,
+    fonte: "Nominatim/OSM: Avenida Rio Branco, Guararapes, Sao Paulo, Brasil",
+  },
+  [chaveCoordenadaPonto("Guararapes", "Trevo de acesso à SP-300 (km 553)")]: {
+    lat: -21.2094573,
+    lng: -50.6667356,
+    fonte: "Nominatim/OSM: Rodovia Marechal Rondon, Guararapes, Sao Paulo, Brasil (km 553 consultado em 2026-06-17)",
+  },
+  [chaveCoordenadaPonto("Guararapes", "SP-300 km ~553 (Trecho crítico de acidentes - Infosiga)")]: {
+    lat: -21.2094573,
+    lng: -50.6667356,
+    fonte: "Nominatim/OSM: Rodovia Marechal Rondon, Guararapes, Sao Paulo, Brasil (km 553 consultado em 2026-06-17)",
+  },
+  [chaveCoordenadaPonto("Guararapes", "SP-300 km 550-555")]: {
+    lat: -21.2094573,
+    lng: -50.6667356,
+    fonte: "Nominatim/OSM: Rodovia Marechal Rondon, Guararapes, Sao Paulo, Brasil (km 550 consultado em 2026-06-17)",
+  },
+  [chaveCoordenadaPonto("Guararapes", "Distrito de Ribeiro do Vale")]: {
+    lat: -21.070596,
+    lng: -50.7100267,
+    fonte: "OSM/Overpass: node Ribeiro do Vale, place=village, Guararapes",
+  },
+  [chaveCoordenadaPonto("Guararapes", "Estrada da Usina Unialco")]: {
+    lat: -21.2185,
+    lng: -50.695,
+    fonte: "PPI 5CIA: hotspot Area Industrial - Entorno da Usina Unialco",
+  },
+  [chaveCoordenadaPonto("Valparaíso", "Conj. Hab. Miguel Villar")]: {
+    lat: -21.223,
+    lng: -50.861,
+    fonte: "PPI 5CIA: EE Prof. David Golias, Conj. Hab. Miguel Villar",
+  },
+  [chaveCoordenadaPonto("Valparaíso", "Zona Comercial da Rua Eduardo Geraldi")]: {
+    lat: -21.2248,
+    lng: -50.8662,
+    fonte: "PPI 5CIA: Emporio Redepas - Valparaiso, Rua Eduardo Geraldi",
+  },
+  [chaveCoordenadaPonto("Valparaíso", "Saída do município sentido SP-300 (km 576)")]: {
+    lat: -21.2072866,
+    lng: -50.8166771,
+    fonte: "Nominatim/OSM: Rodovia Marechal Rondon, Valparaiso, Sao Paulo, Brasil (km 576 consultado em 2026-06-17)",
+  },
+  [chaveCoordenadaPonto("Valparaíso", "SP-300 km ~576 (Trecho crítico de acidentes - Infosiga)")]: {
+    lat: -21.2072866,
+    lng: -50.8166771,
+    fonte: "Nominatim/OSM: Rodovia Marechal Rondon, Valparaiso, Sao Paulo, Brasil (km 576 consultado em 2026-06-17)",
+  },
+  [chaveCoordenadaPonto("Valparaíso", "SP-300 km 573-578")]: {
+    lat: -21.2072866,
+    lng: -50.8166771,
+    fonte: "Nominatim/OSM: Rodovia Marechal Rondon, Valparaiso, Sao Paulo, Brasil (km 573 consultado em 2026-06-17)",
+  },
+  [chaveCoordenadaPonto("Valparaíso", "Vicinal Eugênio Salesse")]: {
+    lat: -21.2332061,
+    lng: -50.8264067,
+    fonte: "Nominatim/OSM: Estrada Vicinal Eugenio Salesse, Valparaiso, Sao Paulo, Brasil",
+  },
+  [chaveCoordenadaPonto("Valparaíso", "Acessos principais pela Vicinal Eugênio Salesse")]: {
+    lat: -21.2332061,
+    lng: -50.8264067,
+    fonte: "Nominatim/OSM: Estrada Vicinal Eugenio Salesse, Valparaiso, Sao Paulo, Brasil",
+  },
+  [chaveCoordenadaPonto("Rubiácea", "Centro")]: {
+    lat: -21.298975,
+    lng: -50.727825,
+    fonte: "PPI 5CIA: centroide de 4 pontos georreferenciados no bairro Centro",
+  },
+  [chaveCoordenadaPonto("Rubiácea", "Centro (pequeno comércio no entorno da praça principal)")]: {
+    lat: -21.298975,
+    lng: -50.727825,
+    fonte: "PPI 5CIA: centroide de 4 pontos georreferenciados no bairro Centro",
+  },
+  [chaveCoordenadaPonto("Rubiácea", "Praça central (Igreja Matriz)")]: {
+    lat: -21.298975,
+    lng: -50.727825,
+    fonte: "PPI 5CIA: centroide operacional do Centro de Rubiacea",
+  },
+  [chaveCoordenadaPonto("Rubiácea", "UBS III de Rubiácea (Rua Francisco de Paula Leite Nogueira, 208)")]: {
+    lat: -21.3005,
+    lng: -50.7265,
+    fonte: "PPI 5CIA: UBS III de Rubiacea, CNES/DATASUS",
+  },
+  [chaveCoordenadaPonto("Rubiácea", "Banco do Brasil (Avenida Min. Konder, 107)")]: {
+    lat: -21.2982,
+    lng: -50.7288,
+    fonte: "PPI 5CIA: Banco do Brasil Rubiacea, ESTBAN/BCB",
+  },
+  [chaveCoordenadaPonto("Rubiácea", "Trevo de acesso à SP-300 (km 562)")]: {
+    lat: -21.2912,
+    lng: -50.755,
+    fonte: "PPI 5CIA: Trevo de Acesso a SP-300 / Praca de Pedagio",
+  },
+  [chaveCoordenadaPonto("Rubiácea", "Praça de Pedágio da SP-300 (km 562)")]: {
+    lat: -21.2912,
+    lng: -50.755,
+    fonte: "PPI 5CIA: Trevo de Acesso a SP-300 / Praca de Pedagio",
+  },
+  [chaveCoordenadaPonto("Rubiácea", "Trecho crítico de sinistros SP-300 km ~562")]: {
+    lat: -21.2912,
+    lng: -50.755,
+    fonte: "PPI 5CIA: Trevo de Acesso a SP-300 / Praca de Pedagio",
+  },
+  [chaveCoordenadaPonto("Rubiácea", "SP-300 km 560-564")]: {
+    lat: -21.2104657,
+    lng: -50.7310561,
+    fonte: "Nominatim/OSM: Rodovia Marechal Rondon, Rubiacea, Sao Paulo, Brasil (km 560 consultado em 2026-06-17)",
+  },
+  [chaveCoordenadaPonto("Rubiácea", "Prevenção a roubo a banco (madrugada) — Entorno do Banco do Brasil (Av. Min. Konder)")]: {
+    lat: -21.2982,
+    lng: -50.7288,
+    fonte: "PPI 5CIA: Banco do Brasil Rubiacea, ESTBAN/BCB",
+  },
+  [chaveCoordenadaPonto("Bento de Abreu", "Centro")]: {
+    lat: -21.2683,
+    lng: -50.8121,
+    fonte: "PPI 5CIA: centroide de 5 pontos georreferenciados no bairro Centro",
+  },
+  [chaveCoordenadaPonto("Bento de Abreu", "Centro (pequeno comércio na Av. Dr. José Rosseto)")]: {
+    lat: -21.2683,
+    lng: -50.8121,
+    fonte: "PPI 5CIA: centroide de 5 pontos georreferenciados no bairro Centro",
+  },
+  [chaveCoordenadaPonto("Bento de Abreu", "Praça central (Igreja Matriz)")]: {
+    lat: -21.2683,
+    lng: -50.8121,
+    fonte: "PPI 5CIA: centroide operacional do Centro de Bento de Abreu",
+  },
+  [chaveCoordenadaPonto("Bento de Abreu", "Trevo de acesso SP-300 / SP-568")]: {
+    lat: -21.2652,
+    lng: -50.8285,
+    fonte: "PPI 5CIA: Trevo de Bento de Abreu (SP-300 / SP-568)",
+  },
+  [chaveCoordenadaPonto("Bento de Abreu", "Entrada da cidade pela SP-568")]: {
+    lat: -21.2652,
+    lng: -50.8285,
+    fonte: "PPI 5CIA: Trevo de Bento de Abreu (SP-300 / SP-568)",
+  },
+  [chaveCoordenadaPonto("Bento de Abreu", "SP-300 km 566-570")]: {
+    lat: -21.2084711,
+    lng: -50.7462247,
+    fonte: "Nominatim/OSM: Rodovia Marechal Rondon, Bento de Abreu, Sao Paulo, Brasil (km 566 consultado em 2026-06-17)",
+  },
 };
 
 export function obterCoordenadaPonto(
   municipio: Municipio,
   local: string
 ): CoordenadaPonto | null {
-  return COORDENADAS_PONTOS[chaveCoordenadaPonto(municipio, local)] ?? null;
+  const coordenadaExata = COORDENADAS_PONTOS[chaveCoordenadaPonto(municipio, local)];
+  if (coordenadaExata) {
+    return coordenadaExata;
+  }
+
+  const municipioNormalizado = normalizarChavePonto(municipio);
+  const localNormalizado = normalizarChavePonto(local);
+  let melhorMatch: { tamanho: number; coordenada: CoordenadaPonto } | null = null;
+
+  for (const [chave, coordenada] of Object.entries(COORDENADAS_PONTOS)) {
+    const [municipioChave, pontoChave] = chave.split("|");
+    if (municipioChave !== municipioNormalizado || !pontoChave) {
+      continue;
+    }
+    if (!localNormalizado.includes(pontoChave)) {
+      continue;
+    }
+    if (!melhorMatch || pontoChave.length > melhorMatch.tamanho) {
+      melhorMatch = { tamanho: pontoChave.length, coordenada };
+    }
+  }
+
+  return melhorMatch?.coordenada ?? null;
 }
 
 export function obterCoordenadaReferenciaMunicipio(
