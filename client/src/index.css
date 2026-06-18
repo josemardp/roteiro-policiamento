@@ -348,3 +348,218 @@ body {
   padding-bottom: env(safe-area-inset-bottom);
 }
 
+.folha-print {
+  display: none;
+}
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 12mm;
+  }
+
+  html,
+  body {
+    width: 210mm;
+    min-height: 297mm;
+    background: #ffffff !important;
+    color: #000000 !important;
+    padding: 0 !important;
+  }
+
+  body * {
+    visibility: hidden !important;
+  }
+
+  .folha-print,
+  .folha-print * {
+    visibility: visible !important;
+  }
+
+  .folha-print {
+    display: block !important;
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 100%;
+    max-width: none;
+    padding: 0;
+    margin: 0;
+    color: #000000;
+    background: #ffffff;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 9.5pt;
+    line-height: 1.25;
+  }
+
+  .folha-cabecalho {
+    border: 1.5pt solid #000000;
+    padding: 8pt;
+    text-align: center;
+    break-inside: avoid;
+  }
+
+  .folha-identidade {
+    display: grid;
+    gap: 2pt;
+    font-size: 9pt;
+    text-transform: uppercase;
+  }
+
+  .folha-identidade strong {
+    font-size: 11pt;
+  }
+
+  .folha-cabecalho h1 {
+    margin: 8pt 0 0;
+    font-size: 15pt;
+    font-weight: 800;
+    letter-spacing: 0;
+  }
+
+  .folha-dados-servico {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    border-left: 1pt solid #000000;
+    border-top: 1pt solid #000000;
+    margin: 8pt 0;
+    break-inside: avoid;
+  }
+
+  .folha-dados-servico div {
+    min-height: 28pt;
+    border-right: 1pt solid #000000;
+    border-bottom: 1pt solid #000000;
+    padding: 4pt 5pt;
+  }
+
+  .folha-dados-servico dt {
+    margin: 0 0 2pt;
+    font-size: 7.5pt;
+    font-weight: 800;
+    text-transform: uppercase;
+  }
+
+  .folha-dados-servico dd {
+    margin: 0;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+  }
+
+  .folha-secao {
+    margin-top: 8pt;
+  }
+
+  .folha-secao h2 {
+    margin: 0;
+    padding: 4pt 5pt;
+    border: 1pt solid #000000;
+    background: #eeeeee !important;
+    color: #000000 !important;
+    font-size: 9pt;
+    font-weight: 800;
+  }
+
+  .folha-fundamentacao {
+    margin: 0;
+    padding: 5pt 8pt 5pt 18pt;
+    border-right: 1pt solid #000000;
+    border-bottom: 1pt solid #000000;
+    border-left: 1pt solid #000000;
+  }
+
+  .folha-fundamentacao li {
+    margin: 0 0 3pt;
+    break-inside: avoid;
+  }
+
+  .folha-tabela {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+    font-size: 8pt;
+  }
+
+  .folha-tabela thead {
+    display: table-header-group;
+  }
+
+  .folha-tabela tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .folha-tabela th,
+  .folha-tabela td {
+    border: 0.75pt solid #000000;
+    padding: 3pt 4pt;
+    vertical-align: top;
+    overflow-wrap: anywhere;
+  }
+
+  .folha-tabela th {
+    background: #eeeeee !important;
+    color: #000000 !important;
+    font-size: 7.5pt;
+    text-transform: uppercase;
+    text-align: left;
+  }
+
+  .folha-tabela th:nth-child(1),
+  .folha-tabela td:nth-child(1) {
+    width: 12%;
+    white-space: nowrap;
+  }
+
+  .folha-tabela th:nth-child(2),
+  .folha-tabela td:nth-child(2) {
+    width: 15%;
+  }
+
+  .folha-tabela th:nth-child(3),
+  .folha-tabela td:nth-child(3) {
+    width: 12%;
+  }
+
+  .folha-tabela th:nth-child(4),
+  .folha-tabela td:nth-child(4) {
+    width: 22%;
+  }
+
+  .folha-tabela th:nth-child(5),
+  .folha-tabela td:nth-child(5) {
+    width: 20%;
+  }
+
+  .folha-tabela th:nth-child(6),
+  .folha-tabela td:nth-child(6) {
+    width: 19%;
+  }
+
+  .folha-rodape {
+    margin-top: 12pt;
+    font-size: 8.5pt;
+    break-inside: avoid;
+  }
+
+  .folha-rodape p {
+    margin: 0 0 8pt;
+  }
+
+  .folha-assinatura {
+    width: 76mm;
+    margin: 18pt auto 8pt;
+    text-align: center;
+  }
+
+  .folha-assinatura span {
+    display: block;
+    border-top: 1pt solid #000000;
+    height: 4pt;
+  }
+
+  .folha-assinatura strong {
+    font-size: 8.5pt;
+    font-weight: 700;
+  }
+}
+

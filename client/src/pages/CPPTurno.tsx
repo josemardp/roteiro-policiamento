@@ -11,10 +11,11 @@ import { parseDataLocal, gerarFundamentacao } from "@/lib/gerarCPP";
 import BlocoCard from "@/components/BlocoCard";
 import EditBlocoModal from "@/components/EditBlocoModal";
 import ExportarRelatorioModal from "@/components/ExportarRelatorioModal";
+import FolhaServicoCPP from "@/components/FolhaServicoCPP";
 import MapaCPP from "@/components/MapaCPP";
 import ModoPatrulha from "@/components/ModoPatrulha";
 import { useTheme } from "@/contexts/ThemeContext";
-import { Sun, Moon, Clock, ListTodo, Map, Bell, BellOff } from "lucide-react";
+import { Sun, Moon, Clock, ListTodo, Map, Bell, BellOff, Printer } from "lucide-react";
 
 interface CPPTurnoProps {
   roteiroDia: RoteiroDia;
@@ -252,6 +253,15 @@ export default function CPPTurno({
     toast.success("Bloco adicionado — edite para detalhar.");
   }, [roteiroDia, onAtualizar]);
 
+  const handleEmitirCPP = useCallback(() => {
+    if (roteiroDia.blocos.length === 0) {
+      toast.info("Gere o roteiro antes de emitir o CPP.");
+      return;
+    }
+
+    window.setTimeout(() => window.print(), 50);
+  }, [roteiroDia.blocos.length]);
+
   // Touch Swipe handlers for tab transitions (Lista ⇄ Mapa ⇄ Agora)
   const onTouchStart = (e: React.TouchEvent) => {
     // Prevent swiping tab when interacting with Leaflet map
@@ -408,10 +418,21 @@ export default function CPPTurno({
                 + Adicionar Bloco
               </button>
               <button
+                onClick={handleEmitirCPP}
+                disabled={roteiroDia.blocos.length === 0}
+                className="w-full btn-tactical-secondary text-base font-bold py-3 min-h-[48px] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                <Printer className="w-5 h-5" />
+                Emitir CPP (imprimir / PDF)
+              </button>
+              <p className="text-[11px] text-gray-500 dark:text-slate-400 leading-relaxed px-1">
+                No diálogo do navegador, use Imprimir ou Salvar como PDF para compartilhar a folha do serviço.
+              </p>
+              <button
                 onClick={() => setMostraExportar(true)}
                 className="w-full btn-tactical text-base font-bold py-3 min-h-[48px] cursor-pointer"
               >
-                📄 Exportar Relatório
+                📄 Exportar RSO
               </button>
             </div>
           </div>
@@ -423,10 +444,18 @@ export default function CPPTurno({
 
             <div className="space-y-2 mt-4">
               <button
+                onClick={handleEmitirCPP}
+                disabled={roteiroDia.blocos.length === 0}
+                className="w-full btn-tactical-secondary text-base font-bold py-3 min-h-[48px] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                <Printer className="w-5 h-5" />
+                Emitir CPP (imprimir / PDF)
+              </button>
+              <button
                 onClick={() => setMostraExportar(true)}
                 className="w-full btn-tactical text-base font-bold py-3 min-h-[48px] cursor-pointer"
               >
-                📄 Exportar Relatório
+                📄 Exportar RSO
               </button>
             </div>
           </div>
@@ -484,6 +513,8 @@ export default function CPPTurno({
           onFechar={() => setMostraExportar(false)}
         />
       )}
+
+      <FolhaServicoCPP roteiroDia={roteiroDia} />
     </div>
   );
 }
