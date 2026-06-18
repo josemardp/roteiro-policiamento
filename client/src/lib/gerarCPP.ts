@@ -794,6 +794,13 @@ export function obterCoordenadasLocal(
       : { lat: null, lng: null };
   }
 
+  if (normLocal.includes("deslocamento")) {
+    const referencia = obterCoordenadaReferenciaMunicipio(municipio);
+    return referencia
+      ? { lat: referencia.lat, lng: referencia.lng }
+      : { lat: null, lng: null };
+  }
+
   const ppiMun = (PPI_5CIA as any)[municipio];
   if (!ppiMun) {
     return { lat: null, lng: null };
