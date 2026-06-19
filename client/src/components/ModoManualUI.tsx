@@ -36,31 +36,44 @@ const PLACEHOLDER_LOCAL: Record<string, string> = {
 interface ModoManualUIProps {
   value: string;
   onChange: (v: string) => void;
-  horaInicio: string; // HH:MM — usado para cálculo da prévia e sugestão de horário
+  horaInicio: string;    // HH:MM
+  horaTermino?: string;  // HH:MM opcional; usado pela prévia para detectar blocos fora do turno
+}
+
+// Normaliza minuto de relógio para minuto absoluto relativo ao turno (lida com meia-noite).
+function normAbsoluto(clockMin: number, turnoInicioMin: number): number {
+  let v = clockMin;
+  while (v < turnoInicioMin) v += 1440;
+  return v;
 }
 
 function calcProximoHorario(texto: string, horaInicio: string): string {
   const [hh, mm] = horaInicio.split(":").map(Number);
-  let maxMin = hh * 60 + mm + 30; // após PREL
+  const turnoInicioMin = hh * 60 + mm;
+  let maxMin = turnoInicioMin + 30; // após PREL
+
   for (const linha of texto.split("\n")) {
     const comFim = linha.match(
       /\d{1,2}[h:]\d{0,2}\s*(?:a\b|as\b|às\b|-)\s*(\d{1,2})[h:](\d{0,2})/i
     );
     if (comFim) {
-      maxMin = Math.max(maxMin, parseInt(comFim[1]) * 60 + parseInt(comFim[2] || "0"));
+      const fimRaw = parseInt(comFim[1]) * 60 + parseInt(comFim[2] || "0");
+      maxMin = Math.max(maxMin, normAbsoluto(fimRaw, turnoInicioMin));
       continue;
     }
     const semFim = linha.match(/(\d{1,2})[h:](\d{0,2})/);
     if (semFim) {
-      maxMin = Math.max(maxMin, parseInt(semFim[1]) * 60 + parseInt(semFim[2] || "0") + 30);
+      const iniRaw = parseInt(semFim[1]) * 60 + parseInt(semFim[2] || "0");
+      maxMin = Math.max(maxMin, normAbsoluto(iniRaw, turnoInicioMin) + 30);
     }
   }
+
   const h = Math.floor(maxMin / 60) % 24;
   const m = maxMin % 60;
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
-export default function ModoManualUI({ value, onChange, horaInicio }: ModoManualUIProps) {
+export default function ModoManualUI({ value, onChange, horaInicio, horaTermino }: ModoManualUIProps) {
   const [guiaAberto, setGuiaAberto] = useState(false);
   const [formInicio, setFormInicio] = useState("");
   const [formFim, setFormFim] = useState("");
@@ -77,8 +90,8 @@ export default function ModoManualUI({ value, onChange, horaInicio }: ModoManual
   }, [horaInicio]);
 
   const preview = useMemo(
-    () => (value.trim() ? analisarBlocosManuaisPreview(value, horaInicio) : []),
-    [value, horaInicio]
+    () => (value.trim() ? analisarBlocosManuaisPreview(value, horaInicio, horaTermino) : []),
+    [value, horaInicio, horaTermino]
   );
 
   const inserirLinha = (linha: string) => {

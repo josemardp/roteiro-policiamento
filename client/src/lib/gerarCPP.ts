@@ -932,7 +932,9 @@ interface BlocoManualParsed {
   localManual: string;
 }
 
-function parseBlocosManuais(texto: string): BlocoManualParsed[] {
+// turnoInicio: minuto absoluto do início do turno (ex: 1410 para 23:30).
+// Horários de relógio anteriores ao turno são interpretados como dia seguinte (ex: 00h00 → 1440).
+function parseBlocosManuais(texto: string, turnoInicio: number): BlocoManualParsed[] {
   const linhas = texto
     .split("\n")
     .map(l => l.trim())
@@ -944,32 +946,23 @@ function parseBlocosManuais(texto: string): BlocoManualParsed[] {
       /(\d{1,2})[h:](\d{0,2})\s*(?:a\b|as\b|at[eé]\b|às\b|-)\s*(\d{1,2})[h:](\d{0,2})\s+(.*)/i
     );
     if (comFim) {
-      const inicioMin = parseInt(comFim[1]) * 60 + parseInt(comFim[2] || "0");
-      const fimMin = parseInt(comFim[3]) * 60 + parseInt(comFim[4] || "0");
+      const inicioMinRaw = parseInt(comFim[1]) * 60 + parseInt(comFim[2] || "0");
+      const fimMinRaw = parseInt(comFim[3]) * 60 + parseInt(comFim[4] || "0");
       const desc = comFim[5].trim();
       const { modalidade, localManual } = analisarDescricaoManual(desc);
-      result.push({
-        inicioMin: snapGrid30(inicioMin),
-        fimMin: snapGrid30(fimMin),
-        modalidade,
-        desc,
-        localManual,
-      });
+      const inicioMin = clockMinAbsoluto(snapGrid30(inicioMinRaw), turnoInicio);
+      const fimMin = clockMinAbsoluto(snapGrid30(fimMinRaw), inicioMin);
+      result.push({ inicioMin, fimMin, modalidade, desc, localManual });
       continue;
     }
 
     const semFim = linha.match(/(\d{1,2})[h:](\d{0,2})\s+(.*)/i);
     if (semFim) {
-      const inicioMin = parseInt(semFim[1]) * 60 + parseInt(semFim[2] || "0");
+      const inicioMinRaw = parseInt(semFim[1]) * 60 + parseInt(semFim[2] || "0");
       const desc = semFim[3].trim();
       const { modalidade, localManual } = analisarDescricaoManual(desc);
-      result.push({
-        inicioMin: snapGrid30(inicioMin),
-        fimMin: null,
-        modalidade,
-        desc,
-        localManual,
-      });
+      const inicioMin = clockMinAbsoluto(snapGrid30(inicioMinRaw), turnoInicio);
+      result.push({ inicioMin, fimMin: null, modalidade, desc, localManual });
     }
   }
 
@@ -981,24 +974,31 @@ function parseBlocosManuais(texto: string): BlocoManualParsed[] {
 export type PreviewBlocoManual = {
   linha: number;
   textoOriginal: string;
-  horaInicio?: string;
-  horaFim?: string;
+  horaInicio?: string;      // exibição em relógio "HH:MM"
+  horaFim?: string;         // exibição em relógio "HH:MM"
+  inicioMin?: number;       // minuto absoluto (para testes e debug)
+  fimMin?: number;          // minuto absoluto (para testes e debug)
   modalidade?: string;
   local?: string;
   status: "ok" | "aviso" | "erro";
   mensagem?: string;
 };
 
+// horaTerminoTurno é opcional; se fornecido, detecta blocos fora da janela do turno.
 export function analisarBlocosManuaisPreview(
   texto: string,
-  horaInicioTurno: string
+  horaInicioTurno: string,
+  horaTerminoTurno?: string
 ): PreviewBlocoManual[] {
   const linhasRaw = texto.split("\n");
-  const [hh, mm] = horaInicioTurno.split(":").map(Number);
-  const turnoInicioMin = hh * 60 + mm;
+  const turnoInicioMin = horaParaMin(horaInicioTurno);
   const prelFimMin = turnoInicioMin + 30;
   const prelFimHora = minParaHora(prelFimMin);
   const turnoInicioHora = minParaHora(turnoInicioMin);
+  // turnoFimMin: normaliza horário de término para minuto absoluto (cruza meia-noite se preciso)
+  const turnoFimMin = horaTerminoTurno
+    ? clockMinAbsoluto(horaParaMin(horaTerminoTurno), turnoInicioMin)
+    : undefined;
   const result: PreviewBlocoManual[] = [];
 
   linhasRaw.forEach((linhaRaw, idx) => {
@@ -1010,25 +1010,32 @@ export function analisarBlocosManuaisPreview(
       /(\d{1,2})[h:](\d{0,2})\s*(?:a\b|as\b|at[eé]\b|às\b|-)\s*(\d{1,2})[h:](\d{0,2})\s+(.*)/i
     );
     if (comFim) {
-      const inicioMin = parseInt(comFim[1]) * 60 + parseInt(comFim[2] || "0");
-      const fimMin = parseInt(comFim[3]) * 60 + parseInt(comFim[4] || "0");
+      const inicioMinRaw = parseInt(comFim[1]) * 60 + parseInt(comFim[2] || "0");
+      const fimMinRaw = parseInt(comFim[3]) * 60 + parseInt(comFim[4] || "0");
       const desc = comFim[5].trim();
       const { modalidade, localManual } = analisarDescricaoManual(desc);
+      const inicioMin = clockMinAbsoluto(snapGrid30(inicioMinRaw), turnoInicioMin);
+      const fimMin = clockMinAbsoluto(snapGrid30(fimMinRaw), inicioMin);
       const isPrelOverlap = inicioMin >= turnoInicioMin && inicioMin < prelFimMin;
+      const isForaDeTurno = turnoFimMin !== undefined && inicioMin >= turnoFimMin;
       const semLocal = !localManual.trim();
       result.push({
         linha: idx + 1,
         textoOriginal: linha,
-        horaInicio: minParaHora(snapGrid30(inicioMin)),
-        horaFim: minParaHora(snapGrid30(fimMin)),
+        horaInicio: minParaHora(inicioMin),
+        horaFim: minParaHora(fimMin),
+        inicioMin,
+        fimMin,
         modalidade,
         local: localManual || undefined,
-        status: isPrelOverlap || semLocal ? "aviso" : "ok",
-        mensagem: isPrelOverlap
-          ? `PREL obrigatória ocupa ${turnoInicioHora}–${prelFimHora}. Use ${prelFimHora} para o 1º bloco.`
-          : semLocal
-            ? "Informe um local/descrição."
-            : undefined,
+        status: isPrelOverlap || isForaDeTurno || semLocal ? "aviso" : "ok",
+        mensagem: isForaDeTurno
+          ? `Horário ${minParaHora(inicioMin)} está fora da janela do turno (${turnoInicioHora}–${minParaHora(turnoFimMin!)}). Bloco pode ser ignorado.`
+          : isPrelOverlap
+            ? `PREL obrigatória ocupa ${turnoInicioHora}–${prelFimHora}. Use ${prelFimHora} para o 1º bloco.`
+            : semLocal
+              ? "Informe um local/descrição."
+              : undefined,
       });
       return;
     }
@@ -1036,23 +1043,28 @@ export function analisarBlocosManuaisPreview(
     // Linha com apenas horário de início
     const semFim = linha.match(/(\d{1,2})[h:](\d{0,2})\s+(.*)/i);
     if (semFim) {
-      const inicioMin = parseInt(semFim[1]) * 60 + parseInt(semFim[2] || "0");
+      const inicioMinRaw = parseInt(semFim[1]) * 60 + parseInt(semFim[2] || "0");
       const desc = semFim[3].trim();
       const { modalidade, localManual } = analisarDescricaoManual(desc);
+      const inicioMin = clockMinAbsoluto(snapGrid30(inicioMinRaw), turnoInicioMin);
       const isPrelOverlap = inicioMin >= turnoInicioMin && inicioMin < prelFimMin;
+      const isForaDeTurno = turnoFimMin !== undefined && inicioMin >= turnoFimMin;
       const semLocal = !localManual.trim();
       result.push({
         linha: idx + 1,
         textoOriginal: linha,
-        horaInicio: minParaHora(snapGrid30(inicioMin)),
+        horaInicio: minParaHora(inicioMin),
+        inicioMin,
         modalidade,
         local: localManual || undefined,
-        status: isPrelOverlap || semLocal ? "aviso" : "ok",
-        mensagem: isPrelOverlap
-          ? `PREL obrigatória ocupa ${turnoInicioHora}–${prelFimHora}. Use ${prelFimHora} para o 1º bloco.`
-          : semLocal
-            ? "Informe um local/descrição."
-            : undefined,
+        status: isPrelOverlap || isForaDeTurno || semLocal ? "aviso" : "ok",
+        mensagem: isForaDeTurno
+          ? `Horário ${minParaHora(inicioMin)} está fora da janela do turno (${turnoInicioHora}–${minParaHora(turnoFimMin!)}). Bloco pode ser ignorado.`
+          : isPrelOverlap
+            ? `PREL obrigatória ocupa ${turnoInicioHora}–${prelFimHora}. Use ${prelFimHora} para o 1º bloco.`
+            : semLocal
+              ? "Informe um local/descrição."
+              : undefined,
       });
       return;
     }
@@ -1119,8 +1131,18 @@ export function gerarCPP({ configuracao, municipios }: GerarCPPParams): {
   const manuais =
     configuracao.modalidadeGeracao === "manual" &&
     configuracao.blocosManuais.trim()
-      ? parseBlocosManuais(configuracao.blocosManuais)
+      ? parseBlocosManuais(configuracao.blocosManuais, turnoInicio)
       : [];
+
+  // Avisar blocos manuais fora da janela do turno (após normalização noturna)
+  manuais
+    .filter(m => m.inicioMin >= turnoFim)
+    .forEach(m => {
+      avisos.push(
+        `Bloco manual "${m.desc || m.modalidade}" às ${minParaHora(m.inicioMin)} está fora da janela do turno (${minParaHora(turnoInicio)}–${minParaHora(turnoFim)}) e foi ignorado.`
+      );
+    });
+
   const temRefManual = manuais.some(m => m.modalidade === "REF");
   const refeicoesPlanejadas = temRefManual
     ? []

@@ -1,10 +1,10 @@
 /**
- * Testes de regressão do modo manual (V15.1)
+ * Testes de regressão do modo manual (V15.1 + V16.1)
  * Valida: sigla em qualquer posição, local preservado, PE sem falso positivo,
- *         REL por palavra-chave, aviso claro de sobreposição com PREL.
+ *         REL por palavra-chave, aviso PREL, turnos noturnos cruzando meia-noite.
  * Uso: ./node_modules/.bin/tsx client/test_manual_mode.ts
  */
-import { gerarCPP } from "./src/lib/gerarCPP";
+import { gerarCPP, calcularHoraTermino } from "./src/lib/gerarCPP";
 import { MUNICIPIOS_V33 } from "./src/lib/constants";
 import type { ConfiguracaoServico } from "./src/lib/types";
 
@@ -190,6 +190,126 @@ checarNegativo("perímetro central",          "07h30 perímetro central",       
 checarNegativo("pedestre em via",            "07h30 pedestre em via pública",      "07:30", "PE");
 checarNegativo("operação presença",          "07h30 operação presença",            "07:30", "PE");
 checarNegativo("presença policial no centro","07h30 presença policial no centro",  "07:30", "PE");
+
+// ─── V16.1: turnos noturnos cruzando meia-noite ──────────────────────────────
+
+console.log("\n=== V16.1: TURNOS NOTURNOS ===\n");
+
+function criarConfigNoturno(horaInicio: string, blocosManuais: string): ConfiguracaoServico {
+  return {
+    data: "2025-08-20",
+    horaInicio,
+    horaTermino: calcularHoraTermino(horaInicio, "Radiopatrulha (RP)"),
+    tipoAtividade: "Radiopatrulha (RP)",
+    municipios: ["Guararapes"],
+    municipio: "Guararapes",
+    tipoPoliciamento: "Misto (Urbano e Rural)",
+    modalidadeGeracao: "manual",
+    blocosManuais,
+    efetivo: "2",
+    viatura: "VTR-01",
+    prefixoUS: "01",
+    focos: [],
+    nomeEvento: "",
+    localEvento: "",
+  };
+}
+
+// Caso 1: turno 23:30 — blocos 00h00 e 00h30 devem entrar
+{
+  const cfg = criarConfigNoturno("23:30", "00h00 PE Banco do Brasil\n00h30 ESC EE Aimone Sala");
+  const { blocos, avisos } = gerarCPP({ configuracao: cfg, municipios: MUNICIPIOS_V33 });
+
+  const bPE = blocos.find(b => b.horaInicio === "00:00" && b.modalidade === "PE");
+  const bESC = blocos.find(b => b.horaInicio === "00:30" && b.modalidade === "ESC");
+  const sobreposicaoIndevida = avisos.some(a => a.includes("00:00") && a.includes("ignorado") && !a.includes("PREL"));
+
+  if (bPE && bPE.local === "Banco do Brasil") {
+    console.log(`✅ turno 23:30: 00:00 PE "${bPE.local}" entra no roteiro`);
+    totalOk++;
+  } else {
+    console.error(`❌ turno 23:30: bloco 00:00 PE não encontrado`);
+    if (avisos.length) console.error(`   Avisos: ${avisos.join(" | ")}`);
+    totalFail++;
+  }
+
+  if (bESC && bESC.local === "EE Aimone Sala") {
+    console.log(`✅ turno 23:30: 00:30 ESC "${bESC.local}" entra no roteiro`);
+    totalOk++;
+  } else {
+    console.error(`❌ turno 23:30: bloco 00:30 ESC não encontrado`);
+    totalFail++;
+  }
+
+  if (!sobreposicaoIndevida) {
+    console.log("✅ turno 23:30: sem aviso indevido de sobreposição para 00:00");
+    totalOk++;
+  } else {
+    console.error("❌ turno 23:30: aviso indevido de sobreposição para 00:00");
+    totalFail++;
+  }
+}
+
+// Caso 2: intervalo cruzando meia-noite (00h00 a 00h30)
+{
+  const cfg = criarConfigNoturno("23:30", "00h00 a 00h30 PE Banco do Brasil");
+  const { blocos, avisos } = gerarCPP({ configuracao: cfg, municipios: MUNICIPIOS_V33 });
+  const b = blocos.find(b => b.horaInicio === "00:00" && b.modalidade === "PE");
+  if (b && b.local === "Banco do Brasil") {
+    console.log(`✅ turno 23:30: 00h00-00h30 PE com intervalo entra: "${b.local}"`);
+    totalOk++;
+  } else {
+    console.error(`❌ turno 23:30: 00h00-00h30 PE com intervalo não encontrado`);
+    if (avisos.length) console.error(`   Avisos: ${avisos.join(" | ")}`);
+    totalFail++;
+  }
+}
+
+// Caso 3: turno 22:00 — blocos 22h30, 00h00, 01h00
+{
+  const cfg = criarConfigNoturno("22:00", "22h30 PE Banco do Brasil\n00h00 ESC EE Aimone Sala\n01h00 FISC SP-300 km 553");
+  const { blocos, avisos } = gerarCPP({ configuracao: cfg, municipios: MUNICIPIOS_V33 });
+
+  const b2230 = blocos.find(b => b.horaInicio === "22:30" && b.modalidade === "PE");
+  const b0000 = blocos.find(b => b.horaInicio === "00:00" && b.modalidade === "ESC");
+  const b0100 = blocos.find(b => b.horaInicio === "01:00" && b.modalidade === "FISC");
+
+  [
+    [b2230, "22:30 PE", "Banco do Brasil"],
+    [b0000, "00:00 ESC", "EE Aimone Sala"],
+    [b0100, "01:00 FISC", "SP-300 km 553"],
+  ].forEach(([b, label, local]) => {
+    if (b && (b as any).local === local) {
+      console.log(`✅ turno 22:00: ${label} "${local}"`);
+      totalOk++;
+    } else {
+      console.error(`❌ turno 22:00: ${label} não encontrado`);
+      if (avisos.length) console.error(`   Avisos: ${avisos.join(" | ")}`);
+      totalFail++;
+    }
+  });
+}
+
+// Caso 4: diurno 07:00 preservado
+checar("diurno 07:30 PE preservado", "07h30 PE Banco do Brasil", "07:30", "PE", "Banco do Brasil");
+
+// Caso 5: bloco fora do turno 07:00 (06h30 → minuto 1830 > turnoFim 1140) → aviso
+{
+  const cfg = criarConfig("06h30 PE Banco do Brasil");
+  const { blocos, avisos } = gerarCPP({ configuracao: cfg, municipios: MUNICIPIOS_V33 });
+  const b = blocos.find(b => b.horaInicio === "06:30");
+  const temAviso = avisos.some(a => a.toLowerCase().includes("fora") || a.toLowerCase().includes("ignorado"));
+  if (!b && temAviso) {
+    console.log("✅ fora do turno: 06h30 não entra e gera aviso");
+    totalOk++;
+  } else if (!b) {
+    console.log("✅ fora do turno: 06h30 não entra no roteiro (sem aviso explícito)");
+    totalOk++;
+  } else {
+    console.error("❌ fora do turno: 06h30 entrou no roteiro indevidamente");
+    totalFail++;
+  }
+}
 
 // ─── Resultado ────────────────────────────────────────────────────────────────
 

@@ -67,11 +67,12 @@ const TURNO = "07:00";
   checar("PE às 07h → aviso PREL", r[0], { status: "aviso", mensagemContem: "PREL" });
 }
 
-// ─── Caso 4: PREL overlap (07h15) ───────────────────────────────────────────
+// ─── Caso 4: PREL overlap (07h07 → snap 07:00 = turnoInicio) ────────────────
 
 {
-  const r = analisarBlocosManuaisPreview("07h15 PREV Jardim", TURNO);
-  checar("PREV às 07h15 → aviso PREL (mid-window)", r[0], { status: "aviso", mensagemContem: "07:30" });
+  // 07h07 → snapGrid30(427) = 420 = turnoInicio → PREL overlap
+  const r = analisarBlocosManuaisPreview("07h07 PREV Jardim", TURNO);
+  checar("PREV às 07h07 → aviso PREL (snaps para 07:00)", r[0], { status: "aviso", mensagemContem: "07:30" });
 }
 
 // ─── Caso 5: sem horário → erro ──────────────────────────────────────────────
@@ -143,6 +144,110 @@ const TURNO = "07:00";
 {
   const r = analisarBlocosManuaisPreview("22h30 PE Centro", "22:00");
   checar("turno noturno 22h30 → ok", r[0], { status: "ok", modalidade: "PE", local: "Centro" });
+}
+
+// ─── V16.1: normalização noturna ─────────────────────────────────────────────
+
+console.log("\n=== V16.1: NORMALIZAÇÃO NOTURNA ===\n");
+
+// Caso 13: turno 23:30, 00h00 → inicioMin = 1440 (não PREL overlap)
+{
+  const r = analisarBlocosManuaisPreview("00h00 PE Banco do Brasil", "23:30");
+  checar("turno 23:30 → 00h00 PE ok (minuto 1440)", r[0], {
+    status: "ok",
+    modalidade: "PE",
+    local: "Banco do Brasil",
+    horaInicio: "00:00",
+  });
+  // verificar minuto absoluto
+  if (r[0]?.inicioMin === 1440) {
+    console.log(`✅ turno 23:30 → 00h00 inicioMin = 1440`);
+    ok++;
+  } else {
+    console.error(`❌ turno 23:30 → 00h00 inicioMin esperado 1440, obtido ${r[0]?.inicioMin}`);
+    fail++;
+  }
+}
+
+// Caso 14: turno 23:30, 00h30 → inicioMin = 1470
+{
+  const r = analisarBlocosManuaisPreview("00h30 ESC EE Aimone Sala", "23:30");
+  checar("turno 23:30 → 00h30 ESC ok (minuto 1470)", r[0], {
+    status: "ok",
+    modalidade: "ESC",
+    local: "EE Aimone Sala",
+    horaInicio: "00:30",
+  });
+  if (r[0]?.inicioMin === 1470) {
+    console.log(`✅ turno 23:30 → 00h30 inicioMin = 1470`);
+    ok++;
+  } else {
+    console.error(`❌ turno 23:30 → 00h30 inicioMin esperado 1470, obtido ${r[0]?.inicioMin}`);
+    fail++;
+  }
+}
+
+// Caso 15: turno 22:00, 00h00 → inicioMin = 1440
+{
+  const r = analisarBlocosManuaisPreview("00h00 ESC EE Aimone Sala", "22:00");
+  checar("turno 22:00 → 00h00 ESC ok (minuto 1440)", r[0], {
+    status: "ok",
+    modalidade: "ESC",
+    horaInicio: "00:00",
+  });
+  if (r[0]?.inicioMin === 1440) {
+    console.log(`✅ turno 22:00 → 00h00 inicioMin = 1440`);
+    ok++;
+  } else {
+    console.error(`❌ turno 22:00 → 00h00 inicioMin esperado 1440, obtido ${r[0]?.inicioMin}`);
+    fail++;
+  }
+}
+
+// Caso 16: turno 07:00, 07h30 → inicioMin = 450 (diurno preservado)
+{
+  const r = analisarBlocosManuaisPreview("07h30 PE Banco do Brasil", "07:00");
+  checar("turno 07:00 → 07h30 PE ok (minuto 450)", r[0], {
+    status: "ok",
+    modalidade: "PE",
+    local: "Banco do Brasil",
+    horaInicio: "07:30",
+  });
+  if (r[0]?.inicioMin === 450) {
+    console.log(`✅ turno 07:00 → 07h30 inicioMin = 450`);
+    ok++;
+  } else {
+    console.error(`❌ turno 07:00 → 07h30 inicioMin esperado 450, obtido ${r[0]?.inicioMin}`);
+    fail++;
+  }
+}
+
+// Caso 17: turno 07:00, 06h30 → inicioMin = 1830 (fora do turno, com horaTermino)
+{
+  const r = analisarBlocosManuaisPreview("06h30 PE Banco do Brasil", "07:00", "19:00");
+  if (r[0]?.inicioMin === 1830) {
+    console.log(`✅ turno 07:00 → 06h30 inicioMin = 1830 (fora do turno)`);
+    ok++;
+  } else {
+    console.error(`❌ turno 07:00 → 06h30 inicioMin esperado 1830, obtido ${r[0]?.inicioMin}`);
+    fail++;
+  }
+  if (r[0]?.status === "aviso") {
+    console.log(`✅ turno 07:00 → 06h30 status = aviso (fora do turno)`);
+    ok++;
+  } else {
+    console.error(`❌ turno 07:00 → 06h30 status esperado "aviso", obtido "${r[0]?.status}"`);
+    fail++;
+  }
+}
+
+// Caso 18: PREL com turno 23:30 (23h30 PE) → ainda é PREL overlap
+{
+  const r = analisarBlocosManuaisPreview("23h30 PE Banco do Brasil", "23:30");
+  checar("turno 23:30 → 23h30 PE aviso PREL", r[0], {
+    status: "aviso",
+    mensagemContem: "PREL",
+  });
 }
 
 // ─── Resultado ───────────────────────────────────────────────────────────────

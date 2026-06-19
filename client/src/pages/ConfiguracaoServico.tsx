@@ -492,6 +492,7 @@ export default function ConfiguracaoServico({
                 value={blocosManuais}
                 onChange={setBlocosManuais}
                 horaInicio={horaInicio}
+                horaTermino={horaTermino}
               />
             </div>
           )}
