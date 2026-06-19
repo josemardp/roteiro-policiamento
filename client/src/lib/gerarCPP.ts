@@ -882,7 +882,7 @@ interface AnalisadoManual {
 
 // Analisa a descrição do bloco manual: detecta sigla (em qualquer posição) e extrai local.
 // Sigla explícita vence keywords; PE não casa dentro de palavras.
-function analisarDescricaoManual(desc: string): AnalisadoManual {
+export function analisarDescricaoManual(desc: string): AnalisadoManual {
   const siglas: [string, ModalidadePoliciamento][] = [
     ["RURAL", "RURAL"], ["PREL", "PREL"], ["DESL", "DESL"],
     ["POST", "POST"], ["PREV", "PREV"], ["FISC", "FISC"],
@@ -974,6 +974,99 @@ function parseBlocosManuais(texto: string): BlocoManualParsed[] {
   }
 
   return result.sort((a, b) => a.inicioMin - b.inicioMin);
+}
+
+// ─── Preview puro dos blocos manuais (sem chamar gerarCPP) ───────────────────
+
+export type PreviewBlocoManual = {
+  linha: number;
+  textoOriginal: string;
+  horaInicio?: string;
+  horaFim?: string;
+  modalidade?: string;
+  local?: string;
+  status: "ok" | "aviso" | "erro";
+  mensagem?: string;
+};
+
+export function analisarBlocosManuaisPreview(
+  texto: string,
+  horaInicioTurno: string
+): PreviewBlocoManual[] {
+  const linhasRaw = texto.split("\n");
+  const [hh, mm] = horaInicioTurno.split(":").map(Number);
+  const turnoInicioMin = hh * 60 + mm;
+  const prelFimMin = turnoInicioMin + 30;
+  const prelFimHora = minParaHora(prelFimMin);
+  const turnoInicioHora = minParaHora(turnoInicioMin);
+  const result: PreviewBlocoManual[] = [];
+
+  linhasRaw.forEach((linhaRaw, idx) => {
+    const linha = linhaRaw.trim();
+    if (!linha) return;
+
+    // Linha com horário de início e fim
+    const comFim = linha.match(
+      /(\d{1,2})[h:](\d{0,2})\s*(?:a\b|as\b|at[eé]\b|às\b|-)\s*(\d{1,2})[h:](\d{0,2})\s+(.*)/i
+    );
+    if (comFim) {
+      const inicioMin = parseInt(comFim[1]) * 60 + parseInt(comFim[2] || "0");
+      const fimMin = parseInt(comFim[3]) * 60 + parseInt(comFim[4] || "0");
+      const desc = comFim[5].trim();
+      const { modalidade, localManual } = analisarDescricaoManual(desc);
+      const isPrelOverlap = inicioMin >= turnoInicioMin && inicioMin < prelFimMin;
+      const semLocal = !localManual.trim();
+      result.push({
+        linha: idx + 1,
+        textoOriginal: linha,
+        horaInicio: minParaHora(snapGrid30(inicioMin)),
+        horaFim: minParaHora(snapGrid30(fimMin)),
+        modalidade,
+        local: localManual || undefined,
+        status: isPrelOverlap || semLocal ? "aviso" : "ok",
+        mensagem: isPrelOverlap
+          ? `PREL obrigatória ocupa ${turnoInicioHora}–${prelFimHora}. Use ${prelFimHora} para o 1º bloco.`
+          : semLocal
+            ? "Informe um local/descrição."
+            : undefined,
+      });
+      return;
+    }
+
+    // Linha com apenas horário de início
+    const semFim = linha.match(/(\d{1,2})[h:](\d{0,2})\s+(.*)/i);
+    if (semFim) {
+      const inicioMin = parseInt(semFim[1]) * 60 + parseInt(semFim[2] || "0");
+      const desc = semFim[3].trim();
+      const { modalidade, localManual } = analisarDescricaoManual(desc);
+      const isPrelOverlap = inicioMin >= turnoInicioMin && inicioMin < prelFimMin;
+      const semLocal = !localManual.trim();
+      result.push({
+        linha: idx + 1,
+        textoOriginal: linha,
+        horaInicio: minParaHora(snapGrid30(inicioMin)),
+        modalidade,
+        local: localManual || undefined,
+        status: isPrelOverlap || semLocal ? "aviso" : "ok",
+        mensagem: isPrelOverlap
+          ? `PREL obrigatória ocupa ${turnoInicioHora}–${prelFimHora}. Use ${prelFimHora} para o 1º bloco.`
+          : semLocal
+            ? "Informe um local/descrição."
+            : undefined,
+      });
+      return;
+    }
+
+    // Sem horário reconhecível
+    result.push({
+      linha: idx + 1,
+      textoOriginal: linha,
+      status: "erro",
+      mensagem: "Informe o horário no início da linha (ex: 07h30 PE Banco do Brasil).",
+    });
+  });
+
+  return result;
 }
 
 // ─── Motor principal ──────────────────────────────────────────────────────────

@@ -5,6 +5,7 @@
 
 import { useState } from "react";
 import { z } from "zod";
+import ModoManualUI from "@/components/ModoManualUI";
 import type {
   ConfiguracaoServico,
   TipoAtividade,
@@ -484,21 +485,14 @@ export default function ConfiguracaoServico({
           {/* Blocos Manuais */}
           {modalidadeGeracao === "manual" && (
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Insira as atividades fixas (o app preenche os buracos)
+              <label className="block text-sm font-semibold text-gray-700 mb-3">
+                Atividades fixas — o app preenche os espaços restantes
               </label>
-              <textarea
+              <ModoManualUI
                 value={blocosManuais}
-                onChange={e => setBlocosManuais(e.target.value)}
-                placeholder={
-                  "17h00 a 17h30 prelecao assuncao\n19h00 as 21h00 bloqueio de transito\n21h00 janta pel pm"
-                }
-                className="w-full px-4 py-3 rounded-lg border border-gray-300 text-base font-medium focus:outline-none focus:ring-2 focus:ring-[#0a2540] h-28 resize-none"
+                onChange={setBlocosManuais}
+                horaInicio={horaInicio}
               />
-              <p className="text-xs text-gray-600 mt-1">
-                Aceita: 19h00, 19:00, "19h00 a 21h00 bloqueio", "21h00 janta",
-                etc.
-              </p>
             </div>
           )}
 
