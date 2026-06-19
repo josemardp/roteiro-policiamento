@@ -4,13 +4,20 @@ import "leaflet/dist/leaflet.css";
 import type { BlocoHorario } from "@/lib/types";
 import { Compass, Navigation } from "lucide-react";
 
-// Fix for default marker icon issue in Leaflet
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png",
-  iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png",
-  shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
-});
+// Todos os marcadores deste mapa usam L.divIcon (HTML/CSS), então o ícone padrão
+// do Leaflet nunca é usado. O override anterior apontava para imagens em um CDN
+// externo (cdnjs) — dependência morta, removida para não depender de rede externa.
+
+// Escapa texto controlado pelo usuário antes de injetar no HTML do popup do Leaflet
+// (bindPopup usa innerHTML). Local e ações vêm de edição manual / import de backup.
+function escapeHtml(value: string): string {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
 
 interface MapaCPPProps {
   blocos: BlocoHorario[];
@@ -246,10 +253,10 @@ export default function MapaCPP({ blocos, blocoEmFocoId }: MapaCPPProps) {
       const popupContent = `
         <div style="font-family: sans-serif; font-size: 12px; min-width: 190px; padding: 2px;">
           <h4 style="margin: 0 0 5px 0; color: ${color}; font-weight: 800; font-size: 13px;">
-            [${b.ordem}] ${b.modalidade} - ${b.horaInicio} às ${b.horaFim}
+            [${b.ordem}] ${escapeHtml(b.modalidade)} - ${b.horaInicio} às ${b.horaFim}
           </h4>
-          <p style="margin: 0 0 4px 0;"><strong>Local:</strong> ${b.local}</p>
-          <p style="margin: 0 0 4px 0; max-height: 60px; overflow-y: auto;"><strong>Ações:</strong> ${b.acoesPolicia}</p>
+          <p style="margin: 0 0 4px 0;"><strong>Local:</strong> ${escapeHtml(b.local)}</p>
+          <p style="margin: 0 0 4px 0; max-height: 60px; overflow-y: auto;"><strong>Ações:</strong> ${escapeHtml(b.acoesPolicia)}</p>
           <div style="display: flex; gap: 6px; margin-top: 8px;">
             <a href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}" 
                target="_blank" 
@@ -376,10 +383,10 @@ export default function MapaCPP({ blocos, blocoEmFocoId }: MapaCPPProps) {
   }
 
   return (
-    <div className="relative border border-gray-250 dark:border-slate-850 rounded-2xl overflow-hidden shadow-md bg-white dark:bg-slate-900">
+    <div className="relative border border-gray-300 dark:border-slate-800 rounded-2xl overflow-hidden shadow-md bg-white dark:bg-slate-900">
       {/* Real-time distance info overlay */}
       {nextBlockInfo && (
-        <div className="absolute top-2 left-2 right-12 z-[1000] bg-white/95 dark:bg-slate-900/95 border border-gray-250 dark:border-slate-800 rounded-xl p-3 shadow-md flex items-center justify-between text-xs animate-fade-in select-none">
+        <div className="absolute top-2 left-2 right-12 z-[1000] bg-white/95 dark:bg-slate-900/95 border border-gray-300 dark:border-slate-800 rounded-xl p-3 shadow-md flex items-center justify-between text-xs animate-fade-in select-none">
           <div className="flex-1 min-w-0 pr-2">
             <p className="text-[9px] text-gray-400 dark:text-slate-500 font-black tracking-wider uppercase leading-none mb-1">
               Próximo ponto
@@ -388,11 +395,11 @@ export default function MapaCPP({ blocos, blocoEmFocoId }: MapaCPPProps) {
               [{nextBlockInfo.bloco.ordem}] {nextBlockInfo.bloco.local}
             </p>
           </div>
-          <div className="text-right flex-shrink-0 bg-blue-50 dark:bg-slate-850 border border-blue-100 dark:border-slate-800 px-2 py-1.5 rounded-lg">
+          <div className="text-right flex-shrink-0 bg-blue-50 dark:bg-slate-800 border border-blue-100 dark:border-slate-800 px-2 py-1.5 rounded-lg">
             <span className="font-black text-blue-700 dark:text-blue-400 block text-sm leading-none">
               {nextBlockInfo.distanceStr}
             </span>
-            <span className="text-[9px] text-blue-600 dark:text-blue-450 font-black flex items-center gap-0.5 justify-end mt-1">
+            <span className="text-[9px] text-blue-600 dark:text-blue-400 font-black flex items-center gap-0.5 justify-end mt-1">
               {nextBlockInfo.direction.arrow} {nextBlockInfo.direction.label.split(" ")[0]}
             </span>
           </div>
@@ -412,7 +419,7 @@ export default function MapaCPP({ blocos, blocoEmFocoId }: MapaCPPProps) {
         )}
         <button
           onClick={handleCentrarTurno}
-          className="w-12 h-12 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-full shadow-lg flex items-center justify-center text-gray-750 dark:text-slate-350 active:scale-90 transition-all cursor-pointer min-h-[48px] min-w-[48px]"
+          className="w-12 h-12 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-full shadow-lg flex items-center justify-center text-gray-700 dark:text-slate-400 active:scale-90 transition-all cursor-pointer min-h-[48px] min-w-[48px]"
           title="Ver rota completa"
         >
           <Navigation className="w-6 h-6 rotate-45" />
@@ -431,7 +438,7 @@ export default function MapaCPP({ blocos, blocoEmFocoId }: MapaCPPProps) {
       <div ref={mapRef} className="h-[420px] w-full z-0" />
 
       {/* Map Legend */}
-      <div className="bg-gray-50 dark:bg-slate-950 p-3.5 border-t border-gray-200 dark:border-slate-850 text-[10px] font-bold text-gray-550 dark:text-slate-400 flex flex-wrap gap-x-4 gap-y-2.5 justify-center select-none">
+      <div className="bg-gray-50 dark:bg-slate-950 p-3.5 border-t border-gray-200 dark:border-slate-800 text-[10px] font-bold text-gray-500 dark:text-slate-400 flex flex-wrap gap-x-4 gap-y-2.5 justify-center select-none">
         <div className="flex items-center gap-1.5">
           <span className="w-2.5 h-2.5 rounded-full bg-[#1e3a8a] border border-white" /> Base/Preleção
         </div>

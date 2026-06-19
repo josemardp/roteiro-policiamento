@@ -270,7 +270,7 @@ export default function ModoPatrulha({
         <p className="text-gray-500 dark:text-slate-400 max-w-xs mb-6 text-sm">
           O turno está agendado para iniciar às <span className="font-semibold text-gray-800 dark:text-white">{roteiroDia.configuracao.horaInicio}</span>.
         </p>
-        <div className="bg-blue-50 dark:bg-slate-850 border border-blue-100 dark:border-slate-800 rounded-2xl p-4 w-full max-w-sm mb-6 shadow-inner">
+        <div className="bg-blue-50 dark:bg-slate-800 border border-blue-100 dark:border-slate-800 rounded-2xl p-4 w-full max-w-sm mb-6 shadow-inner">
           <p className="text-xs text-blue-600 dark:text-blue-400 uppercase tracking-wider font-bold mb-1">
             Tempo para início
           </p>
@@ -328,14 +328,14 @@ export default function ModoPatrulha({
   return (
     <div className="space-y-4 px-2 select-none dark:text-slate-100 animate-fade-in">
       {/* Turn Progress Summary */}
-      <div className="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-850 rounded-xl p-3 shadow-xs">
+      <div className="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-xl p-3 shadow-xs">
         <div className="flex justify-between items-center text-xs text-gray-400 dark:text-slate-500 font-semibold mb-1">
           <span>PROGRESSO DO TURNO</span>
           <span>
             {roteiroDia.blocos.filter((b) => b.concluido).length} de {roteiroDia.blocos.length} blocos
           </span>
         </div>
-        <div className="w-full bg-gray-150 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
+        <div className="w-full bg-gray-200 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
           <div
             className="bg-emerald-500 h-full rounded-full transition-all duration-500"
             style={{ width: `${turnProgressPct}%` }}
@@ -486,10 +486,10 @@ export default function ModoPatrulha({
         </div>
 
         {/* COLLAPSIBLE DOUTRINA / JUSTIFICATION */}
-        <div className="mt-4 pt-3 border-t border-gray-200/50 dark:border-slate-850">
+        <div className="mt-4 pt-3 border-t border-gray-200/50 dark:border-slate-800">
           <button
             onClick={() => setMostrarFundamentacao(!mostrarFundamentacao)}
-            className="flex items-center justify-between w-full text-xs font-bold text-gray-500 dark:text-slate-400 hover:text-gray-850 dark:hover:text-white transition-colors py-1 cursor-pointer"
+            className="flex items-center justify-between w-full text-xs font-bold text-gray-500 dark:text-slate-400 hover:text-gray-800 dark:hover:text-white transition-colors py-1 cursor-pointer"
           >
             <span className="flex items-center gap-1.5">
               <Shield className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
@@ -499,7 +499,7 @@ export default function ModoPatrulha({
           </button>
 
           {mostrarFundamentacao && (
-            <div className="mt-2 text-xs space-y-2 bg-gray-50 dark:bg-slate-950/50 border border-gray-100 dark:border-slate-850 rounded-lg p-3 animate-in fade-in slide-in-from-top-1">
+            <div className="mt-2 text-xs space-y-2 bg-gray-50 dark:bg-slate-950/50 border border-gray-100 dark:border-slate-800 rounded-lg p-3 animate-in fade-in slide-in-from-top-1">
               <div>
                 <p className="font-bold text-gray-400 dark:text-slate-500 mb-0.5">PROBLEMA A SOLUCIONAR:</p>
                 <p className="text-gray-700 dark:text-slate-300 leading-normal">
@@ -527,7 +527,7 @@ export default function ModoPatrulha({
 
       {/* A Seguir Card */}
       {nextItem && (
-        <div className="bg-white dark:bg-slate-900 border border-gray-150 dark:border-slate-855 rounded-xl p-4 shadow-xs">
+        <div className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-xl p-4 shadow-xs">
           <p className="text-xs text-gray-400 dark:text-slate-500 font-bold uppercase mb-2">A Seguir</p>
           <div className="flex justify-between items-start mb-2">
             <div>
@@ -542,14 +542,14 @@ export default function ModoPatrulha({
                 {nextItem.bloco.local}
               </h4>
             </div>
-            <span className="text-xs font-black text-gray-400 dark:text-slate-500 ml-2 whitespace-nowrap bg-gray-50 dark:bg-slate-950 border border-gray-150 dark:border-slate-850 px-2 py-1 rounded-md">
+            <span className="text-xs font-black text-gray-400 dark:text-slate-500 ml-2 whitespace-nowrap bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-800 px-2 py-1 rounded-md">
               {nextItem.bloco.horaInicio} - {nextItem.bloco.horaFim}
             </span>
           </div>
 
           {/* Quick Deep Link Navigation */}
           {typeof nextItem.bloco.lat === "number" && typeof nextItem.bloco.lng === "number" && (
-            <div className="mt-3 pt-3 border-t border-gray-100 dark:border-slate-850/80 flex gap-2">
+            <div className="mt-3 pt-3 border-t border-gray-100 dark:border-slate-800/80 flex gap-2">
               <a
                 href={`https://www.google.com/maps/dir/?api=1&destination=${nextItem.bloco.lat},${nextItem.bloco.lng}`}
                 target="_blank"
@@ -570,7 +570,7 @@ export default function ModoPatrulha({
       )}
 
       {/* Bulleted Rationale Drawer (Trigger) */}
-      <div className="bg-blue-900/5 dark:bg-slate-900 border border-blue-900/10 dark:border-slate-850 rounded-xl p-3 flex items-center justify-between">
+      <div className="bg-blue-900/5 dark:bg-slate-900 border border-blue-900/10 dark:border-slate-800 rounded-xl p-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <HelpCircle className="w-5 h-5 text-blue-600 dark:text-blue-400" />
           <div>

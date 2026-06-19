@@ -1,5 +1,55 @@
 # CHANGELOG — CPP Roteiro de Policiamento
 
+## Auditoria corretiva (2026-06-19)
+
+**Auditoria em 3 frentes (arquitetura, doc×realidade, mobile/missão) com correções aplicadas. Motor preservado: fuzz 11.520/0, manual 35/35, prévia 24/24.**
+
+Performance / produção:
+- Removidos os plugins da plataforma Manus do `vite.config.ts` (`manus-runtime`, `debug-collector`, `storage-proxy`) e o `jsx-loc`. O `manus-runtime` injetava um `<script>` inline de ~366 KB no `index.html` de produção.
+  - `index.html`: **368 KB → 1,16 KB** (gzip 105 KB → 0,5 KB). Bundle JS: 722 KB → 692 KB.
+- Removido o `<script>` de analytics (Umami) do `index.html`: as variáveis `%VITE_ANALYTICS_*%` não eram definidas e iam literais para o HTML, gerando requisição 404 a cada carregamento.
+
+PWA / offline-first (estava quebrado em produção sob o `base` `/roteiro-policiamento/`):
+- `main.tsx`: registro do service worker agora usa `import.meta.env.BASE_URL` (antes `/sw.js` dava 404 no GitHub Pages).
+- `public/sw.js`: reescrito com `BASE` derivado de `self.location`; precache resiliente (`Promise.allSettled`); cache `cpp-patrulha-v2` purgando o `v1` quebrado.
+- `public/manifest.json`: caminhos relativos (`start_url: "."`, `scope: "."`, `icon: "icon.svg"`).
+
+UI / mobile:
+- Corrigidos tons Tailwind inexistentes (ex.: `text-emerald-450`, `border-gray-150`, `slate-855`) em `CPPTurno`, `ModoPatrulha`, `MapaCPP`, `BlocoCard` — não geravam cor nenhuma (aba ativa, bordas e contraste afetados).
+- `ErrorBoundary`: traduzido para PT-BR; stack técnico recolhido em `<details>`; toque de 44px.
+
+Segurança / código morto:
+- `MapaCPP`: removido override de ícone padrão do Leaflet via CDN externo (morto — marcadores usam `divIcon`); HTML do popup (`local`/`acoesPolicia`/`modalidade`) agora é escapado.
+- Removidos `client/src/const.ts` e `shared/const.ts` (OAuth da plataforma Manus, sem nenhum import) e `client/public/__manus__/`.
+
+Eficácia / performance (2ª rodada):
+- **Code-splitting do mapa**: `MapaCPP` virou `lazy()` — o Leaflet (~161 KB JS + 16 KB CSS) só é baixado ao abrir a aba Mapa. Bundle inicial: JS 722 → 529 KB (gzip 207 → 156); CSS 147 → 72 KB.
+- **Limpeza de dependências e código morto**: removidos 46 componentes `ui/` shadcn não usados (o app usa só `alert-dialog`, `button`, `dialog`, `sonner`, `tooltip`), `server/index.ts` (Express morto no deploy estático) e ~36 dependências órfãs (`react-leaflet`, `axios`, `streamdown`, `nanoid`, `@hookform/resolvers`, 22 pacotes `@radix-ui/*`, `vaul`, `cmdk`, `embla-carousel-react`, `input-otp`, `react-day-picker`, `react-resizable-panels`, `react-hook-form`, `tailwindcss-animate`, `express`, `vitest`, `esbuild`, `add`, plugins Manus). `pnpm-lock.yaml` regenerado e validado com `--frozen-lockfile`.
+- **`package.json`**: `build` simplificado para `vite build`; adicionados scripts `test` e `fuzz`.
+- **`tsconfig.json`**: `include` restrito a `client/src/**/*`.
+
+Robustez:
+- `Historico.tsx`: import de backup agora valida o schema de cada `RoteiroDia` (ignora entradas inválidas e reporta a contagem) e limpa o input para permitir reimportar o mesmo arquivo.
+
+iOS / PWA:
+- Gerados `icon-192.png`, `icon-512.png` e `apple-touch-icon.png` (rasterizados do `icon.svg`); manifest passa a oferecer PNG + SVG e `apple-touch-icon` aponta para PNG (iOS ignora SVG na tela inicial).
+
+Documentação:
+- README / STATUS reconciliados: Histórico de CPPs (V17) marcado como **implementado** (estava listado como pendente). Pendência de analytics removida.
+
+---
+
+## V17 (já implementado no código — formalizado na auditoria)
+
+**Histórico local de CPPs.**
+
+- Salvar roteiro gerado no histórico; reabrir (sem recalcular), duplicar config, excluir.
+- Backup completo em JSON (export/import) via `Historico.tsx`.
+- Persistência em `localStorage`, chave `historico_roteiros` (array de `RoteiroDia`).
+- Divergências em relação ao `PLANEJAMENTO_V17.md`: chave `historico_roteiros` (planejada `cpp_historico`); modelo `RoteiroDia` (planejado `CPPSalvo`); sem cap de 30 itens; export é backup completo, não por item.
+
+---
+
 ## V16.1 (2026-06-19)
 
 **Corrige modo manual em turnos que cruzam meia-noite.**

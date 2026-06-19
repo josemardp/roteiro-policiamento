@@ -19,7 +19,7 @@ function BlocoCard({ bloco, onMarcarConcluido, onEditar }: BlocoCardProps) {
 
   return (
     <div
-      className={`card-block bg-white dark:bg-slate-900 border border-gray-150 dark:border-slate-850 transition-all ${
+      className={`card-block bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 transition-all ${
         bloco.concluido ? "block-completed opacity-75" : ""
       }`}
     >
@@ -27,7 +27,7 @@ function BlocoCard({ bloco, onMarcarConcluido, onEditar }: BlocoCardProps) {
       <div className="flex items-start justify-between gap-3 mb-3">
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-            <span className="font-mono text-sm font-bold text-[#0a2540] dark:text-blue-450">
+            <span className="font-mono text-sm font-bold text-[#0a2540] dark:text-blue-400">
               {bloco.horaInicio} — {bloco.horaFim}
             </span>
             <span className={`${badgeClass} text-xs`}>{bloco.modalidade}</span>
@@ -47,7 +47,7 @@ function BlocoCard({ bloco, onMarcarConcluido, onEditar }: BlocoCardProps) {
           onClick={onMarcarConcluido}
           className={`checkbox-large flex-shrink-0 flex items-center justify-center ${
             bloco.concluido 
-              ? "bg-[#1e7e34] border-[#1e7e34] dark:bg-emerald-650 dark:border-emerald-650" 
+              ? "bg-[#1e7e34] border-[#1e7e34] dark:bg-emerald-600 dark:border-emerald-600" 
               : "border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800"
           } min-h-[48px] min-w-[48px] rounded-xl shadow-xs`}
           title={
@@ -63,30 +63,30 @@ function BlocoCard({ bloco, onMarcarConcluido, onEditar }: BlocoCardProps) {
       </div>
 
       {/* Detalhes */}
-      <div className="space-y-2.5 text-sm mb-4 border-t border-gray-100 dark:border-slate-850 pt-2.5">
+      <div className="space-y-2.5 text-sm mb-4 border-t border-gray-100 dark:border-slate-800 pt-2.5">
         <div>
-          <p className="text-[10px] font-bold text-gray-450 dark:text-slate-500 uppercase">LOCAL</p>
+          <p className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase">LOCAL</p>
           <p className="text-gray-900 dark:text-slate-200 font-bold text-sm">{bloco.local}</p>
         </div>
 
         <div>
-          <p className="text-[10px] font-bold text-gray-450 dark:text-slate-500 uppercase">
+          <p className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase">
             PROBLEMA A SOLUCIONAR
           </p>
-          <p className="text-gray-800 dark:text-slate-350 text-xs leading-normal">
+          <p className="text-gray-800 dark:text-slate-400 text-xs leading-normal">
             {bloco.problemaSolucionar}
           </p>
         </div>
 
         <div>
-          <p className="text-[10px] font-bold text-gray-450 dark:text-slate-500 uppercase">
+          <p className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase">
             AÇÕES DE POLÍCIA
           </p>
-          <p className="text-gray-800 dark:text-slate-350 text-xs leading-normal">{bloco.acoesPolicia}</p>
+          <p className="text-gray-800 dark:text-slate-400 text-xs leading-normal">{bloco.acoesPolicia}</p>
         </div>
 
         <div>
-          <p className="text-[10px] font-bold text-gray-450 dark:text-slate-500 uppercase">JUSTIFICATIVA</p>
+          <p className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase">JUSTIFICATIVA</p>
           <p className="text-gray-700 dark:text-slate-400 text-xs leading-relaxed">
             {bloco.justificativa}
           </p>
@@ -94,8 +94,8 @@ function BlocoCard({ bloco, onMarcarConcluido, onEditar }: BlocoCardProps) {
 
         {bloco.observacao && (
           <div>
-            <p className="text-[10px] font-bold text-gray-450 dark:text-slate-500 uppercase">OBSERVAÇÃO</p>
-            <p className="text-gray-750 dark:text-slate-400 text-xs">{bloco.observacao}</p>
+            <p className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase">OBSERVAÇÃO</p>
+            <p className="text-gray-700 dark:text-slate-400 text-xs">{bloco.observacao}</p>
           </div>
         )}
       </div>

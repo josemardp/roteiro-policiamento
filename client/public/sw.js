@@ -1,27 +1,34 @@
-const CACHE_NAME = "cpp-patrulha-v1";
+// Service Worker — CPP Roteiro de Policiamento (offline-first)
+// BASE é derivado da própria URL do SW, então funciona tanto em "/" (dev)
+// quanto em "/roteiro-policiamento/" (GitHub Pages). Antes os caminhos eram
+// absolutos ("/", "/index.html"...) e davam 404 em produção, fazendo o
+// cache.addAll falhar e o SW nunca ativar.
+const CACHE_NAME = "cpp-patrulha-v2";
+const BASE = new URL("./", self.location).pathname; // ex: "/roteiro-policiamento/"
 const ASSETS_TO_CACHE = [
-  "/",
-  "/index.html",
-  "/manifest.json",
-  "/icon.svg",
+  BASE,
+  `${BASE}index.html`,
+  `${BASE}manifest.json`,
+  `${BASE}icon.svg`,
 ];
 
-// Install Event
+// Install: precache resiliente — uma URL ausente não invalida o SW inteiro.
 self.addEventListener("install", (e) => {
   e.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS_TO_CACHE);
-    }).then(() => self.skipWaiting())
+    caches.open(CACHE_NAME).then(async (cache) => {
+      await Promise.allSettled(ASSETS_TO_CACHE.map((url) => cache.add(url)));
+      await self.skipWaiting();
+    })
   );
 });
 
-// Activate Event
+// Activate: limpa caches antigos (inclui o "cpp-patrulha-v1" quebrado).
 self.addEventListener("activate", (e) => {
   e.waitUntil(
     caches.keys().then((keys) => {
       return Promise.all(
         keys.map((key) => {
-          if (key !== CACHE_NAME) {
+          if (key !== CACHE_NAME && key !== "osm-tiles") {
             return caches.delete(key);
           }
         })
@@ -30,22 +37,21 @@ self.addEventListener("activate", (e) => {
   );
 });
 
-// Fetch Event (handles cache-first / stale-while-revalidate for OSM maps and assets)
+// Fetch: cache-first/stale-while-revalidate para tiles OSM e assets locais.
 self.addEventListener("fetch", (e) => {
   const url = new URL(e.request.url);
 
-  // If it's an OpenStreetMap tile request, cache it dynamically with cache-first strategy
+  // Tiles do OpenStreetMap: cache-first com refresh em background.
   if (url.host.includes("tile.openstreetmap.org")) {
     e.respondWith(
       caches.open("osm-tiles").then((cache) => {
         return cache.match(e.request).then((cachedResponse) => {
           if (cachedResponse) {
-            // Fetch updated tile in background to refresh cache (stale-while-revalidate)
             fetch(e.request).then((networkResponse) => {
               if (networkResponse.status === 200) {
                 cache.put(e.request, networkResponse);
               }
-            }).catch(() => {/* ignore background errors offline */});
+            }).catch(() => {/* offline: mantém o cache */});
             return cachedResponse;
           }
           return fetch(e.request).then((networkResponse) => {
@@ -60,12 +66,11 @@ self.addEventListener("fetch", (e) => {
     return;
   }
 
-  // General App Caching (stale-while-revalidate for local assets to ensure rapid offline load)
+  // App local (mesma origem): stale-while-revalidate para carregamento rápido offline.
   if (url.origin === self.location.origin) {
     e.respondWith(
       caches.match(e.request).then((cachedResponse) => {
         if (cachedResponse) {
-          // Serve cached version, update cache in background
           fetch(e.request).then((networkResponse) => {
             if (networkResponse.status === 200) {
               caches.open(CACHE_NAME).then((cache) => cache.put(e.request, networkResponse));
@@ -94,7 +99,7 @@ self.addEventListener("notificationclick", (e) => {
       for (const client of clients) {
         if ("focus" in client) return client.focus();
       }
-      if (self.clients.openWindow) return self.clients.openWindow("/");
+      if (self.clients.openWindow) return self.clients.openWindow(BASE);
       return undefined;
     })
   );

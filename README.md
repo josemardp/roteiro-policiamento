@@ -18,7 +18,7 @@ App offline-first para geração do **CPP — Cartão de Prioridade de Patrulham
 | GPS / navegação por bloco | ✅ estável |
 | PWA / offline-first (service worker) | ✅ estável |
 | Auto dark mode | ✅ estável |
-| Histórico local de CPPs | ❌ pendente (V17) |
+| Histórico local de CPPs | ✅ estável (V17) |
 
 ---
 
@@ -194,8 +194,8 @@ pnpm build
 
 ## Estado atual
 
-**Última versão:** V16.1 (commit `ac6db19`)
-**Próxima sprint planejada:** V17 — Histórico local de CPPs gerados
+**Última versão:** V17 + Auditoria corretiva (2026-06-19)
+**Próxima sprint planejada:** code-splitting do bundle (Leaflet sob demanda)
 
 ### Frentes fechadas
 
@@ -206,14 +206,14 @@ pnpm build
 - Fundamentação operacional
 - Modo manual (parser, UX, prévia)
 - Turnos após meia-noite
+- **Histórico local de CPPs (V17)** — salvar, reabrir, duplicar, excluir e backup JSON (export/import). Persistido em `localStorage` na chave `historico_roteiros`. Reabrir exibe o roteiro salvo sem recalcular.
+- **PWA/offline-first válido em produção** — service worker e manifest respeitam o `base` `/roteiro-policiamento/` do GitHub Pages.
 
 ### Pendências reais
 
-- Histórico local de CPPs (V17)
 - Violência doméstica / Maria da Penha sem dado oficial validado
 - Algumas áreas rurais / conjuntos vagos sem coordenada (honestidade de dados)
-- Chunk grande no build (aviso conhecido, não bloqueia)
-- Variáveis de analytics no `index.html` (aviso conhecido, não bloqueia)
+- Chunk principal ~529 KB (gzip 156 KB) após code-splitting do mapa; aceitável para o uso, sem aviso bloqueante
 
 ---
 

@@ -31,6 +31,23 @@ export default function Historico({
     null
   );
 
+  // Valida que cada entrada importada tem o formato mínimo de um RoteiroDia,
+  // evitando que um backup malformado quebre a renderização da lista/telas.
+  const isRoteiroValido = (r: unknown): r is RoteiroDia => {
+    if (!r || typeof r !== "object") return false;
+    const o = r as Record<string, unknown>;
+    const cfg = o.configuracao as Record<string, unknown> | undefined;
+    return (
+      typeof o.id === "string" &&
+      Array.isArray(o.blocos) &&
+      !!cfg &&
+      typeof cfg === "object" &&
+      typeof cfg.data === "string" &&
+      typeof cfg.horaInicio === "string" &&
+      typeof cfg.tipoAtividade === "string"
+    );
+  };
+
   const handleImportar = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -40,14 +57,27 @@ export default function Historico({
       try {
         const conteudo = event.target?.result as string;
         const dados = JSON.parse(conteudo);
-        if (Array.isArray(dados)) {
-          onImportarBackup(dados);
-          toast.success("Backup importado com sucesso!");
-        } else {
+        if (!Array.isArray(dados)) {
           toast.error("Formato de arquivo inválido");
+          return;
         }
+        const validos = dados.filter(isRoteiroValido);
+        const ignorados = dados.length - validos.length;
+        if (validos.length === 0) {
+          toast.error("Nenhum roteiro válido encontrado no arquivo.");
+          return;
+        }
+        onImportarBackup(validos);
+        toast.success(
+          ignorados > 0
+            ? `${validos.length} roteiro(s) importado(s); ${ignorados} ignorado(s) por formato inválido.`
+            : "Backup importado com sucesso!"
+        );
       } catch {
         toast.error("Erro ao importar arquivo");
+      } finally {
+        // Permite reimportar o mesmo arquivo (o onChange não dispara para valor igual)
+        e.target.value = "";
       }
     };
     reader.readAsText(file);

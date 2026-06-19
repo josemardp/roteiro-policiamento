@@ -3,7 +3,7 @@
  * Design: Mobile-First Operacional — "Modo Patrulha" ao vivo, navegação inferior, swipe, modo noturno
  */
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, lazy, Suspense } from "react";
 import { toast } from "sonner";
 import type { RoteiroDia, BlocoHorario, ExecucaoBloco } from "@/lib/types";
 import { NOTA_SUPERVISAO, DURACAO_TURNO_MIN } from "@/lib/constants";
@@ -12,7 +12,9 @@ import BlocoCard from "@/components/BlocoCard";
 import EditBlocoModal from "@/components/EditBlocoModal";
 import ExportarRelatorioModal from "@/components/ExportarRelatorioModal";
 import FolhaServicoCPP from "@/components/FolhaServicoCPP";
-import MapaCPP from "@/components/MapaCPP";
+// MapaCPP é lazy: o Leaflet (~150 KB) só é baixado quando a aba Mapa é aberta,
+// reduzindo o bundle do carregamento inicial em campo (3G/4G).
+const MapaCPP = lazy(() => import("@/components/MapaCPP"));
 import ModoPatrulha from "@/components/ModoPatrulha";
 import { useTheme } from "@/contexts/ThemeContext";
 import { Sun, Moon, Clock, ListTodo, Map, Bell, BellOff, Printer } from "lucide-react";
@@ -119,7 +121,7 @@ export default function CPPTurno({
     const options: NotificationOptions = {
       body,
       tag: `cpp-${title}-${body}`,
-      icon: "/icon.svg",
+      icon: `${import.meta.env.BASE_URL}icon.svg`,
     };
     try {
       if ("serviceWorker" in navigator) {
@@ -324,8 +326,8 @@ export default function CPPTurno({
             <div className="flex items-center gap-1.5">
               <span className={`px-2 py-1 rounded-md text-[9px] font-black uppercase flex items-center gap-1 border ${
                 isOnline 
-                  ? "bg-emerald-950/45 text-emerald-450 border-emerald-500/20" 
-                  : "bg-amber-950/45 text-amber-450 border-amber-500/20"
+                  ? "bg-emerald-950/45 text-emerald-400 border-emerald-500/20" 
+                  : "bg-amber-950/45 text-amber-400 border-amber-500/20"
               }`}>
                 <span className={`w-1.5 h-1.5 rounded-full ${isOnline ? "bg-emerald-400" : "bg-amber-400"} ${isOnline ? "" : "animate-pulse"}`} />
                 {isOnline ? "Online" : "Offline"}
@@ -384,7 +386,7 @@ export default function CPPTurno({
         {tabAtiva === "lista" && (
           <div className="space-y-4">
             {/* Card de Fundamentação (PPI) */}
-            <div className="bg-white dark:bg-slate-900 border border-gray-150 dark:border-slate-850 rounded-xl p-4 shadow-xs">
+            <div className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-xl p-4 shadow-xs">
               <h3 className="text-xs font-bold text-gray-800 dark:text-white flex items-center gap-1.5 mb-2">
                 ⚖️ Fundamentação do Roteiro (PPI)
               </h3>
@@ -410,7 +412,7 @@ export default function CPPTurno({
 
             {/* Nota de Supervisão */}
             <div className="bg-blue-50/50 dark:bg-slate-900/40 border-l-4 border-[#0a2540] dark:border-blue-400 p-4 rounded-r-lg">
-              <p className="text-[11px] text-gray-650 dark:text-slate-400 leading-relaxed">
+              <p className="text-[11px] text-gray-600 dark:text-slate-400 leading-relaxed">
                 <span className="font-semibold dark:text-white">Nota de Supervisão:</span>{" "}
                 {NOTA_SUPERVISAO}
               </p>
@@ -447,7 +449,15 @@ export default function CPPTurno({
 
         {tabAtiva === "mapa" && (
           <div className="space-y-4">
-            <MapaCPP blocos={roteiroDia.blocos} blocoEmFocoId={blocoEmFocoId} />
+            <Suspense
+              fallback={
+                <div className="flex items-center justify-center h-[420px] rounded-2xl border border-gray-200 dark:border-slate-800 bg-gray-50 dark:bg-slate-900 text-gray-500 dark:text-slate-400 text-sm">
+                  Carregando mapa…
+                </div>
+              }
+            >
+              <MapaCPP blocos={roteiroDia.blocos} blocoEmFocoId={blocoEmFocoId} />
+            </Suspense>
 
             <div className="space-y-2 mt-4">
               <button
@@ -475,7 +485,7 @@ export default function CPPTurno({
           <button
             onClick={() => setTabAtiva("agora")}
             className={`flex flex-col items-center justify-center flex-1 h-full py-1 transition-all min-h-[48px] cursor-pointer ${
-              tabAtiva === "agora" ? "text-emerald-450 dark:text-emerald-400 scale-105" : "text-gray-400 hover:text-white"
+              tabAtiva === "agora" ? "text-emerald-400 dark:text-emerald-400 scale-105" : "text-gray-400 hover:text-white"
             }`}
           >
             <Clock className="w-5 h-5 mb-0.5" />
@@ -485,7 +495,7 @@ export default function CPPTurno({
           <button
             onClick={() => setTabAtiva("lista")}
             className={`flex flex-col items-center justify-center flex-1 h-full py-1 transition-all min-h-[48px] cursor-pointer ${
-              tabAtiva === "lista" ? "text-emerald-450 dark:text-emerald-400 scale-105" : "text-gray-400 hover:text-white"
+              tabAtiva === "lista" ? "text-emerald-400 dark:text-emerald-400 scale-105" : "text-gray-400 hover:text-white"
             }`}
           >
             <ListTodo className="w-5 h-5 mb-0.5" />
@@ -495,7 +505,7 @@ export default function CPPTurno({
           <button
             onClick={() => setTabAtiva("mapa")}
             className={`flex flex-col items-center justify-center flex-1 h-full py-1 transition-all min-h-[48px] cursor-pointer ${
-              tabAtiva === "mapa" ? "text-emerald-450 dark:text-emerald-400 scale-105" : "text-gray-400 hover:text-white"
+              tabAtiva === "mapa" ? "text-emerald-400 dark:text-emerald-400 scale-105" : "text-gray-400 hover:text-white"
             }`}
           >
             <Map className="w-5 h-5 mb-0.5" />

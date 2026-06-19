@@ -1,5 +1,16 @@
 # Planejamento V17 — Histórico local de CPPs
 
+> **STATUS (auditoria 2026-06-19): IMPLEMENTADO.**
+> Funcional em `App.tsx` (salvar/reabrir/duplicar/excluir/export/import) e em
+> `client/src/pages/Historico.tsx`. Mantido como registro de planejamento.
+>
+> **Divergências plano × implementação:**
+> - Chave de `localStorage`: `historico_roteiros` (o plano previa `cpp_historico`).
+> - Modelo: reutiliza `RoteiroDia` (o plano previa um tipo `CPPSalvo` dedicado).
+> - Sem limite de 30 itens; exportação é backup completo do histórico (não por item).
+> - Reabrir **não recalcula** — exibe os `blocos` salvos (conforme a regra principal). ✓
+> - Pendência: o import não valida schema — aceita qualquer array JSON.
+
 ## Problema
 
 O app gera o CPP, permite execução em campo e imprime a Folha CPP, mas não guarda snapshots dos CPPs anteriores. Cada geração sobrescreve a anterior. Não há como rever, duplicar ou exportar um CPP gerado dias atrás.

@@ -1,6 +1,6 @@
 # STATUS — CPP Roteiro de Policiamento
 
-> Documento de handoff. Atualizado em V16.1.
+> Documento de handoff. Atualizado em V17 + Auditoria corretiva (2026-06-19).
 > Qualquer agente pode continuar o trabalho a partir daqui.
 
 ---
@@ -9,15 +9,16 @@
 
 | Item | Valor |
 |---|---|
-| Última versão concluída | V16.1 |
-| Commit | `ac6db19` |
+| Última versão concluída | V17 + Auditoria corretiva |
 | Branch | `main` |
 | Motor | Estável — não alterar sem fuzz |
 | Fuzz | 11.520 roteiros · 0 violações |
 | Modo manual | Funcional com UX completa |
 | Mapa | Maduro · cobertura ~82–83% |
 | Folha CPP | Funcional |
-| Próxima sprint | V17 — Histórico local de CPPs |
+| Histórico | Implementado (localStorage `historico_roteiros`) |
+| PWA produção | Corrigido (base path GitHub Pages) |
+| Próxima sprint | Code-splitting do bundle (Leaflet sob demanda) |
 
 ---
 
@@ -37,6 +38,9 @@ Estas frentes **não precisam ser reabertas** salvo bug confirmado:
 | Modo manual — sigla no meio | V15.1 | analisarDescricaoManual, PE não casa em palavras |
 | Modo manual — UX | V16 | ModoManualUI, prévia, formulário, botões |
 | Turnos após meia-noite | V16.1 | 00h00 após 23h30 → minuto interno 1440 |
+| Histórico local de CPPs | V17 | localStorage `historico_roteiros`; reabrir não recalcula; backup JSON export/import |
+| PWA/offline em produção | Auditoria | SW + manifest respeitam o `base` do GitHub Pages |
+| Higiene de build | Auditoria | Removido runtime/debug da plataforma Manus e analytics quebrado do `index.html` |
 
 ---
 
@@ -46,11 +50,8 @@ Estas pendências **existem de verdade** e ainda não foram implementadas:
 
 | Pendência | Prioridade | Observação |
 |---|---|---|
-| Histórico local de CPPs | Alta | Próxima sprint (V17) — ver `docs/PLANEJAMENTO_V17.md` |
 | Violência doméstica / Maria da Penha | Média | Sem dado oficial validado — declarado como pendente na fundamentação |
 | Coordenadas de áreas rurais / conjuntos vagos | Baixa | Permanecem `null` por honestidade de dados |
-| Chunk grande no build | Baixa | Aviso conhecido (`rollupOptions.output.manualChunks`), não bloqueia |
-| Variáveis de analytics no `index.html` | Baixa | Aviso conhecido, não bloqueia |
 
 ---
 
