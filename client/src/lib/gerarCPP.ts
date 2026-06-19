@@ -876,13 +876,27 @@ function criarBloco(
 // ─── Parser de blocos manuais ─────────────────────────────────────────────────
 
 function inferirModalidade(texto: string): ModalidadePoliciamento {
+  // 1. Sigla explícita no início do texto (após separadores opcionais) — vence keywords
+  const limpo = texto.trim().replace(/^[-–—:;,\s]+/, "");
+  const siglasOrdenadas: [string, ModalidadePoliciamento][] = [
+    ["RURAL", "RURAL"], ["PREL", "PREL"], ["DESL", "DESL"],
+    ["POST", "POST"], ["PREV", "PREV"], ["FISC", "FISC"],
+    ["REF", "REF"], ["REL", "REL"], ["SAT", "SAT"], ["ESC", "ESC"],
+    ["PE", "PE"],
+  ];
+  for (const [sigla, mod] of siglasOrdenadas) {
+    // Sigla seguida de fim-de-string, espaço ou separador — evita match dentro de palavras
+    if (new RegExp(`^${sigla}(?=$|[\\s:;,\\-–—])`, "i").test(limpo)) return mod;
+  }
+
+  // 2. Inferência por palavras-chave (sem sigla reconhecível)
   const t = texto.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
   if (/prel|assuncao|assun/.test(t)) return "PREL";
   if (/desl/.test(t)) return "DESL";
   if (/ref|janta|almoco|cafe|refeic|aliment/.test(t)) return "REF";
-  if (/rel\b|rso|encer/.test(t)) return "REL";
+  if (/\brel\b|rso|encer/.test(t)) return "REL";
   if (/rural/.test(t)) return "RURAL";
-  if (/sat\b|saturac/.test(t)) return "SAT";
+  if (/\bsat\b|saturac/.test(t)) return "SAT";
   if (/escol/.test(t) && !/escolt/.test(t)) return "ESC";
   if (/fisc|blitz|bloqueio/.test(t)) return "FISC";
   if (/\bpe\b|estacion/.test(t)) return "PE";
@@ -890,11 +904,24 @@ function inferirModalidade(texto: string): ModalidadePoliciamento {
   return "POST";
 }
 
+// Extrai o local digitado pelo usuário após remover a sigla/palavra-chave inicial
+function extrairLocalManual(desc: string): string {
+  const siglas = ["RURAL", "PREL", "DESL", "POST", "PREV", "FISC", "REF", "REL", "SAT", "ESC", "PE"];
+  const t = desc.trim().replace(/^[-–—:;,\s]+/, "");
+  for (const sigla of siglas) {
+    const regex = new RegExp(`^${sigla}(?=$|[\\s:;,\\-–—])\\s*[-–—:;,]?\\s*`, "i");
+    const m = t.match(regex);
+    if (m) return t.slice(m[0].length).trim();
+  }
+  return t;
+}
+
 interface BlocoManualParsed {
   inicioMin: number;
   fimMin: number | null;
   modalidade: ModalidadePoliciamento;
   desc: string;
+  localManual: string;
 }
 
 function parseBlocosManuais(texto: string): BlocoManualParsed[] {
@@ -911,11 +938,14 @@ function parseBlocosManuais(texto: string): BlocoManualParsed[] {
     if (comFim) {
       const inicioMin = parseInt(comFim[1]) * 60 + parseInt(comFim[2] || "0");
       const fimMin = parseInt(comFim[3]) * 60 + parseInt(comFim[4] || "0");
+      const desc = comFim[5].trim();
+      const modalidade = inferirModalidade(desc);
       result.push({
         inicioMin: snapGrid30(inicioMin),
         fimMin: snapGrid30(fimMin),
-        modalidade: inferirModalidade(comFim[5]),
-        desc: comFim[5].trim(),
+        modalidade,
+        desc,
+        localManual: extrairLocalManual(desc),
       });
       continue;
     }
@@ -923,11 +953,14 @@ function parseBlocosManuais(texto: string): BlocoManualParsed[] {
     const semFim = linha.match(/(\d{1,2})[h:](\d{0,2})\s+(.*)/i);
     if (semFim) {
       const inicioMin = parseInt(semFim[1]) * 60 + parseInt(semFim[2] || "0");
+      const desc = semFim[3].trim();
+      const modalidade = inferirModalidade(desc);
       result.push({
         inicioMin: snapGrid30(inicioMin),
         fimMin: null,
-        modalidade: inferirModalidade(semFim[3]),
-        desc: semFim[3].trim(),
+        modalidade,
+        desc,
+        localManual: extrairLocalManual(desc),
       });
     }
   }
@@ -1112,26 +1145,29 @@ export function gerarCPP({ configuracao, municipios }: GerarCPPParams): {
             : 30;
           const proxMin = manuais[idxManual + 1]?.inicioMin ?? fimREL;
           const durSafe = Math.min(dur, disponivel, proxMin - tempoAtual);
-          const local = determinarLocalFinal({
-            modalidade: bm.modalidade,
-            tempoAtual,
-            diaUtil,
-            escolasMun,
-            hotspotsAtivosMun,
-            currentMunData,
-            cobertura: coberturas[currentMunName],
-            rng,
-            configuracao,
-            focoAtivo,
-            ppiMun
-          });
+          // Usar local informado pelo usuário; só recorrer ao automático se vazio
+          const localFinal = bm.localManual.trim()
+            ? bm.localManual
+            : determinarLocalFinal({
+                modalidade: bm.modalidade,
+                tempoAtual,
+                diaUtil,
+                escolasMun,
+                hotspotsAtivosMun,
+                currentMunData,
+                cobertura: coberturas[currentMunName],
+                rng,
+                configuracao,
+                focoAtivo,
+                ppiMun,
+              });
           blocos.push(
             criarBloco(
               ordem++,
               tempoAtual,
               durSafe,
               bm.modalidade,
-              local,
+              localFinal,
               selecionarProblema(bm.modalidade, periodo),
               JUSTIFICATIVAS[bm.modalidade] || "Atividade de policiamento.",
               currentMunName
