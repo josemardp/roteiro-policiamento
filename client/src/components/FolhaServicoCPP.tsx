@@ -6,6 +6,7 @@ import type { BlocoHorario, ConfiguracaoServico, RoteiroDia } from "@/lib/types"
 
 interface FolhaServicoCPPProps {
   roteiroDia: RoteiroDia;
+  emitidoEm?: Date | null;
 }
 
 function formatarDataServico(data: string): string {
@@ -44,12 +45,12 @@ function nomeModalidade(bloco: BlocoHorario): string {
   return `${bloco.modalidade} · ${nome}`;
 }
 
-export default function FolhaServicoCPP({ roteiroDia }: FolhaServicoCPPProps) {
+export default function FolhaServicoCPP({ roteiroDia, emitidoEm: emitidoEmProp }: FolhaServicoCPPProps) {
   const { configuracao } = roteiroDia;
   const blocosOrdenados = [...roteiroDia.blocos].sort((a, b) => a.ordem - b.ordem);
   const fundamentacao = gerarFundamentacao(configuracao).filter(Boolean);
   const municipios = listarMunicipios(configuracao);
-  const emitidoEm = formatarDataEmissao(new Date());
+  const emitidoEm = emitidoEmProp ? formatarDataEmissao(emitidoEmProp) : null;
   const faixaServico = [
     campo("Tipo de atividade", configuracao.tipoAtividade),
     campo("Data", formatarDataServico(configuracao.data)),
@@ -125,7 +126,7 @@ export default function FolhaServicoCPP({ roteiroDia }: FolhaServicoCPPProps) {
           <span />
           <strong>{IDENTIDADE_UNIDADE.assinaturaComando}</strong>
         </div>
-        <p>Emitido em {emitidoEm}</p>
+        {emitidoEm && <p>Emitido em {emitidoEm}</p>}
       </footer>
     </section>
   );

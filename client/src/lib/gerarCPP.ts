@@ -1510,18 +1510,18 @@ export function gerarFundamentacao(
     }
   });
 
-  // 5. Linha neutra de pendências
-  const hasPending = muns.some((mun) => {
+  // 5. Linha neutra de pendências — apenas campos realmente ausentes
+  const hasPendingVD = muns.some((mun) => {
     const ppiMun = (ppiDosMunicipios as any)[mun];
     if (!ppiMun) return false;
     const pc = ppiMun.perfilCriminal;
     if (!pc) return true;
-    return pc.furtoVeiculo === null || pc.rouboVeiculo === null || pc.violenciaDomestica === null;
+    return pc.violenciaDomestica === null;
   });
 
-  if (hasPending) {
+  if (hasPendingVD) {
     linhas.push(
-      "Indicadores de furto/roubo de veículo e violência doméstica pendentes de validação pelo comando (Infocrim)."
+      "Indicadores de violência doméstica / Maria da Penha pendentes de validação pelo comando (Infocrim)."
     );
   }
 

@@ -31,6 +31,7 @@ export default function CPPTurno({
   const [blocoEditando, setBlocoEditando] = useState<BlocoHorario | null>(null);
   const [mostraExportar, setMostraExportar] = useState(false);
   const [tabAtiva, setTabAtiva] = useState<"agora" | "lista" | "mapa">("agora");
+  const [emitidoEmCPP, setEmitidoEmCPP] = useState<Date | null>(null);
   const [blocoEmFocoId, setBlocoEmFocoId] = useState<string | undefined>(undefined);
   const [alertasAtivos, setAlertasAtivos] = useState(() => {
     try {
@@ -259,7 +260,13 @@ export default function CPPTurno({
       return;
     }
 
-    window.setTimeout(() => window.print(), 50);
+    setEmitidoEmCPP(new Date());
+
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        window.print();
+      });
+    });
   }, [roteiroDia.blocos.length]);
 
   // Touch Swipe handlers for tab transitions (Lista ⇄ Mapa ⇄ Agora)
@@ -514,7 +521,7 @@ export default function CPPTurno({
         />
       )}
 
-      <FolhaServicoCPP roteiroDia={roteiroDia} />
+      <FolhaServicoCPP roteiroDia={roteiroDia} emitidoEm={emitidoEmCPP} />
     </div>
   );
 }
