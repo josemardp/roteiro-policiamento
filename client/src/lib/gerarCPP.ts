@@ -875,45 +875,53 @@ function criarBloco(
 
 // ─── Parser de blocos manuais ─────────────────────────────────────────────────
 
-function inferirModalidade(texto: string): ModalidadePoliciamento {
-  // 1. Sigla explícita no início do texto (após separadores opcionais) — vence keywords
-  const limpo = texto.trim().replace(/^[-–—:;,\s]+/, "");
-  const siglasOrdenadas: [string, ModalidadePoliciamento][] = [
+interface AnalisadoManual {
+  modalidade: ModalidadePoliciamento;
+  localManual: string;
+}
+
+// Analisa a descrição do bloco manual: detecta sigla (em qualquer posição) e extrai local.
+// Sigla explícita vence keywords; PE não casa dentro de palavras.
+function analisarDescricaoManual(desc: string): AnalisadoManual {
+  const siglas: [string, ModalidadePoliciamento][] = [
     ["RURAL", "RURAL"], ["PREL", "PREL"], ["DESL", "DESL"],
     ["POST", "POST"], ["PREV", "PREV"], ["FISC", "FISC"],
     ["REF", "REF"], ["REL", "REL"], ["SAT", "SAT"], ["ESC", "ESC"],
     ["PE", "PE"],
   ];
-  for (const [sigla, mod] of siglasOrdenadas) {
-    // Sigla seguida de fim-de-string, espaço ou separador — evita match dentro de palavras
-    if (new RegExp(`^${sigla}(?=$|[\\s:;,\\-–—])`, "i").test(limpo)) return mod;
-  }
 
-  // 2. Inferência por palavras-chave (sem sigla reconhecível)
-  const t = texto.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
-  if (/prel|assuncao|assun/.test(t)) return "PREL";
-  if (/desl/.test(t)) return "DESL";
-  if (/ref|janta|almoco|cafe|refeic|aliment/.test(t)) return "REF";
-  if (/\brel\b|rso|encer/.test(t)) return "REL";
-  if (/rural/.test(t)) return "RURAL";
-  if (/\bsat\b|saturac/.test(t)) return "SAT";
-  if (/escol/.test(t) && !/escolt/.test(t)) return "ESC";
-  if (/fisc|blitz|bloqueio/.test(t)) return "FISC";
-  if (/\bpe\b|estacion/.test(t)) return "PE";
-  if (/prev|bairr/.test(t)) return "PREV";
-  return "POST";
-}
-
-// Extrai o local digitado pelo usuário após remover a sigla/palavra-chave inicial
-function extrairLocalManual(desc: string): string {
-  const siglas = ["RURAL", "PREL", "DESL", "POST", "PREV", "FISC", "REF", "REL", "SAT", "ESC", "PE"];
+  // Limpa separadores iniciais (ex: "- PE - local" → "PE - local")
   const t = desc.trim().replace(/^[-–—:;,\s]+/, "");
-  for (const sigla of siglas) {
-    const regex = new RegExp(`^${sigla}(?=$|[\\s:;,\\-–—])\\s*[-–—:;,]?\\s*`, "i");
+
+  // 1. Procura sigla explícita em qualquer posição, com fronteira segura
+  //    Padrão: (início-de-string OU separador) + SIGLA + (fim-de-string OU separador)
+  //    Garante que PE não case dentro de "perímetro", "pedestre", "operação" etc.
+  for (const [sigla, mod] of siglas) {
+    const regex = new RegExp(`(^|[\\s:;,\\-–—])(${sigla})(?=$|[\\s:;,\\-–—])`, "i");
     const m = t.match(regex);
-    if (m) return t.slice(m[0].length).trim();
+    if (m !== null && m.index !== undefined) {
+      // Local = texto após a sigla (e separadores opcionais que a seguem)
+      const localManual = t.slice(m.index + m[0].length).replace(/^[\s:;,\-–—]+/, "").trim();
+      return { modalidade: mod, localManual };
+    }
   }
-  return t;
+
+  // 2. Sem sigla explícita — inferência por palavras-chave; localManual = desc completo
+  const norm = t.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+  let modalidade: ModalidadePoliciamento;
+  if (/prel|assuncao|assun/.test(norm)) modalidade = "PREL";
+  else if (/desl/.test(norm)) modalidade = "DESL";
+  else if (/ref|janta|almoco|cafe|refeic|aliment/.test(norm)) modalidade = "REF";
+  else if (/\brel\b|rso|encer|relator/.test(norm)) modalidade = "REL";
+  else if (/rural/.test(norm)) modalidade = "RURAL";
+  else if (/\bsat\b|saturac/.test(norm)) modalidade = "SAT";
+  else if (/escol/.test(norm) && !/escolt/.test(norm)) modalidade = "ESC";
+  else if (/fisc|blitz|bloqueio/.test(norm)) modalidade = "FISC";
+  else if (/\bpe\b|estacion/.test(norm)) modalidade = "PE";
+  else if (/prev|bairr/.test(norm)) modalidade = "PREV";
+  else modalidade = "POST";
+
+  return { modalidade, localManual: t };
 }
 
 interface BlocoManualParsed {
@@ -939,13 +947,13 @@ function parseBlocosManuais(texto: string): BlocoManualParsed[] {
       const inicioMin = parseInt(comFim[1]) * 60 + parseInt(comFim[2] || "0");
       const fimMin = parseInt(comFim[3]) * 60 + parseInt(comFim[4] || "0");
       const desc = comFim[5].trim();
-      const modalidade = inferirModalidade(desc);
+      const { modalidade, localManual } = analisarDescricaoManual(desc);
       result.push({
         inicioMin: snapGrid30(inicioMin),
         fimMin: snapGrid30(fimMin),
         modalidade,
         desc,
-        localManual: extrairLocalManual(desc),
+        localManual,
       });
       continue;
     }
@@ -954,13 +962,13 @@ function parseBlocosManuais(texto: string): BlocoManualParsed[] {
     if (semFim) {
       const inicioMin = parseInt(semFim[1]) * 60 + parseInt(semFim[2] || "0");
       const desc = semFim[3].trim();
-      const modalidade = inferirModalidade(desc);
+      const { modalidade, localManual } = analisarDescricaoManual(desc);
       result.push({
         inicioMin: snapGrid30(inicioMin),
         fimMin: null,
         modalidade,
         desc,
-        localManual: extrairLocalManual(desc),
+        localManual,
       });
     }
   }
@@ -1133,9 +1141,16 @@ export function gerarCPP({ configuracao, municipios }: GerarCPPParams): {
       if (idxManual < manuais.length) {
         const bm = manuais[idxManual];
         if (bm.inicioMin < tempoAtual) {
-          avisos.push(
-            `Bloco "${bm.desc || bm.modalidade}" às ${String(Math.floor(bm.inicioMin / 60)).padStart(2, "0")}:${String(bm.inicioMin % 60).padStart(2, "0")} ignorado por sobreposição.`
-          );
+          const isPrelOverlap = bm.inicioMin >= turnoInicio && bm.inicioMin < turnoInicio + 30;
+          if (isPrelOverlap) {
+            avisos.push(
+              `Bloco manual "${bm.desc || bm.modalidade}" às ${minParaHora(bm.inicioMin)} foi ignorado: o turno inicia com PREL obrigatória (${minParaHora(turnoInicio)}–${minParaHora(turnoInicio + 30)}). Lance o primeiro bloco manual a partir de ${minParaHora(turnoInicio + 30)}.`
+            );
+          } else {
+            avisos.push(
+              `Bloco "${bm.desc || bm.modalidade}" às ${minParaHora(bm.inicioMin)} ignorado por sobreposição.`
+            );
+          }
           idxManual++;
           continue;
         }
