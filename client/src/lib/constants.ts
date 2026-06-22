@@ -144,6 +144,15 @@ export const MODALIDADES: Record<string, ModalidadeInfo> = {
     acoesPadrao: "Refeição",
     descricaoRSO: "ALIMENTAÇÃO PELA BASE DO PELOTÃO PM",
   },
+  RONDA: {
+    codigo: "RONDA",
+    nome: "Ronda ao Programa de Policiamento",
+    duracao: [30, 30],
+    cor: "bg-indigo-700",
+    badge: "badge-ronda",
+    acoesPadrao: "Inspeção da OPM, conferência do CPP/RSO/TMD da guarnição",
+    descricaoRSO: "RONDA AO PROGRAMA DE POLICIAMENTO — INSPEÇÃO DA OPM E FISCALIZAÇÃO DA GUARNIÇÃO",
+  },
   REL: {
     codigo: "REL",
     nome: "Relatório / Encerramento (RSO)",
@@ -160,6 +169,7 @@ export { MUNICIPIOS_V33 };
 
 export const JUSTIFICATIVAS: Record<string, string> = {
   PREL: "Assunção do serviço, leitura de novidades e orientação da guarnição (US).",
+  RONDA: "Ronda ao Programa de Policiamento: inspeção das instalações da OPM (apresentação pessoal, EPI, armamento, áreas internas/externas) e verificação do CPP/RSO/TMD da guarnição de serviço (NORSOP, subitem 6.9.4.2).",
   POST: "Presença ostensiva no comércio/centro no horário de maior fluxo — dissuasão de roubo/furto.",
   PREV: "Patrulhamento preventivo em bairro residencial — coibir furto/roubo a residência.",
   PE: "Ponto de Estacionamento desembarcado, ver e ser visto, atento ao rádio e high light ligado — presença ostensiva e pronta-resposta (Anexo D, 1.1.3 e 4.3).",

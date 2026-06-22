@@ -17,6 +17,7 @@ import type {
   TipoPoliciamento,
   FocoDistribuicao,
 } from "./types";
+import { getOPM, getTempoParaOPM, BASE_A, BASE_B } from "./opm-cpi10";
 import {
   MODALIDADES,
   MUNICIPIOS_V33,
@@ -888,6 +889,8 @@ export function analisarDescricaoManual(desc: string): AnalisadoManual {
     ["POST", "POST"], ["PREV", "PREV"], ["FISC", "FISC"],
     ["REF", "REF"], ["REL", "REL"], ["SAT", "SAT"], ["ESC", "ESC"],
     ["PE", "PE"],
+    // RONDA ao final: a palavra "ronda" é comum em português e não deve vencer siglas explícitas
+    ["RONDA", "RONDA"],
   ];
 
   // Limpa separadores iniciais (ex: "- PE - local" → "PE - local")
@@ -1081,6 +1084,213 @@ export function analisarBlocosManuaisPreview(
   return result;
 }
 
+// ─── Rotina exclusiva do Supervisor Regional ──────────────────────────────────
+// Estrutura fixa: PREL → DESL(saída) → RONDA(OPM) [→ DESL → RONDA]* → DESL(retorno) → REF → REL
+// A REF é inserida no instante exato do alvoMin calculado por planejarRefeicoes.
+
+interface SupRegParams {
+  municipiosList: Municipio[];
+  municipioBase?: Municipio;
+  municipiosRondaOPM?: string[];
+  turnoInicio: number;
+  turnoFim: number;
+  refeicoesPlanejadas: RefeicaoPlanejada[];
+  avisos: string[];
+}
+
+function gerarBlocosSupReg({
+  municipiosList,
+  municipioBase,
+  municipiosRondaOPM,
+  turnoInicio,
+  turnoFim,
+  refeicoesPlanejadas,
+  avisos,
+}: SupRegParams): { blocos: BlocoHorario[]; avisos: string[] } {
+  // OPMs a rondar: usa lista OPM se fornecida, senão cai nos municípios de patrulha (fuzz/compat)
+  const useOPM = municipiosRondaOPM && municipiosRondaOPM.length > 0;
+  const rondaTargets: string[] = useOPM ? municipiosRondaOPM : municipiosList;
+  const numRondas = rondaTargets.length;
+
+  // Para blocos tipados (PREL/REL/DESL), usa municipiosList como fallback
+  const numMuns = municipiosList.length;
+  const duracaoTurno = turnoFim - turnoInicio; // 480 para Sup Reg
+
+  // Município de partida e retorno (base do supervisor)
+  const base: Municipio = municipioBase ?? municipiosList[0];
+  const firstOPM = rondaTargets[0];
+  const lastMun = rondaTargets[numRondas - 1];
+
+  const refTotal = refeicoesPlanejadas.reduce((sum, r) => sum + r.duracaoMin, 0);
+  // fixedTime = PREL + RONDAs + DESLs_entre + REF + REL
+  const fixedTime = 30 + numRondas * 30 + (numRondas - 1) * 30 + refTotal + 30;
+  const deslTotal = duracaoTurno - fixedTime; // min disponível para DESL saída + retorno
+
+  // Calcula outbound com base no tempo real de percurso (dados OPM) quando disponível
+  let outboundMin: number;
+  let inboundMin: number;
+  if (useOPM) {
+    const baseKey: "A" | "B" = base === "Guararapes" ? "B" : "A";
+    const realOut = getTempoParaOPM(baseKey, firstOPM);
+    const snapOut = Math.ceil(realOut / 30) * 30;
+    outboundMin = Math.min(snapOut, Math.max(0, deslTotal));
+    inboundMin = deslTotal - outboundMin;
+  } else {
+    // Fallback 55 % / 45 % para o caminho do fuzz (municipiosList tipados)
+    outboundMin = Math.round((deslTotal * 0.55) / 30) * 30;
+    inboundMin = deslTotal - outboundMin;
+  }
+  const outCount = outboundMin / 30;
+  const inCount = inboundMin / 30;
+
+  // Plano de segmentos sem REF (inserida dinamicamente pelo clock)
+  interface Seg {
+    modalidade: ModalidadePoliciamento;
+    duracao: number;
+    mun: Municipio;
+    local: string;
+    problema: string;
+    justificativa: string;
+    lat?: number | null;
+    lng?: number | null;
+  }
+  const plan: Seg[] = [];
+
+  // PREL — na base do supervisor
+  plan.push({
+    modalidade: "PREL",
+    duracao: 30,
+    mun: base,
+    local: `Início do serviço / preliminares — ${base}`,
+    problema: "Assunção do serviço",
+    justificativa: JUSTIFICATIVAS.PREL,
+  });
+
+  // Deslocamento saída (múltiplos de 30 min rumo ao 1º município a rondar)
+  const localDeslSaida = base !== firstOPM
+    ? `Deslocamento — ${base} → ${firstOPM}`
+    : `Deslocamento ao setor — ${base}`;
+  const justDeslSaida = `Deslocamento ao município de ${firstOPM} para início da Ronda ao Programa de Policiamento.`;
+  for (let i = 0; i < outCount; i++) {
+    plan.push({
+      modalidade: "DESL",
+      duracao: 30,
+      mun: base, // typed Municipio — destino OPM fica no `local`
+      local: localDeslSaida,
+      problema: "Deslocamento ao setor",
+      justificativa: justDeslSaida,
+    });
+  }
+
+  // RONDA por OPM + DESL entre municípios
+  for (let i = 0; i < numRondas; i++) {
+    const munNome = rondaTargets[i];
+    // Para blocos tipados, usa municipiosList quando disponível (fuzz path)
+    const munTyped: Municipio | undefined = !useOPM ? municipiosList[Math.min(i, numMuns - 1)] : undefined;
+    const opmData = useOPM ? getOPM(munNome) : null;
+
+    plan.push({
+      modalidade: "RONDA",
+      duracao: 30,
+      mun: munTyped ?? base,
+      local: `Base do Pelotão PM — Ronda ao Programa de Policiamento — ${munNome}`,
+      problema: "Supervisão do programa de policiamento; inspeção da OPM e guarnição de serviço",
+      justificativa: JUSTIFICATIVAS.RONDA,
+      lat: opmData?.lat ?? null,
+      lng: opmData?.lng ?? null,
+    });
+
+    if (i < numRondas - 1) {
+      const proxNome = rondaTargets[i + 1];
+      const proxTyped: Municipio | undefined = !useOPM ? municipiosList[Math.min(i + 1, numMuns - 1)] : undefined;
+      plan.push({
+        modalidade: "DESL",
+        duracao: 30,
+        mun: proxTyped ?? base,
+        local: `Deslocamento ${munNome} → ${proxNome}`,
+        problema: "Deslocamento ao setor",
+        justificativa: `Deslocamento do município de ${munNome} para o município de ${proxNome}.`,
+        lat: null,
+        lng: null,
+      });
+    }
+  }
+
+  // Deslocamento retorno — de volta à base
+  const localDeslRetorno = base !== lastMun
+    ? `Retorno à base — deslocamento de ${lastMun} para ${base}`
+    : `Retorno à base — ${base}`;
+  const justDeslRetorno = `Retorno à base (${base}) após conclusão da Ronda em ${lastMun}.`;
+  for (let i = 0; i < inCount; i++) {
+    plan.push({
+      modalidade: "DESL",
+      duracao: 30,
+      mun: base,
+      local: localDeslRetorno,
+      problema: "Deslocamento ao setor",
+      justificativa: justDeslRetorno,
+    });
+  }
+
+  // REL — na base do supervisor
+  plan.push({
+    modalidade: "REL",
+    duracao: 30,
+    mun: base,
+    local: `Elaboração do Relatório de Ronda / RSO — ${base}`,
+    problema: "Elaboração do Relatório de Ronda e RSO",
+    justificativa: JUSTIFICATIVAS.REL,
+  });
+
+  // Monta os blocos inserindo REF no instante exato do alvoMin
+  const blocos: BlocoHorario[] = [];
+  let tempoAtual = turnoInicio;
+  let refIdx = 0;
+  let ordem = 0;
+
+  for (const seg of plan) {
+    // Insere REF pendente antes deste segmento (incluindo antes do REL quando alvoMin cai exatamente aqui)
+    while (refIdx < refeicoesPlanejadas.length) {
+      const ref = refeicoesPlanejadas[refIdx];
+      if (tempoAtual >= ref.alvoMin) {
+        blocos.push(
+          criarBloco(
+            ordem++,
+            tempoAtual,
+            ref.duracaoMin,
+            "REF",
+            `Refeição — ${ref.tipo} — ${seg.mun}`,
+            "Refeição",
+            JUSTIFICATIVAS.REF,
+            seg.mun,
+          ),
+        );
+        tempoAtual += ref.duracaoMin;
+        refIdx++;
+      } else {
+        break;
+      }
+    }
+
+    const bloco = criarBloco(
+      ordem++,
+      tempoAtual,
+      seg.duracao,
+      seg.modalidade,
+      seg.local,
+      seg.problema,
+      seg.justificativa,
+      seg.mun,
+    );
+    if (seg.lat !== undefined) bloco.lat = seg.lat;
+    if (seg.lng !== undefined) bloco.lng = seg.lng;
+    blocos.push(bloco);
+    tempoAtual += seg.duracao;
+  }
+
+  return { blocos, avisos };
+}
+
 // ─── Motor principal ──────────────────────────────────────────────────────────
 
 interface GerarCPPParams {
@@ -1147,6 +1357,22 @@ export function gerarCPP({ configuracao, municipios }: GerarCPPParams): {
   const refeicoesPlanejadas = temRefManual
     ? []
     : planejarRefeicoes(turnoInicio, turnoFim, duracaoTurno);
+
+  // Rotina própria do Supervisor Regional (geração automática)
+  if (
+    CATEGORIA_ATIVIDADE[configuracao.tipoAtividade] === "SUPERVISAO" &&
+    configuracao.modalidadeGeracao === "automatica"
+  ) {
+    return gerarBlocosSupReg({
+      municipiosList,
+      municipioBase: configuracao.municipioBase,
+      municipiosRondaOPM: configuracao.municipiosRondaOPM,
+      turnoInicio,
+      turnoFim,
+      refeicoesPlanejadas,
+      avisos,
+    });
+  }
 
   // Cálculo de deslocamentos
   const deslEntre = numMuns - 1;

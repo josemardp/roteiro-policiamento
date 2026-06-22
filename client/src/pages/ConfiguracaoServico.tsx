@@ -15,6 +15,7 @@ import type {
 } from "@/lib/types";
 import { calcularHoraTermino, parseDataLocal } from "@/lib/gerarCPP";
 import { ATIVIDADE_MONO_MUNICIPIO, DURACAO_TURNO_MIN } from "@/lib/constants";
+import { OPM_CPI10 } from "@/lib/opm-cpi10";
 
 const schema = z.object({
   data: z.string().min(1, "Data é obrigatória"),
@@ -46,6 +47,9 @@ export default function ConfiguracaoServico({
     "automatica" | "manual"
   >("automatica");
   const [blocosManuais, setBlocosManuais] = useState("");
+  const [municipioBase, setMunicipioBase] = useState<Municipio>("Valparaíso");
+  const [municipiosRondaOPM, setMunicipiosRondaOPM] = useState<string[]>(["Valparaíso", "Guararapes"]);
+  const [opmSearch, setOpmSearch] = useState("");
   const [efetivo, setEfetivo] = useState("");
   const [viatura, setViatura] = useState("");
   const [prefixoUS, setPrefixoUS] = useState("");
@@ -83,9 +87,10 @@ export default function ConfiguracaoServico({
     : tipoPoliciamento === "Foco Evento";
 
   const validacao = schema.safeParse({ data, horaInicio });
+  const isSupReg = tipoAtividade === "Supervisor Regional";
   const camposValidos =
     validacao.success &&
-    municipiosSel.length > 0 &&
+    (isSupReg ? municipiosRondaOPM.length > 0 : municipiosSel.length > 0) &&
     (!temFocoEvento || (nomeEvento.trim() !== "" && localEvento.trim() !== ""));
   const erros = !validacao.success ? validacao.error.flatten().fieldErrors : {};
 
@@ -93,8 +98,8 @@ export default function ConfiguracaoServico({
     if (!camposValidos) return;
     const config: ConfiguracaoServico = {
       tipoAtividade,
-      municipios: municipiosSel,
-      municipio: municipiosSel[0],
+      municipios: isSupReg ? [municipioBase] : municipiosSel,
+      municipio: isSupReg ? municipioBase : municipiosSel[0],
       tipoPoliciamento,
       focos: modoAvancadoFoco ? focosAvancados : undefined,
       data,
@@ -108,6 +113,8 @@ export default function ConfiguracaoServico({
       nomeEvento: temFocoEvento ? nomeEvento : undefined,
       tipoEvento: temFocoEvento ? tipoEvento : undefined,
       localEvento: temFocoEvento ? localEvento : undefined,
+      municipioBase: isSupReg ? municipioBase : undefined,
+      municipiosRondaOPM: isSupReg ? municipiosRondaOPM : undefined,
     };
     onGerarCPP(config);
   };
@@ -164,7 +171,100 @@ export default function ConfiguracaoServico({
             </select>
           </div>
 
-          {/* Municípios */}
+          {/* Municípios — seletor OPM para Supervisor Regional, grid 4 para demais */}
+          {isSupReg ? (
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">
+                Municípios de Ronda (OPMs a inspecionar)
+              </label>
+              <p className="text-xs text-gray-600 mb-3">
+                Selecione as OPMs do CPI-10 e ordene a sequência de visitas.
+              </p>
+              {/* Busca */}
+              <input
+                type="text"
+                placeholder="Buscar município..."
+                value={opmSearch}
+                onChange={e => setOpmSearch(e.target.value)}
+                className="w-full px-3 py-2 mb-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+              {/* Lista filtrável */}
+              <div className="max-h-52 overflow-y-auto border border-gray-200 rounded-lg bg-white divide-y divide-gray-100">
+                {OPM_CPI10
+                  .filter(opm =>
+                    opm.municipio.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")
+                      .includes(opmSearch.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, ""))
+                  )
+                  .map(opm => {
+                    const selected = municipiosRondaOPM.includes(opm.municipio);
+                    return (
+                      <label
+                        key={opm.municipio}
+                        className={`flex items-center gap-3 px-3 py-2 cursor-pointer transition-colors ${selected ? "bg-indigo-50" : "hover:bg-gray-50"}`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selected}
+                          onChange={() => {
+                            setMunicipiosRondaOPM(prev =>
+                              selected
+                                ? prev.filter(m => m !== opm.municipio)
+                                : [...prev, opm.municipio]
+                            );
+                          }}
+                          className="accent-indigo-700"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <span className="text-sm font-medium text-gray-800">{opm.municipio}</span>
+                          <span className="block text-xs text-gray-400 truncate">{opm.unidade}</span>
+                        </div>
+                        {opm.tipoEndereco === "CENTRO_MPAL" && (
+                          <span className="text-xs text-amber-600 shrink-0">est.</span>
+                        )}
+                      </label>
+                    );
+                  })}
+              </div>
+              {/* Sequência selecionada */}
+              {municipiosRondaOPM.length > 0 && (
+                <div className="mt-3 rounded-xl border border-indigo-100 bg-indigo-50/50 p-3 space-y-2">
+                  <p className="text-xs font-bold text-indigo-900">
+                    Sequência de ronda: {municipiosRondaOPM.join(" → ")}
+                  </p>
+                  {municipiosRondaOPM.map((mun, idx) => (
+                    <div key={mun} className="flex items-center justify-between gap-2 rounded-lg bg-white border border-indigo-100 px-3 py-2 text-sm">
+                      <span className="font-semibold text-gray-800">{idx + 1}. {mun}</span>
+                      <div className="flex gap-1">
+                        <button type="button"
+                          onClick={() => {
+                            if (idx === 0) return;
+                            const n = [...municipiosRondaOPM];
+                            [n[idx - 1], n[idx]] = [n[idx], n[idx - 1]];
+                            setMunicipiosRondaOPM(n);
+                          }}
+                          disabled={idx === 0}
+                          className="min-h-[32px] min-w-[32px] rounded border border-gray-200 text-gray-600 disabled:opacity-40 text-xs"
+                        >↑</button>
+                        <button type="button"
+                          onClick={() => {
+                            if (idx === municipiosRondaOPM.length - 1) return;
+                            const n = [...municipiosRondaOPM];
+                            [n[idx], n[idx + 1]] = [n[idx + 1], n[idx]];
+                            setMunicipiosRondaOPM(n);
+                          }}
+                          disabled={idx === municipiosRondaOPM.length - 1}
+                          className="min-h-[32px] min-w-[32px] rounded border border-gray-200 text-gray-600 disabled:opacity-40 text-xs"
+                        >↓</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {municipiosRondaOPM.length === 0 && (
+                <p className="text-xs text-red-600 mt-1">Selecione pelo menos uma OPM.</p>
+              )}
+            </div>
+          ) : (
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">
               {atividadeMonoMunicipio
@@ -248,6 +348,38 @@ export default function ConfiguracaoServico({
               </div>
             )}
           </div>
+          )} {/* fim else (não SupReg) */}
+
+          {/* Município de saída — exclusivo Supervisor Regional */}
+          {tipoAtividade === "Supervisor Regional" && (
+            <div className="rounded-xl border-2 border-indigo-200 bg-indigo-50/50 p-4 space-y-3">
+              <p className="text-sm font-bold text-indigo-900">
+                De qual município você vai sair?
+              </p>
+              <p className="text-xs text-indigo-700">
+                Defina a base de onde o supervisor parte e para onde retorna ao final do turno (onde elabora o RSO).
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                {(["Valparaíso", "Guararapes", "Rubiácea", "Bento de Abreu"] as Municipio[]).map(mun => (
+                  <button
+                    key={mun}
+                    type="button"
+                    onClick={() => setMunicipioBase(mun)}
+                    className={`p-4 rounded-xl border-2 text-left font-semibold transition-all duration-200 text-sm ${
+                      municipioBase === mun
+                        ? "border-indigo-700 bg-indigo-100 text-indigo-900 shadow-sm"
+                        : "border-gray-200 bg-white text-gray-700 hover:border-indigo-300"
+                    }`}
+                  >
+                    {mun}
+                    {municipioBase === mun && (
+                      <span className="block text-xs font-normal text-indigo-600 mt-0.5">Base de saída</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Tipo de Policiamento / Focos */}
           <div>

@@ -55,6 +55,7 @@ export type ModalidadePoliciamento =
   | "RURAL" // Policiamento Rural
   | "SAT" // Saturação Preventiva
   | "REF" // Refeição
+  | "RONDA" // Ronda ao Programa de Policiamento (Supervisor Regional)
   | "REL"; // Relatório / Encerramento
 
 export type EstadoExecucaoBloco = "cumprido" | "nao_realizado" | "parcial";
@@ -105,6 +106,8 @@ export interface ConfiguracaoServico {
   nomeEvento?: string;
   tipoEvento?: string;
   localEvento?: string;
+  municipioBase?: Municipio; // Supervisor Regional: município de saída e retorno (base)
+  municipiosRondaOPM?: string[]; // Supervisor Regional: OPMs a inspecionar (43 municípios CPI-10)
 }
 
 export interface RoteiroDia {

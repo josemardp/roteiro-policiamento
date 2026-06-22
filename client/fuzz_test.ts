@@ -123,12 +123,20 @@ function runFuzzTests() {
 
             const primeiro = blocos[0];
             const ultimo = blocos[blocos.length - 1];
-            if (primeiro?.modalidade !== "PREL" || primeiro?.municipio !== municipiosEfetivos[0]) {
-              console.error(`[FALHA PREL] Esperado PREL em ${municipiosEfetivos[0]}, veio ${primeiro?.modalidade}/${primeiro?.municipio}`);
+            // Para Supervisor Regional, PREL e REL ficam na base (municipioBase ?? municipiosEfetivos[0])
+            const isSupReg = config.tipoAtividade === "Supervisor Regional";
+            const baseMun = isSupReg
+              ? (config.municipioBase ?? municipiosEfetivos[0])
+              : municipiosEfetivos[0];
+            if (primeiro?.modalidade !== "PREL" || primeiro?.municipio !== baseMun) {
+              console.error(`[FALHA PREL] Esperado PREL em ${baseMun}, veio ${primeiro?.modalidade}/${primeiro?.municipio}`);
               erroRoteiro = true;
             }
-            if (ultimo?.modalidade !== "REL" || ultimo?.municipio !== municipiosEfetivos[municipiosEfetivos.length - 1]) {
-              console.error(`[FALHA REL] Esperado REL em ${municipiosEfetivos[municipiosEfetivos.length - 1]}, veio ${ultimo?.modalidade}/${ultimo?.municipio}`);
+            const expectedRelMun = isSupReg
+              ? baseMun
+              : municipiosEfetivos[municipiosEfetivos.length - 1];
+            if (ultimo?.modalidade !== "REL" || ultimo?.municipio !== expectedRelMun) {
+              console.error(`[FALHA REL] Esperado REL em ${expectedRelMun}, veio ${ultimo?.modalidade}/${ultimo?.municipio}`);
               erroRoteiro = true;
             }
             if (ATIVIDADE_MONO_MUNICIPIO.has(config.tipoAtividade)) {
