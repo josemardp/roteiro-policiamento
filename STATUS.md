@@ -53,16 +53,6 @@ Estas pendências **existem de verdade** e ainda não foram implementadas:
 | Violência doméstica / Maria da Penha | Média | Sem dado oficial validado — declarado como pendente na fundamentação |
 | Coordenadas de áreas rurais / conjuntos vagos | Baixa | Permanecem `null` por honestidade de dados |
 
-### Endereços OPM pendentes de confirmação (`opm-cpi10.ts`)
-
-Dois municípios permanecem com `tipoEndereco: "CENTRO_MPAL"` aguardando confirmação do endereço real com o Cmte de Cia:
-
-| # | Município | Unidade | Endereço atual (estimado) | Ação |
-|---|---|---|---|---|
-| 33 | Castilho | Sede Pel / 1ª Cia / 28º BPM/I | Praça Cel. Seraphim Pereira, s/n — Centro, Castilho/SP | Confirmar com Cmte 1ª Cia 28BPM |
-| 37 | Lavínia | Gp PM / 3ª Cia / 28º BPM/I | Praça dos Expedicionários, s/n — Centro, Lavínia/SP | Confirmar com Cmte 3ª Cia 28BPM |
-
-Após confirmar: atualizar `endereco` e alterar `tipoEndereco` de `"CENTRO_MPAL"` para `"REAL"`.
 
 ---
 
