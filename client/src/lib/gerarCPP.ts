@@ -55,6 +55,101 @@ function hashStr(s: string): number {
   return h >>> 0;
 }
 
+// ─── Helpers Fisiológicos & Geométricos (Fase 2) ─────────────────────────────
+
+export interface EstadoGeoLocal {
+  lastLat: number | null;
+  lastLng: number | null;
+}
+
+export function distanciaKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371; // Raio da Terra em km
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+export function selecionarMelhorLocalTSP(
+  candidatos: string[],
+  municipioNome: Municipio,
+  estadoGeo: EstadoGeoLocal,
+  cobertura: CoberturaMapa,
+  rng: () => number
+): string {
+  if (candidatos.length === 0) return "Área do município";
+
+  const minVisitas = Math.min(...candidatos.map(c => cobertura.get(c) ?? 0));
+  const menosVisitados = candidatos.filter(c => (cobertura.get(c) ?? 0) === minVisitas);
+
+  if (menosVisitados.length === 1) {
+    const escolhido = menosVisitados[0];
+    const coord = obterCoordenadaPonto(municipioNome, escolhido);
+    if (coord) {
+      estadoGeo.lastLat = coord.lat;
+      estadoGeo.lastLng = coord.lng;
+    }
+    cobertura.set(escolhido, (cobertura.get(escolhido) ?? 0) + 1);
+    return escolhido;
+  }
+
+  // TSP: Se temos lastLat/lastLng, calculamos a distância
+  if (estadoGeo.lastLat !== null && estadoGeo.lastLng !== null) {
+    const candidatosComDistancia = menosVisitados.map(c => {
+      const coord = obterCoordenadaPonto(municipioNome, c);
+      if (coord) {
+        return { c, coord, dist: distanciaKm(estadoGeo.lastLat!, estadoGeo.lastLng!, coord.lat, coord.lng) };
+      }
+      return { c, coord: null, dist: Infinity };
+    });
+
+    const validos = candidatosComDistancia.filter(x => x.dist !== Infinity);
+    if (validos.length > 0) {
+      // Ordena por menor distância
+      validos.sort((a, b) => a.dist - b.dist);
+      // 70% de chance de pegar o vizinho mais próximo absoluto, 30% pega o 2º (adiciona um pouco de fuzzy)
+      let index = 0;
+      if (validos.length > 1 && rng() > 0.7) {
+        index = 1;
+      }
+      const escolhidoObj = validos[index];
+      estadoGeo.lastLat = escolhidoObj.coord!.lat;
+      estadoGeo.lastLng = escolhidoObj.coord!.lng;
+      cobertura.set(escolhidoObj.c, (cobertura.get(escolhidoObj.c) ?? 0) + 1);
+      return escolhidoObj.c;
+    }
+  }
+
+  // Fallback para seleção aleatória (RNG)
+  const escolhido = pick(menosVisitados, Math.floor(rng() * menosVisitados.length), menosVisitados[0]);
+  const coord = obterCoordenadaPonto(municipioNome, escolhido);
+  if (coord) {
+    estadoGeo.lastLat = coord.lat;
+    estadoGeo.lastLng = coord.lng;
+  }
+  cobertura.set(escolhido, (cobertura.get(escolhido) ?? 0) + 1);
+  return escolhido;
+}
+
+export function ajustarPesosPorFadiga(pesos: Pesos, tempoAtual: number): Pesos {
+  const novosPesos = { ...pesos };
+  const hora = Math.floor((tempoAtual % 1440) / 60);
+
+  // Vale Circadiano de Alerta Baixo (02:00 as 05:00)
+  if (hora >= 2 && hora <= 5) {
+    if (novosPesos.FISC !== undefined) novosPesos.FISC = Math.max(0, novosPesos.FISC - 2);
+    if (novosPesos.POST !== undefined) novosPesos.POST = Math.max(0, novosPesos.POST - 1);
+    if (novosPesos.PE !== undefined) novosPesos.PE += 2; // aumenta PE (estático)
+    if (novosPesos.PREV !== undefined) novosPesos.PREV += 1; // aumenta preventivo
+  }
+
+  return novosPesos;
+}
+
 // ─── Helpers de tempo ────────────────────────────────────────────────────────
 
 export function parseDataLocal(dataStr: string): Date {
@@ -553,7 +648,9 @@ function determinarLocalFinal({
   rng,
   configuracao,
   focoAtivo,
-  ppiMun
+  ppiMun,
+  municipioNome,
+  estadoGeo
 }: {
   modalidade: ModalidadePoliciamento;
   tempoAtual: number;
@@ -566,17 +663,15 @@ function determinarLocalFinal({
   configuracao: ConfiguracaoServico;
   focoAtivo: TipoPoliciamento;
   ppiMun: any;
+  municipioNome: Municipio;
+  estadoGeo: EstadoGeoLocal;
 }): string {
   if (modalidade === "ESC") {
     const minutoDia = tempoAtual % 1440;
     const escolasAtivas = diaUtil ? obterEscolasEmJanela(escolasMun, minutoDia) : [];
     if (escolasAtivas.length > 0) {
       const candidatos = escolasAtivas.map(e => `Ronda escolar — ${e.nome} (${e.bairro})`);
-      const minVisitas = Math.min(...candidatos.map((c: string) => cobertura.get(c) ?? 0));
-      const menosVisitados = candidatos.filter((c: string) => (cobertura.get(c) ?? 0) === minVisitas);
-      const escolhido = pick(menosVisitados, Math.floor(rng() * menosVisitados.length), candidatos[0]);
-      cobertura.set(escolhido, (cobertura.get(escolhido) ?? 0) + 1);
-      return escolhido;
+      return selecionarMelhorLocalTSP(candidatos, municipioNome, estadoGeo, cobertura, rng);
     }
   }
 
@@ -585,11 +680,7 @@ function determinarLocalFinal({
     const transito = ppiMun.transito;
     if (transito.horariosCriticos?.includes(horaAtual) && transito.tiposViaCriticos?.length > 0) {
       const candidatos = transito.tiposViaCriticos;
-      const minVisitas = Math.min(...candidatos.map((c: string) => cobertura.get(c) ?? 0));
-      const menosVisitados = candidatos.filter((c: string) => (cobertura.get(c) ?? 0) === minVisitas);
-      const escolhido = pick(menosVisitados, Math.floor(rng() * menosVisitados.length), candidatos[0]);
-      cobertura.set(escolhido, (cobertura.get(escolhido) ?? 0) + 1);
-      return escolhido;
+      return selecionarMelhorLocalTSP(candidatos, municipioNome, estadoGeo, cobertura, rng);
     }
   }
 
@@ -597,11 +688,7 @@ function determinarLocalFinal({
     const hsRecomendados = hotspotsAtivosMun.filter(h => h.modalidadesRecomendadas.includes(modalidade as any));
     if (hsRecomendados.length > 0) {
       const candidatos = hsRecomendados.map(h => `${h.local} (${h.bairro})`);
-      const minVisitas = Math.min(...candidatos.map((c: string) => cobertura.get(c) ?? 0));
-      const menosVisitados = candidatos.filter((c: string) => (cobertura.get(c) ?? 0) === minVisitas);
-      const escolhido = pick(menosVisitados, Math.floor(rng() * menosVisitados.length), candidatos[0]);
-      cobertura.set(escolhido, (cobertura.get(escolhido) ?? 0) + 1);
-      return escolhido;
+      return selecionarMelhorLocalTSP(candidatos, municipioNome, estadoGeo, cobertura, rng);
     }
   }
 
@@ -628,26 +715,17 @@ function determinarLocalFinal({
           );
           let escolhido: string;
           if (menosVisitadosVulneraveis.length > 0 && rng() < 0.6) {
-            escolhido = pick(
-              menosVisitadosVulneraveis,
-              Math.floor(rng() * menosVisitadosVulneraveis.length),
-              menosVisitadosVulneraveis[0]
-            );
+            escolhido = selecionarMelhorLocalTSP(menosVisitadosVulneraveis, municipioNome, estadoGeo, cobertura, rng);
           } else {
-            escolhido = pick(
-              menosVisitados,
-              Math.floor(rng() * menosVisitados.length),
-              candidatos[0]
-            );
+            escolhido = selecionarMelhorLocalTSP(menosVisitados, municipioNome, estadoGeo, cobertura, rng);
           }
-          cobertura.set(escolhido, (cobertura.get(escolhido) ?? 0) + 1);
           return obterLocalEventos(configuracao, focoAtivo, modalidade, escolhido);
         }
       }
     }
   }
 
-  const localPadrao = selecionarLocal(currentMunData, modalidade, cobertura, rng);
+  const localPadrao = selecionarLocal(currentMunData, modalidade, cobertura, rng, municipioNome, estadoGeo);
   return obterLocalEventos(configuracao, focoAtivo, modalidade, localPadrao);
 }
 
@@ -783,7 +861,9 @@ function selecionarLocal(
   municipio: MunicipioData,
   modalidade: ModalidadePoliciamento,
   cobertura: CoberturaMapa,
-  rng: () => number
+  rng: () => number,
+  municipioNome: Municipio,
+  estadoGeo: EstadoGeoLocal
 ): string {
   let candidatos: string[] = [];
 
@@ -815,17 +895,7 @@ function selecionarLocal(
 
   if (candidatos.length === 0) return "Área do município";
 
-  const minVisitas = Math.min(...candidatos.map(c => cobertura.get(c) ?? 0));
-  const menosVisitados = candidatos.filter(
-    c => (cobertura.get(c) ?? 0) === minVisitas
-  );
-  const escolhido = pick(
-    menosVisitados,
-    Math.floor(rng() * menosVisitados.length),
-    candidatos[0]
-  );
-  cobertura.set(escolhido, (cobertura.get(escolhido) ?? 0) + 1);
-  return escolhido;
+  return selecionarMelhorLocalTSP(candidatos, municipioNome, estadoGeo, cobertura, rng);
 }
 
 // ─── Problema e ações por modalidade ─────────────────────────────────────────
@@ -1432,6 +1502,41 @@ function gerarBlocosSupReg({
 
 // ─── Motor principal ──────────────────────────────────────────────────────────
 
+export function calcularBudgetBackward(
+  municipiosList: Municipio[],
+  miolo: number
+): number[] {
+  const numMuns = municipiosList.length;
+  if (numMuns <= 1) return [miolo];
+
+  const pesosMuns = municipiosList.map(m => {
+    const ppi = PPI_5CIA[m];
+    const qtEscolas = ppi?.escolas?.length || 0;
+    const qtHotspots = ppi?.hotspots?.length || 0;
+    return 1 + qtEscolas + (qtHotspots * 2);
+  });
+
+  const somaPesos = pesosMuns.reduce((a, b) => a + b, 0);
+  const duracoesSegmento = pesosMuns.map(p => snapGrid30((miolo * p) / somaPesos));
+
+  let somaSegmentos = duracoesSegmento.reduce((s, v) => s + v, 0);
+  let idxSoma = 0;
+  const indicesOrdenados = pesosMuns.map((p, i) => ({ p, i })).sort((a, b) => b.p - a.p).map(x => x.i);
+
+  while (somaSegmentos < miolo) {
+    duracoesSegmento[indicesOrdenados[idxSoma % numMuns]] += 30;
+    somaSegmentos += 30;
+    idxSoma++;
+  }
+  while (somaSegmentos > miolo) {
+    duracoesSegmento[indicesOrdenados[numMuns - 1 - (idxSoma % numMuns)]] -= 30;
+    somaSegmentos -= 30;
+    idxSoma++;
+  }
+  
+  return duracoesSegmento;
+}
+
 interface GerarCPPParams {
   configuracao: ConfiguracaoServico;
   municipios: typeof MUNICIPIOS_V33;
@@ -1539,24 +1644,19 @@ export function gerarCPP({ configuracao, municipios }: GerarCPPParams): {
     miolo = numMuns * 30;
   }
 
-  // Distribuição do miolo entre os segmentos (multiplos de 30 min)
-  const duracoesSegmento = Array(numMuns).fill(snapGrid30(miolo / numMuns));
-  let somaSegmentos = duracoesSegmento.reduce((s, v) => s + v, 0);
-  let idxSoma = 0;
-  while (somaSegmentos < miolo) {
-    duracoesSegmento[idxSoma % numMuns] += 30;
-    somaSegmentos += 30;
-    idxSoma++;
-  }
-  while (somaSegmentos > miolo) {
-    duracoesSegmento[idxSoma % numMuns] -= 30;
-    somaSegmentos -= 30;
-    idxSoma++;
-  }
+  // Distribuição do miolo entre os segmentos com base na complexidade (Budget Backward-Pass)
+  const duracoesSegmento = calcularBudgetBackward(municipiosList, miolo);
 
   const blocos: BlocoHorario[] = [];
   let ordem = 0;
   let tempoAtual = turnoInicio;
+
+  // Estado Geográfico Global para o turno (TSP Nearest Neighbor)
+  const refInicial = obterCoordenadaReferenciaMunicipio(municipioInicio);
+  const estadoGeoGlobal: EstadoGeoLocal = {
+    lastLat: refInicial?.lat ?? null,
+    lastLng: refInicial?.lng ?? null,
+  };
 
   // Mapas de cobertura independentes por município
   const coberturas: Record<string, CoberturaMapa> = {};
@@ -1655,6 +1755,8 @@ export function gerarCPP({ configuracao, municipios }: GerarCPPParams): {
                 configuracao,
                 focoAtivo,
                 ppiMun,
+                municipioNome: currentMunName,
+                estadoGeo: estadoGeoGlobal
               });
           blocos.push(
             criarBloco(
@@ -1700,6 +1802,8 @@ export function gerarCPP({ configuracao, municipios }: GerarCPPParams): {
                 configuracao,
                 focoAtivo,
                 ppiMun,
+                municipioNome: currentMunName,
+                estadoGeo: estadoGeoGlobal
               });
           blocos.push(
             criarBloco(
@@ -1818,6 +1922,9 @@ export function gerarCPP({ configuracao, municipios }: GerarCPPParams): {
       // Ponderar por Perfil Criminal (Fase 6)
       pesos = ajustarPesosPorPerfilCriminal(pesos, ppiMun?.perfilCriminal);
 
+      // Fadiga Ergonômica Circadiana (Fase 2 do Especialista)
+      pesos = ajustarPesosPorFadiga(pesos, tempoAtual);
+
       // Ronda Escolar (ESC) não ocorre em fim de semana (Fase 0)
       if (!diaUtil) {
         delete pesos.ESC;
@@ -1904,7 +2011,9 @@ export function gerarCPP({ configuracao, municipios }: GerarCPPParams): {
             rng,
             configuracao,
             focoAtivo,
-            ppiMun
+            ppiMun,
+            municipioNome: currentMunName,
+            estadoGeo: estadoGeoGlobal
           });
           blocos.push(
             criarBloco(
@@ -1943,7 +2052,9 @@ export function gerarCPP({ configuracao, municipios }: GerarCPPParams): {
         rng,
         configuracao,
         focoAtivo,
-        ppiMun
+        ppiMun,
+        municipioNome: currentMunName,
+        estadoGeo: estadoGeoGlobal
       });
       blocos.push(
         criarBloco(

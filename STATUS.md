@@ -120,6 +120,9 @@ Configuração (ConfiguracaoServico.tsx)
        └─ REL (turnoFim − 30)
   └─ Roteiro (CPPTurno.tsx)
        ├─ Mapa (coordenadas-pontos.ts)
+       - [x] Otimização local com TSP e Fórmulas de Haversine (`distanciaKm`).
+       - [x] Budget Temporal proporcional por Backward-Pass (`calcularBudgetBackward`).
+       - [x] Fadiga/Vale Circadiano alterando pesos entre 02h-05h (`ajustarPesosPorFadiga`).
        ├─ Folha CPP (window.print)
        └─ Modo patrulha + GPS
 
