@@ -1,6 +1,6 @@
 # STATUS — CPP Roteiro de Policiamento
 
-> Documento de handoff. Atualizado em V17 + Auditoria corretiva (2026-06-19).
+> Documento de handoff. Atualizado em V17 + Integração Escolar Consolidada (2026-06-23).
 > Qualquer agente pode continuar o trabalho a partir daqui.
 
 ---
@@ -9,7 +9,7 @@
 
 | Item | Valor |
 |---|---|
-| Última versão concluída | V17 + Auditoria corretiva |
+| Última versão concluída | V17 + Integração Escolar Consolidada |
 | Branch | `main` |
 | Motor | Estável — não alterar sem fuzz |
 | Fuzz | 11.520 roteiros · 0 violações |
@@ -41,6 +41,7 @@ Estas frentes **não precisam ser reabertas** salvo bug confirmado:
 | Histórico local de CPPs | V17 | localStorage `historico_roteiros`; reabrir não recalcula; backup JSON export/import |
 | PWA/offline em produção | Auditoria | SW + manifest respeitam o `base` do GitHub Pages |
 | Higiene de build | Auditoria | Removido runtime/debug da plataforma Manus e analytics quebrado do `index.html` |
+| Integração Consolidada de Escolas | Auditoria | 69 instituições ativas (incluindo particulares, Etecs, EAD) adicionadas com integridade geográfica |
 
 ---
 
