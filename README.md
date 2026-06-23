@@ -194,8 +194,8 @@ pnpm build
 
 ## Estado atual
 
-**Última versão:** V17 + Auditoria corretiva (2026-06-19)
-**Próxima sprint planejada:** Nenhum novo escopo funcional (Apenas manutenção e consolidação de dados)
+**Última versão:** V19 (2026-06-23) — Motor Especialista (Fases 1 e 2)
+**Próxima sprint planejada:** Expansão e refinamento de Inteligência Artificial e dados.
 
 ### Frentes fechadas
 
@@ -208,6 +208,7 @@ pnpm build
 - Turnos após meia-noite
 - **Histórico local de CPPs (V17)** — salvar, reabrir, duplicar, excluir e backup JSON (export/import). Persistido em `localStorage` na chave `historico_roteiros`. Reabrir exibe o roteiro salvo sem recalcular.
 - **PWA/offline-first válido em produção** — service worker e manifest respeitam o `base` `/roteiro-policiamento/` do GitHub Pages.
+- **Motor Especialista (V19)** — Adiciona lógica de fadiga, anti-previsibilidade via Cadeia de Markov, otimização física de trajeto (TSP Nearest Neighbor) e distribuição de tempo baseada em peso criminal.
 
 ### Pendências reais
 

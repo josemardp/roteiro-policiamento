@@ -1,5 +1,28 @@
 # CHANGELOG — CPP Roteiro de Policiamento
 
+## V19 (2026-06-23)
+
+**Implementação do Motor Especialista (Fases 1 e 2).**
+
+- **Fase 1: Hotspots & Previsibilidade**
+  - **Agendamento Estrito de Hotspots (Interval Scheduling)**: Função `tentarReservarHotspot` injetada no loop principal; garante reserva de locais críticos em horários específicos.
+  - **Cadeia de Markov de 2ª Ordem**: Implementada a função `construirPenalizacaoBigrama` para analisar as últimas 4 horas e aplicar `aplicarPenalizacaoBigrama`. Penaliza matematicamente padrões repetitivos (A->B->A->B) para aumentar a imprevisibilidade tática.
+- **Fase 2: Otimização de Rota, Budget e Fadiga**
+  - **Otimização de Rota (TSP Nearest Neighbor)**: Injeção da Fórmula de Haversine (`distanciaKm`). A viatura agora prefere o ponto não visitado fisicamente mais próximo para economizar combustível e evitar zigue-zagues ineficientes.
+  - **Distribuição Inteligente de Tempo (Budget Temporal Backward-Pass)**: A divisão ingênua de horas entre municípios foi substituída pelo `calcularBudgetBackward`. Cidades críticas (escolas, hotspots) recebem horas proporcionais ao risco.
+  - **Curva Ergonômica de Fadiga (Ciclo Circadiano)**: Criado o `ajustarPesosPorFadiga` que altera multiplicadores entre 02h00 e 05h00 da manhã (o "Vale Circadiano"), focando em atividades estáticas de atenção em vez de interações dinâmicas e perigosas.
+- **Fuzz Test**: O motor passou ileso em 11.520 simulações de geração massiva, atestando zero violações de invariantes com os novos multiplicadores.
+
+---
+
+## V18 (2026-06-22)
+
+**Análise Arquitetural do Motor V17 e Propostas de Evolução (IA Externa).**
+
+- Definição das 5 frentes do Motor Especialista V19, consolidadas a partir do uso operacional e falhas de zigue-zague, cidades "roubando" horas e padrões previsíveis.
+
+---
+
 ## Auditoria corretiva (2026-06-19)
 
 **Auditoria em 3 frentes (arquitetura, doc×realidade, mobile/missão) com correções aplicadas. Motor preservado: fuzz 11.520/0, manual 35/35, prévia 24/24.**
