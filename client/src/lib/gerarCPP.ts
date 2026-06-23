@@ -651,6 +651,92 @@ function determinarLocalFinal({
   return obterLocalEventos(configuracao, focoAtivo, modalidade, localPadrao);
 }
 
+// ─── Agendamento Crítico de Hotspots ──────────────────────────────────────────
+
+export function tentarReservarHotspot(
+  hotspots: Hotspot[],
+  tempoAtual: number,
+  historico: ModalidadePoliciamento[],
+  cobertura: CoberturaMapa
+): { modalidade: ModalidadePoliciamento; local: string } | null {
+  const horaAtual = Math.floor((tempoAtual % 1440) / 60);
+
+  const candidatos = hotspots.filter(h => {
+    if (h.confianca === "a_validar_comando") return false;
+
+    const naJanela =
+      h.horaInicioCritico !== null &&
+      h.horaFimCritico !== null &&
+      (h.horaInicioCritico <= h.horaFimCritico
+        ? horaAtual >= h.horaInicioCritico && horaAtual <= h.horaFimCritico
+        : horaAtual >= h.horaInicioCritico || horaAtual <= h.horaFimCritico);
+
+    if (!naJanela) return false;
+
+    const chave = `${h.local} (${h.bairro})`;
+    const visitasHoje = cobertura.get(chave) ?? 0;
+    return visitasHoje < 2; // máximo 2 coberturas por hotspot por turno
+  });
+
+  if (candidatos.length === 0) return null;
+
+  const ordemRisco: Record<string, number> = { Alto: 3, Médio: 2, Baixo: 1 };
+  candidatos.sort(
+    (a, b) => (ordemRisco[b.risco] ?? 0) - (ordemRisco[a.risco] ?? 0)
+  );
+
+  const melhor = candidatos[0];
+  const modalidade = melhor.modalidadesRecomendadas[0] as ModalidadePoliciamento;
+  const local = `${melhor.local} (${melhor.bairro})`;
+  
+  return { modalidade, local };
+}
+
+// ─── Cadeia de Markov (Anti-Padrão Tático) ───────────────────────────────────
+
+type BigramaChave = string;
+
+export function construirPenalizacaoBigrama(
+  historico: ModalidadePoliciamento[]
+): Map<ModalidadePoliciamento, number> {
+  const penalidades = new Map<ModalidadePoliciamento, number>();
+  const tactico = historico.filter(
+    m => !["PREL", "DESL", "REF", "REL", "RONDA"].includes(m)
+  );
+  if (tactico.length < 4) return penalidades;
+
+  const janela = tactico.slice(-8);
+  const contagem = new Map<BigramaChave, number>();
+  for (let i = 0; i < janela.length - 1; i++) {
+    const chave: BigramaChave = `${janela[i]}|${janela[i + 1]}`;
+    contagem.set(chave, (contagem.get(chave) ?? 0) + 1);
+  }
+
+  const ultimoBigrama: BigramaChave = `${tactico.at(-2)}|${tactico.at(-1)}`;
+  const freqUltimo = contagem.get(ultimoBigrama) ?? 0;
+
+  if (freqUltimo >= 2) {
+    const alvoSupressao = tactico.at(-2) as ModalidadePoliciamento;
+    penalidades.set(alvoSupressao, freqUltimo * 2);
+  }
+
+  return penalidades;
+}
+
+export function aplicarPenalizacaoBigrama(
+  pesos: Pesos,
+  penalidades: Map<ModalidadePoliciamento, number>
+): Pesos {
+  const novosPesos = { ...pesos };
+  for (const [mod, penalidade] of Array.from(penalidades.entries())) {
+    const chave = mod as keyof Pesos;
+    if (novosPesos[chave] !== undefined) {
+      novosPesos[chave] = Math.max(0, novosPesos[chave]! - penalidade);
+    }
+  }
+  return novosPesos;
+}
+
 // ─── Matriz de pesos (perfil × período) ──────────────────────────────────────
 
 type Periodo = "manha" | "tarde" | "noite" | "madrugada";
@@ -1737,22 +1823,42 @@ export function gerarCPP({ configuracao, municipios }: GerarCPPParams): {
         delete pesos.ESC;
       }
 
-      // Fallback = modalidade de maior peso antes do anti-repetição
-      const fallback = (
-        Object.entries(pesos) as [ModalidadePoliciamento, number][]
-      ).reduce<[ModalidadePoliciamento, number]>(
-        (best, [m, w]) => (w > best[1] ? [m, w] : best),
-        ["PREV", 0]
-      )[0];
+      // Tenta reservar slot para um hotspot crítico (Interval Scheduling)
+      const hotspotReservado = tentarReservarHotspot(
+        hotspotsAtivosMun,
+        tempoAtual,
+        historico,
+        coberturas[currentMunName]
+      );
 
-      // Anti-repetição: zera peso das 2 últimas modalities reais
-      for (const m of historico
-        .slice(-2)
-        .filter(m => m !== "PREL" && m !== "DESL" && m !== "REF")) {
-        delete (pesos as Record<string, number>)[m];
+      let modalidade: ModalidadePoliciamento;
+      let localFinalForce: string | undefined;
+
+      if (hotspotReservado) {
+        modalidade = hotspotReservado.modalidade;
+        localFinalForce = hotspotReservado.local;
+      } else {
+        // Fallback = modalidade de maior peso antes do anti-repetição
+        const fallback = (
+          Object.entries(pesos) as [ModalidadePoliciamento, number][]
+        ).reduce<[ModalidadePoliciamento, number]>(
+          (best, [m, w]) => (w > best[1] ? [m, w] : best),
+          ["PREV", 0]
+        )[0];
+
+        // Anti-repetição: zera peso das 2 últimas modalities reais
+        for (const m of historico
+          .slice(-2)
+          .filter(m => m !== "PREL" && m !== "DESL" && m !== "REF")) {
+          delete (pesos as Record<string, number>)[m];
+        }
+
+        // Anti-repetição estendida: Penalidade Markov 2ª Ordem
+        const penalidadesMarkov = construirPenalizacaoBigrama(historico);
+        pesos = aplicarPenalizacaoBigrama(pesos, penalidadesMarkov);
+
+        modalidade = selecionarModalidade(pesos, rng, fallback);
       }
-
-      const modalidade = selecionarModalidade(pesos, rng, fallback);
 
       // Nunca ultrapassa o próximo bloco manual, a próxima REF ou o orçamento de patrulha
       const proxManualInicio =
@@ -1783,10 +1889,11 @@ export function gerarCPP({ configuracao, municipios }: GerarCPPParams): {
 
       // RURAL que não cabe (gap < 60 min): substitui por PE ou FISC de 30 min
       if (modalidade === "RURAL" && dur < 60) {
+        // Se `pesos` estiver definido no escopo de block fallback, ótimo. Mas caso `pesos` local do else não exista:
         const alt: ModalidadePoliciamento = pesos.PE ? "PE" : "FISC";
         const durAlt = Math.min(30, disponivelReal);
         if (durAlt >= 30) {
-          const localReal = determinarLocalFinal({
+          const localReal = localFinalForce || determinarLocalFinal({
             modalidade: alt,
             tempoAtual,
             diaUtil,
@@ -1825,7 +1932,7 @@ export function gerarCPP({ configuracao, municipios }: GerarCPPParams): {
         break;
       }
 
-      const localReal = determinarLocalFinal({
+      const localReal = localFinalForce || determinarLocalFinal({
         modalidade,
         tempoAtual,
         diaUtil,
