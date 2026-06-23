@@ -18,7 +18,7 @@
 | Folha CPP | Funcional |
 | Histórico | Implementado (localStorage `historico_roteiros`) |
 | PWA produção | Corrigido (base path GitHub Pages) |
-| Próxima sprint | Code-splitting do bundle (Leaflet sob demanda) |
+| Próxima sprint | Nenhum novo escopo funcional (Apenas manutenção/dados) |
 
 ---
 

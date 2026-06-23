@@ -195,7 +195,7 @@ pnpm build
 ## Estado atual
 
 **Última versão:** V17 + Auditoria corretiva (2026-06-19)
-**Próxima sprint planejada:** code-splitting do bundle (Leaflet sob demanda)
+**Próxima sprint planejada:** Nenhum novo escopo funcional (Apenas manutenção e consolidação de dados)
 
 ### Frentes fechadas
 
