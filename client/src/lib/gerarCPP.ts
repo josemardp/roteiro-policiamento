@@ -776,6 +776,27 @@ function selecionarAcoes(modalidade: ModalidadePoliciamento): string {
 
 // ─── Fábrica de bloco ─────────────────────────────────────────────────────────
 
+export function levenshteinDistance(a: string, b: string): number {
+  if (a.length === 0) return b.length;
+  if (b.length === 0) return a.length;
+  const matrix = Array.from({ length: b.length + 1 }, (_, i) => [i]);
+  for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
+  for (let i = 1; i <= b.length; i++) {
+    for (let j = 1; j <= a.length; j++) {
+      if (b.charAt(i - 1) === a.charAt(j - 1)) {
+        matrix[i][j] = matrix[i - 1][j - 1];
+      } else {
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j - 1] + 1,
+          matrix[i][j - 1] + 1,
+          matrix[i - 1][j] + 1
+        );
+      }
+    }
+  }
+  return matrix[b.length][a.length];
+}
+
 export function obterCoordenadasLocal(
   local: string,
   municipio: Municipio
@@ -826,7 +847,8 @@ export function obterCoordenadasLocal(
         const nameVal = entity[item.nameField];
         if (typeof nameVal === "string") {
           const normName = nameVal.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-          if (normLocal.includes(normName) || normName.includes(normLocal)) {
+          const isFuzzyMatch = normName.length > 5 && levenshteinDistance(normLocal, normName) <= 3;
+          if (normLocal.includes(normName) || normName.includes(normLocal) || isFuzzyMatch) {
             if (typeof entity.lat === "number" && typeof entity.lng === "number") {
               return { lat: entity.lat, lng: entity.lng };
             }
@@ -909,27 +931,38 @@ export function analisarDescricaoManual(desc: string): AnalisadoManual {
     }
   }
 
-  // 2. Sem sigla explícita — inferência por palavras-chave; localManual = desc completo
-  const norm = t.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+  // 2. Sem sigla explícita — inferência por palavras-chave expandida; localManual = desc completo
+  const norm = t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   let modalidade: ModalidadePoliciamento;
-  if (/prel|assuncao|assun/.test(norm)) modalidade = "PREL";
-  else if (/desl/.test(norm)) modalidade = "DESL";
-  else if (/ref|janta|almoco|cafe|refeic|aliment/.test(norm)) modalidade = "REF";
-  else if (/\brel\b|rso|encer|relator/.test(norm)) modalidade = "REL";
-  else if (/rural/.test(norm)) modalidade = "RURAL";
-  else if (/\bsat\b|saturac/.test(norm)) modalidade = "SAT";
-  else if (/escol/.test(norm) && !/escolt/.test(norm)) modalidade = "ESC";
-  else if (/fisc|blitz|bloqueio/.test(norm)) modalidade = "FISC";
-  else if (/\bpe\b|estacion/.test(norm)) modalidade = "PE";
-  else if (/prev|bairr/.test(norm)) modalidade = "PREV";
+  if (/prel|assuncao|assun|inicio|apresentacao/.test(norm)) modalidade = "PREL";
+  else if (/desl|desloc|ida|retorno|indo para/.test(norm)) modalidade = "DESL";
+  else if (/ref|janta|almoco|cafe|refeic|aliment|comer/.test(norm)) modalidade = "REF";
+  else if (/\brel\b|rso|encer|relator|fechamento|termino/.test(norm)) modalidade = "REL";
+  else if (/rural|fazenda|sitio|chacara|estrada de terra/.test(norm)) modalidade = "RURAL";
+  else if (/\bsat\b|saturac|arrastao|intensific/.test(norm)) modalidade = "SAT";
+  else if (/escol|creche|emeb|etec|aluno/.test(norm) && !/escolt/.test(norm)) modalidade = "ESC";
+  else if (/fisc|blitz|bloqueio|comando|transito|infracao|averiguacao/.test(norm)) modalidade = "FISC";
+  else if (/\bpe\b|\bpb\b|estacion|ponto base|ponto de parada|visibilidade/.test(norm)) modalidade = "PE";
+  else if (/prev|bairr|visita|solidaria|apoio|maria da penha|preventivo/.test(norm)) modalidade = "PREV";
   else modalidade = "POST";
 
   return { modalidade, localManual: t };
 }
 
-interface BlocoManualParsed {
-  inicioMin: number;
+export function extrairDuracaoManual(texto: string): { duracaoMin: number | null, textoLimpo: string } {
+  const match = texto.match(/\(\s*(?:(\d+)\s*h(?:ora[s]?)?)?\s*(?:e\s*)?(?:(\d+)\s*m(?:in(?:uto[s]?)?)?)?\s*\)/i);
+  if (match && (match[1] || match[2])) {
+    const h = parseInt(match[1] || "0", 10);
+    const m = parseInt(match[2] || "0", 10);
+    return { duracaoMin: h * 60 + m, textoLimpo: texto.replace(match[0], "").trim() };
+  }
+  return { duracaoMin: null, textoLimpo: texto };
+}
+
+export interface BlocoManualParsed {
+  inicioMin: number | null;
   fimMin: number | null;
+  duracaoMin: number | null;
   modalidade: ModalidadePoliciamento;
   desc: string;
   localManual: string;
@@ -937,7 +970,7 @@ interface BlocoManualParsed {
 
 // turnoInicio: minuto absoluto do início do turno (ex: 1410 para 23:30).
 // Horários de relógio anteriores ao turno são interpretados como dia seguinte (ex: 00h00 → 1440).
-function parseBlocosManuais(texto: string, turnoInicio: number): BlocoManualParsed[] {
+export function parseBlocosManuais(texto: string, turnoInicio: number): BlocoManualParsed[] {
   const linhas = texto
     .split("\n")
     .map(l => l.trim())
@@ -946,30 +979,43 @@ function parseBlocosManuais(texto: string, turnoInicio: number): BlocoManualPars
 
   for (const linha of linhas) {
     const comFim = linha.match(
-      /(\d{1,2})[h:](\d{0,2})\s*(?:a\b|as\b|at[eé]\b|às\b|-)\s*(\d{1,2})[h:](\d{0,2})\s+(.*)/i
+      /^(\d{1,2})[h:](\d{0,2})\s*(?:a\b|as\b|at[eé]\b|às\b|-)\s*(\d{1,2})[h:](\d{0,2})\s+(.*)/i
     );
     if (comFim) {
       const inicioMinRaw = parseInt(comFim[1]) * 60 + parseInt(comFim[2] || "0");
       const fimMinRaw = parseInt(comFim[3]) * 60 + parseInt(comFim[4] || "0");
-      const desc = comFim[5].trim();
-      const { modalidade, localManual } = analisarDescricaoManual(desc);
+      const rawDesc = comFim[5].trim();
+      const { duracaoMin, textoLimpo } = extrairDuracaoManual(rawDesc);
+      const { modalidade, localManual } = analisarDescricaoManual(textoLimpo);
       const inicioMin = clockMinAbsoluto(snapGrid30(inicioMinRaw), turnoInicio);
       const fimMin = clockMinAbsoluto(snapGrid30(fimMinRaw), inicioMin);
-      result.push({ inicioMin, fimMin, modalidade, desc, localManual });
+      result.push({ inicioMin, fimMin, duracaoMin: duracaoMin || Math.max(30, fimMin - inicioMin), modalidade, desc: textoLimpo, localManual });
       continue;
     }
 
-    const semFim = linha.match(/(\d{1,2})[h:](\d{0,2})\s+(.*)/i);
+    const semFim = linha.match(/^(\d{1,2})[h:](\d{0,2})\s+(.*)/i);
     if (semFim) {
       const inicioMinRaw = parseInt(semFim[1]) * 60 + parseInt(semFim[2] || "0");
-      const desc = semFim[3].trim();
-      const { modalidade, localManual } = analisarDescricaoManual(desc);
+      const rawDesc = semFim[3].trim();
+      const { duracaoMin, textoLimpo } = extrairDuracaoManual(rawDesc);
+      const { modalidade, localManual } = analisarDescricaoManual(textoLimpo);
       const inicioMin = clockMinAbsoluto(snapGrid30(inicioMinRaw), turnoInicio);
-      result.push({ inicioMin, fimMin: null, modalidade, desc, localManual });
+      result.push({ inicioMin, fimMin: null, duracaoMin, modalidade, desc: textoLimpo, localManual });
+      continue;
     }
+
+    // Wishlist: sem horário
+    const { duracaoMin, textoLimpo } = extrairDuracaoManual(linha);
+    const { modalidade, localManual } = analisarDescricaoManual(textoLimpo);
+    result.push({ inicioMin: null, fimMin: null, duracaoMin, modalidade, desc: textoLimpo, localManual });
   }
 
-  return result.sort((a, b) => a.inicioMin - b.inicioMin);
+  return result.sort((a, b) => {
+    if (a.inicioMin === null && b.inicioMin === null) return 0;
+    if (a.inicioMin === null) return 1;
+    if (b.inicioMin === null) return -1;
+    return a.inicioMin - b.inicioMin;
+  });
 }
 
 // ─── Preview puro dos blocos manuais (sem chamar gerarCPP) ───────────────────
@@ -1072,12 +1118,19 @@ export function analisarBlocosManuaisPreview(
       return;
     }
 
-    // Sem horário reconhecível
+    // Sem horário - Wishlist Flutuante
+    const { duracaoMin, textoLimpo } = extrairDuracaoManual(linha);
+    const { modalidade, localManual } = analisarDescricaoManual(textoLimpo);
+    const semLocal = !localManual.trim();
     result.push({
       linha: idx + 1,
       textoOriginal: linha,
-      status: "erro",
-      mensagem: "Informe o horário no início da linha (ex: 07h30 PE Banco do Brasil).",
+      modalidade,
+      local: localManual || undefined,
+      status: semLocal ? "aviso" : "ok",
+      mensagem: semLocal
+        ? "Informe um local/descrição."
+        : "Automático: O sistema encaixará no melhor horário." + (duracaoMin ? ` Duração: ${duracaoMin}m` : ""),
     });
   });
 
@@ -1344,12 +1397,15 @@ export function gerarCPP({ configuracao, municipios }: GerarCPPParams): {
       ? parseBlocosManuais(configuracao.blocosManuais, turnoInicio)
       : [];
 
+  const manuaisFixos = manuais.filter(m => m.inicioMin !== null);
+  const manuaisFlutuantes = manuais.filter(m => m.inicioMin === null);
+
   // Avisar blocos manuais fora da janela do turno (após normalização noturna)
-  manuais
-    .filter(m => m.inicioMin >= turnoFim)
+  manuaisFixos
+    .filter(m => m.inicioMin! >= turnoFim)
     .forEach(m => {
       avisos.push(
-        `Bloco manual "${m.desc || m.modalidade}" às ${minParaHora(m.inicioMin)} está fora da janela do turno (${minParaHora(turnoInicio)}–${minParaHora(turnoFim)}) e foi ignorado.`
+        `Bloco manual "${m.desc || m.modalidade}" às ${minParaHora(m.inicioMin!)} está fora da janela do turno (${minParaHora(turnoInicio)}–${minParaHora(turnoFim)}) e foi ignorado.`
       );
     });
 
@@ -1479,29 +1535,26 @@ export function gerarCPP({ configuracao, municipios }: GerarCPPParams): {
       const hotspotsAtivosMun = hotspotsAtivos(hotspotsMun, periodo, horaAtual, diaSemana);
 
       // Bloco manual prioritário para este horário
-      if (idxManual < manuais.length) {
-        const bm = manuais[idxManual];
-        if (bm.inicioMin < tempoAtual) {
-          const isPrelOverlap = bm.inicioMin >= turnoInicio && bm.inicioMin < turnoInicio + 30;
+      if (idxManual < manuaisFixos.length) {
+        const bm = manuaisFixos[idxManual];
+        if (bm.inicioMin! < tempoAtual) {
+          const isPrelOverlap = bm.inicioMin! >= turnoInicio && bm.inicioMin! < turnoInicio + 30;
           if (isPrelOverlap) {
             avisos.push(
-              `Bloco manual "${bm.desc || bm.modalidade}" às ${minParaHora(bm.inicioMin)} foi ignorado: o turno inicia com PREL obrigatória (${minParaHora(turnoInicio)}–${minParaHora(turnoInicio + 30)}). Lance o primeiro bloco manual a partir de ${minParaHora(turnoInicio + 30)}.`
+              `Bloco manual "${bm.desc || bm.modalidade}" originalmente às ${minParaHora(bm.inicioMin!)} foi movido para ${minParaHora(tempoAtual)} devido à PREL obrigatória.`
             );
           } else {
             avisos.push(
-              `Bloco "${bm.desc || bm.modalidade}" às ${minParaHora(bm.inicioMin)} ignorado por sobreposição.`
+              `Bloco manual "${bm.desc || bm.modalidade}" originalmente às ${minParaHora(bm.inicioMin!)} foi movido para ${minParaHora(tempoAtual)} por sobreposição de agenda.`
             );
           }
-          idxManual++;
-          continue;
+          bm.inicioMin = tempoAtual;
         }
+        
         if (bm.inicioMin === tempoAtual) {
-          const dur = bm.fimMin
-            ? Math.max(30, snapGrid30(bm.fimMin - bm.inicioMin))
-            : 30;
-          const proxMin = manuais[idxManual + 1]?.inicioMin ?? fimREL;
-          const durSafe = Math.min(dur, disponivel, proxMin - tempoAtual);
-          // Usar local informado pelo usuário; só recorrer ao automático se vazio
+          const dur = bm.duracaoMin || (bm.fimMin ? Math.max(30, snapGrid30(bm.fimMin - bm.inicioMin!)) : 30);
+          const durSafe = Math.min(dur, disponivel);
+          
           const localFinal = bm.localManual.trim()
             ? bm.localManual
             : determinarLocalFinal({
@@ -1537,6 +1590,50 @@ export function gerarCPP({ configuracao, municipios }: GerarCPPParams): {
             patrolBudget = Math.max(0, patrolBudget - durSafe);
           }
           idxManual++;
+          continue;
+        }
+      }
+
+      // Inserção da Wishlist Flutuante
+      if (manuaisFlutuantes.length > 0 && patrolBudget >= 30) {
+        if (!refeicaoNoHorario) {
+          const bm = manuaisFlutuantes.shift()!;
+          const dur = bm.duracaoMin || 30;
+          const durSafe = Math.min(dur, disponivel);
+          const localFinal = bm.localManual.trim()
+            ? bm.localManual
+            : determinarLocalFinal({
+                modalidade: bm.modalidade,
+                tempoAtual,
+                diaUtil,
+                escolasMun,
+                hotspotsAtivosMun,
+                currentMunData,
+                cobertura: coberturas[currentMunName],
+                rng,
+                configuracao,
+                focoAtivo,
+                ppiMun,
+              });
+          blocos.push(
+            criarBloco(
+              ordem++,
+              tempoAtual,
+              durSafe,
+              bm.modalidade,
+              localFinal,
+              selecionarProblema(bm.modalidade, periodo),
+              JUSTIFICATIVAS[bm.modalidade] || "Atividade de policiamento.",
+              currentMunName
+            )
+          );
+          tempoAtual += durSafe;
+          historico.push(bm.modalidade);
+          if (bm.modalidade === "REF") proximoRefIdx++;
+          const isPatrol = !["PREL", "DESL", "REF", "REL"].includes(bm.modalidade);
+          if (isPatrol) {
+            patrolBudget = Math.max(0, patrolBudget - durSafe);
+          }
           continue;
         }
       }
@@ -1659,7 +1756,7 @@ export function gerarCPP({ configuracao, municipios }: GerarCPPParams): {
 
       // Nunca ultrapassa o próximo bloco manual, a próxima REF ou o orçamento de patrulha
       const proxManualInicio =
-        idxManual < manuais.length ? manuais[idxManual].inicioMin : fimREL;
+        idxManual < manuaisFixos.length ? manuaisFixos[idxManual].inicioMin! : fimREL;
       const proxRefInicio =
         !temRefManual && proximaRefeicao && proximaRefeicao.alvoMin > tempoAtual
           ? proximaRefeicao.alvoMin

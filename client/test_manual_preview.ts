@@ -75,11 +75,11 @@ const TURNO = "07:00";
   checar("PREV às 07h07 → aviso PREL (snaps para 07:00)", r[0], { status: "aviso", mensagemContem: "07:30" });
 }
 
-// ─── Caso 5: sem horário → erro ──────────────────────────────────────────────
+// ─── Caso 5: sem horário → ok (flutuante) ──────────────────────────────────────────────
 
 {
   const r = analisarBlocosManuaisPreview("PE Banco do Brasil", TURNO);
-  checar("sem horário → erro", r[0], { status: "erro", mensagemContem: "horário" });
+  checar("sem horário → ok (flutuante)", r[0], { status: "ok", modalidade: "PE", local: "Banco do Brasil" });
 }
 
 // ─── Caso 6: sem local → aviso ───────────────────────────────────────────────

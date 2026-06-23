@@ -1,6 +1,6 @@
 # STATUS — CPP Roteiro de Policiamento
 
-> Documento de handoff. Atualizado em V17 + Integração Escolar Consolidada (2026-06-23).
+> Documento de handoff. Atualizado em V18 + Motor de Inteligência Manual (2026-06-23).
 > Qualquer agente pode continuar o trabalho a partir daqui.
 
 ---
@@ -9,7 +9,7 @@
 
 | Item | Valor |
 |---|---|
-| Última versão concluída | V17 + Integração Escolar Consolidada |
+| Última versão concluída | V18 + Motor de Inteligência Manual |
 | Branch | `main` |
 | Motor | Estável — não alterar sem fuzz |
 | Fuzz | 11.520 roteiros · 0 violações |
@@ -39,6 +39,7 @@ Estas frentes **não precisam ser reabertas** salvo bug confirmado:
 | Modo manual — UX | V16 | ModoManualUI, prévia, formulário, botões |
 | Turnos após meia-noite | V16.1 | 00h00 após 23h30 → minuto interno 1440 |
 | Histórico local de CPPs | V17 | localStorage `historico_roteiros`; reabrir não recalcula; backup JSON export/import |
+| Modo Manual Inteligente | V18 | Inserção flutuante (Wishlist), fuzzy logic, autocorretor Levenshtein de endereços, overleap dinâmico que empurra REF em vez de apagar bloco. |
 | PWA/offline em produção | Auditoria | SW + manifest respeitam o `base` do GitHub Pages |
 | Higiene de build | Auditoria | Removido runtime/debug da plataforma Manus e analytics quebrado do `index.html` |
 | Integração Consolidada de Escolas | Auditoria | 69 instituições ativas (incluindo particulares, Etecs, EAD) adicionadas com integridade geográfica |
