@@ -34,6 +34,8 @@ import { PPI_5CIA } from "./municipios/ppi-5cia";
 import { obterCoordenadaPonto, obterCoordenadaReferenciaMunicipio } from "./municipios/coordenadas-pontos";
 import type { Escola, Hotspot, PerfilCriminal } from "./municipios/types-ppi";
 import { avaliarScoreGlobal } from "./scoreRoteiro";
+import type { DirectivePayload } from "./domain/directivePayload";
+import { MissionTimelineHelper } from "./domain/missionTimeline";
 
 // ─── RNG reproduzível (mulberry32) ───────────────────────────────────────────
 
@@ -276,7 +278,7 @@ export interface RefeicaoPlanejada {
   duracaoMin: number;
 }
 
-function clockMinAbsoluto(clockMin: number, depoisDeMin: number): number {
+export function clockMinAbsoluto(clockMin: number, depoisDeMin: number): number {
   let alvo = clockMin;
   while (alvo < depoisDeMin) alvo += 1440;
   return alvo;
@@ -317,7 +319,8 @@ function proximaJanelaRefeicao(
 export function planejarRefeicoes(
   horaInicioMin: number,
   turnoFimMin: number,
-  duracaoTurno: number
+  duracaoTurno: number,
+  timelineHelper?: MissionTimelineHelper
 ): RefeicaoPlanejada[] {
   const inicio = snapGrid30(horaInicioMin);
   const fimRel = turnoFimMin - 30;
@@ -331,6 +334,17 @@ export function planejarRefeicoes(
       espacoDisponivel >= 30 &&
       !planejadas.some(r => r.alvoMin === item.alvoMin && r.tipo === item.tipo)
     ) {
+      if (timelineHelper) {
+        let isSuspended = false;
+        for (let min = item.alvoMin; min < item.alvoMin + item.duracaoMin; min += 30) {
+          const fases = timelineHelper.buscarFasesAtivas(min);
+          if (fases.some(f => f.tipo === "RESTRICAO" && f.restricoesDuras?.suspendeRefeicao)) {
+            isSuspended = true;
+            break;
+          }
+        }
+        if (isSuspended) return;
+      }
       item.duracaoMin = Math.min(item.duracaoMin, espacoDisponivel);
       planejadas.push(item);
     }
@@ -1638,15 +1652,98 @@ export function calcularBudgetBackward(
   return duracoesSegmento;
 }
 
+export function aplicarRestricoesDuras(
+  blocos: BlocoHorario[],
+  timelineHelper: MissionTimelineHelper
+): void {
+  for (let i = 0; i < blocos.length; i++) {
+    const b = blocos[i];
+    if (b.modalidade === "PREL" || b.modalidade === "REL") continue;
+
+    const inicioMin = horaParaMin(b.horaInicio);
+    const fasesAtivas = timelineHelper.buscarFasesAtivas(inicioMin);
+    const restricoes = fasesAtivas.filter(f => f.tipo === "RESTRICAO" && f.restricoesDuras);
+
+    for (const r of restricoes) {
+      const rd = r.restricoesDuras!;
+
+      // 1. vetaDeslocamento
+      if (rd.vetaDeslocamento) {
+        if (b.modalidade === "DESL") {
+          b.modalidade = "PE";
+          b.acoesPolicia = selecionarAcoes("PE");
+          b.justificativa = JUSTIFICATIVAS.PE;
+        }
+        if (i > 0) {
+          const prev = blocos[i - 1];
+          b.local = prev.local;
+          b.lat = prev.lat;
+          b.lng = prev.lng;
+          b.municipio = prev.municipio;
+        }
+      }
+
+      // 2. localFixoId
+      if (rd.localFixoId && b.municipio) {
+        const targetCoords = obterCoordenadasLocal(rd.localFixoId, b.municipio);
+        b.local = rd.localFixoId;
+        b.lat = targetCoords.lat;
+        b.lng = targetCoords.lng;
+      }
+
+      // 3. modalidadesPermitidas
+      if (rd.modalidadesPermitidas && rd.modalidadesPermitidas.length > 0) {
+        if (!rd.modalidadesPermitidas.includes(b.modalidade as any)) {
+          b.modalidade = rd.modalidadesPermitidas[0] as ModalidadePoliciamento;
+          b.acoesPolicia = selecionarAcoes(b.modalidade);
+          b.justificativa = JUSTIFICATIVAS[b.modalidade] || "Atividade de policiamento.";
+          
+          if (!rd.localFixoId && b.municipio) {
+            const coords = obterCoordenadasLocal(b.local, b.municipio);
+            b.lat = coords.lat;
+            b.lng = coords.lng;
+          }
+        }
+      }
+
+      // 4. modalidadesProibidas
+      if (rd.modalidadesProibidas && rd.modalidadesProibidas.includes(b.modalidade as any)) {
+        const altCandidates: ModalidadePoliciamento[] = ["PE", "PREV", "POST"];
+        const selectedAlt = altCandidates.find(m => !rd.modalidadesProibidas!.includes(m as any)) || "PREV";
+        b.modalidade = selectedAlt;
+        b.acoesPolicia = selecionarAcoes(b.modalidade);
+        b.justificativa = JUSTIFICATIVAS[b.modalidade] || "Atividade de policiamento.";
+        
+        if (!rd.localFixoId && b.municipio) {
+          const coords = obterCoordenadasLocal(b.local, b.municipio);
+          b.lat = coords.lat;
+          b.lng = coords.lng;
+        }
+      }
+    }
+  }
+}
+
 interface GerarCPPParams {
   configuracao: ConfiguracaoServico;
   municipios: typeof MUNICIPIOS_V33;
+  diretivas?: DirectivePayload;
 }
 
-export function gerarCPPBase({ configuracao, municipios }: GerarCPPParams): {
+export function gerarCPPBase({ configuracao, municipios, diretivas }: GerarCPPParams): {
   blocos: BlocoHorario[];
   avisos: string[];
 } {
+  let timelineHelper: MissionTimelineHelper | null = null;
+  if (diretivas) {
+    const focoOS = diretivas.focosDiretivas.find(
+      (f) => f.origem === "ORDEM_SERVICO" && f.timeline
+    );
+    if (focoOS && focoOS.timeline) {
+      timelineHelper = new MissionTimelineHelper(focoOS.timeline);
+    }
+  }
+
   const municipiosOriginais: Municipio[] = configuracao.municipios && configuracao.municipios.length > 0
     ? configuracao.municipios
     : (configuracao.municipio ? [configuracao.municipio] : []);
@@ -1704,7 +1801,7 @@ export function gerarCPPBase({ configuracao, municipios }: GerarCPPParams): {
   const temRefManual = manuais.some(m => m.modalidade === "REF");
   const refeicoesPlanejadas = temRefManual
     ? []
-    : planejarRefeicoes(turnoInicio, turnoFim, duracaoTurno);
+    : planejarRefeicoes(turnoInicio, turnoFim, duracaoTurno, timelineHelper || undefined);
 
   // Rotina própria do Supervisor Regional (geração automática)
   if (
@@ -2209,6 +2306,9 @@ export function gerarCPPBase({ configuracao, municipios }: GerarCPPParams): {
       municipioTermino
     )
   );
+  if (timelineHelper) {
+    aplicarRestricoesDuras(blocos, timelineHelper);
+  }
 
   return { blocos, avisos };
 }
@@ -2218,14 +2318,14 @@ export function gerarCPPBase({ configuracao, municipios }: GerarCPPParams): {
 import { otimizarPorLNS } from "./otimizadorLNS";
 import type { ContextoScore } from "./scoreRoteiro";
 
-export function gerarCPP({ configuracao, municipios }: GerarCPPParams): {
+export function gerarCPP({ configuracao, municipios, diretivas }: GerarCPPParams): {
   blocos: BlocoHorario[];
   avisos: string[];
   scoreV20?: number;
   scoreV21?: number;
 } {
   // Etapa 1: Gerar roteiro base V20
-  const resultadoBase = gerarCPPBase({ configuracao, municipios });
+  const resultadoBase = gerarCPPBase({ configuracao, municipios, diretivas });
   if (resultadoBase.blocos.length === 0) return resultadoBase;
 
   // Supervisor Regional não passa pelo LNS (roteiro fixo)
@@ -2263,7 +2363,8 @@ export function gerarCPP({ configuracao, municipios }: GerarCPPParams): {
     resultadoBase.blocos,
     contextoScore,
     configuracao,
-    rngOtimizador
+    rngOtimizador,
+    diretivas
   );
 
   const scoreV21 = avaliarScoreGlobal(blocosOtimizados, contextoScore);

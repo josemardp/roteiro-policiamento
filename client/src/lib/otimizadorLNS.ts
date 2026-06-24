@@ -25,8 +25,11 @@ import { MODALIDADES, JUSTIFICATIVAS, MUNICIPIOS_V33 } from "./constants";
 import {
   distanciaKm,
   obterCoordenadasLocal,
+  aplicarRestricoesDuras,
 } from "./gerarCPP";
 import { avaliarScoreGlobal, type ContextoScore } from "./scoreRoteiro";
+import type { DirectivePayload } from "./domain/directivePayload";
+import { MissionTimelineHelper } from "./domain/missionTimeline";
 
 // ─── Constantes do LNS ───────────────────────────────────────────────────────
 const isFuzz = typeof process !== "undefined" && process.argv && process.argv.some(arg => arg.includes("fuzz_test"));
@@ -74,7 +77,8 @@ interface InvariantResult {
 function validarInvariantes(
   blocos: BlocoHorario[],
   turnoInicioMin: number,
-  turnoFimMin: number
+  turnoFimMin: number,
+  diretivas?: DirectivePayload
 ): InvariantResult {
   if (blocos.length < 3) {
     return { valido: false, motivo: "Roteiro com menos de 3 blocos" };
@@ -131,6 +135,84 @@ function validarInvariantes(
           valido: false,
           motivo: `Sobreposição/gap entre blocos ${i - 1} e ${i}: ${blocos[i - 1].horaFim} → ${blocos[i].horaInicio}`,
         };
+      }
+    }
+  }
+
+  // V23 Hard Constraints Validation
+  let timelineHelper: MissionTimelineHelper | null = null;
+  if (diretivas) {
+    const focoOS = diretivas.focosDiretivas.find(
+      (f) => f.origem === "ORDEM_SERVICO" && f.timeline
+    );
+    if (focoOS && focoOS.timeline) {
+      timelineHelper = new MissionTimelineHelper(focoOS.timeline);
+    }
+  }
+
+  if (timelineHelper) {
+    for (let i = 0; i < blocos.length; i++) {
+      const b = blocos[i];
+      const inicioMin = horaParaMin(b.horaInicio);
+      
+      // Normalize absolute minutes relative to turnoInicioMin
+      let tempoAbs = inicioMin;
+      if (tempoAbs < (turnoInicioMin % 1440)) {
+        tempoAbs += 1440;
+      }
+
+      const fasesAtivas = timelineHelper.buscarFasesAtivas(tempoAbs);
+      for (const fase of fasesAtivas) {
+        if (fase.tipo === "RESTRICAO" && fase.restricoesDuras) {
+          const rd = fase.restricoesDuras;
+          if (rd.vetaDeslocamento) {
+            if (b.modalidade === "DESL") {
+              return { valido: false, motivo: `Modalidade proibida DESL durante fase com vetaDeslocamento ativa` };
+            }
+            if (i > 0) {
+              const prev = blocos[i - 1];
+              if (
+                typeof prev.lat === "number" &&
+                typeof prev.lng === "number" &&
+                typeof b.lat === "number" &&
+                typeof b.lng === "number" &&
+                (prev.lat !== b.lat || prev.lng !== b.lng)
+              ) {
+                return { valido: false, motivo: `Deslocamento físico proibido durante fase com vetaDeslocamento ativa` };
+              }
+            }
+          }
+          if (rd.suspendeRefeicao && b.modalidade === "REF") {
+            return { valido: false, motivo: `Refeição (REF) proibida durante fase com suspendeRefeicao ativa` };
+          }
+          if (rd.localFixoId && b.municipio) {
+            const targetCoords = obterCoordenadasLocal(rd.localFixoId, b.municipio);
+            if (
+              typeof b.lat === "number" &&
+              typeof b.lng === "number" &&
+              typeof targetCoords.lat === "number" &&
+              typeof targetCoords.lng === "number"
+            ) {
+              const dist = distanciaKm(b.lat, b.lng, targetCoords.lat, targetCoords.lng);
+              if (dist > 0.1) {
+                return { valido: false, motivo: `Local fixo incorreto: esperado ${rd.localFixoId}, veio ${b.local}` };
+              }
+            }
+          }
+          if (
+            rd.modalidadesPermitidas &&
+            rd.modalidadesPermitidas.length > 0 &&
+            !rd.modalidadesPermitidas.includes(b.modalidade as any)
+          ) {
+            return { valido: false, motivo: `Modalidade ${b.modalidade} não permitida nesta fase` };
+          }
+          if (
+            rd.modalidadesProibidas &&
+            rd.modalidadesProibidas.includes(b.modalidade as any)
+          ) {
+            return { valido: false, motivo: `Modalidade ${b.modalidade} proibida nesta fase` };
+          }
+        }
       }
     }
   }
@@ -195,8 +277,19 @@ export function otimizarPorLNS(
   blocosOriginais: BlocoHorario[],
   contexto: ContextoScore,
   configuracao: ConfiguracaoServico,
-  rng: () => number
+  rng: () => number,
+  diretivas?: DirectivePayload
 ): BlocoHorario[] {
+  let timelineHelper: MissionTimelineHelper | null = null;
+  if (diretivas) {
+    const focoOS = diretivas.focosDiretivas.find(
+      (f) => f.origem === "ORDEM_SERVICO" && f.timeline
+    );
+    if (focoOS && focoOS.timeline) {
+      timelineHelper = new MissionTimelineHelper(focoOS.timeline);
+    }
+  }
+
   // Clone profundo para não mutar o original
   let blocos = blocosOriginais.map((b) => ({ ...b }));
   let scoreAtual = avaliarScoreGlobal(blocos, contexto);
@@ -295,6 +388,10 @@ export function otimizarPorLNS(
         };
       }
 
+      if (timelineHelper) {
+        aplicarRestricoesDuras(blocosCandidate, timelineHelper);
+      }
+
       const scoreCand = avaliarScoreGlobal(blocosCandidate, contexto);
       if (scoreCand > melhorScore) {
         melhorScore = scoreCand;
@@ -310,7 +407,7 @@ export function otimizarPorLNS(
   }
 
   // Valida invariantes do resultado final
-  const validacao = validarInvariantes(blocos, turnoInicioMin, turnoFimMin);
+  const validacao = validarInvariantes(blocos, turnoInicioMin, turnoFimMin, diretivas);
   if (!validacao.valido) {
     // Fallback automático para o V20
     return blocosOriginais;
