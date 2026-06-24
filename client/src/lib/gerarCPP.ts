@@ -33,6 +33,7 @@ import {
 import { PPI_5CIA } from "./municipios/ppi-5cia";
 import { obterCoordenadaPonto, obterCoordenadaReferenciaMunicipio } from "./municipios/coordenadas-pontos";
 import type { Escola, Hotspot, PerfilCriminal } from "./municipios/types-ppi";
+import { avaliarScoreGlobal } from "./scoreRoteiro";
 
 // ─── RNG reproduzível (mulberry32) ───────────────────────────────────────────
 
@@ -60,7 +61,8 @@ function hashStr(s: string): number {
 export interface EstadoGeoLocal {
   lastLat: number | null;
   lastLng: number | null;
-  backwardPassPenalty?: boolean;
+  backwardBudgetMin?: number; // Backward Induction: minutos disponíveis para retorno
+  historicoRecente?: Array<{ lat: number; lng: number }>; // Poisson Disk: últimos pontos visitados
 }
 
 export function distanciaKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
@@ -85,7 +87,20 @@ export function selecionarMelhorLocalTSP(
   if (candidatos.length === 0) return "Área do município";
 
   const minVisitas = Math.min(...candidatos.map(c => cobertura.get(c) ?? 0));
-  const menosVisitados = candidatos.filter(c => (cobertura.get(c) ?? 0) === minVisitas);
+  let menosVisitados = candidatos.filter(c => (cobertura.get(c) ?? 0) === minVisitas);
+
+  // Poisson Disk: filtra candidatos muito próximos de pontos visitados recentemente (dispersão espacial)
+  const MIN_DISPERSAO_KM = 0.5;
+  if (menosVisitados.length > 1 && estadoGeo.historicoRecente && estadoGeo.historicoRecente.length > 0) {
+    const dispersos = menosVisitados.filter(c => {
+      const coord = obterCoordenadaPonto(municipioNome, c);
+      if (!coord) return true; // sem coordenada, não filtra
+      return estadoGeo.historicoRecente!.every(
+        pt => distanciaKm(pt.lat, pt.lng, coord.lat, coord.lng) >= MIN_DISPERSAO_KM
+      );
+    });
+    if (dispersos.length > 0) menosVisitados = dispersos;
+  }
 
   if (menosVisitados.length === 1) {
     const escolhido = menosVisitados[0];
@@ -93,6 +108,9 @@ export function selecionarMelhorLocalTSP(
     if (coord) {
       estadoGeo.lastLat = coord.lat;
       estadoGeo.lastLng = coord.lng;
+      if (!estadoGeo.historicoRecente) estadoGeo.historicoRecente = [];
+      estadoGeo.historicoRecente.push({ lat: coord.lat, lng: coord.lng });
+      if (estadoGeo.historicoRecente.length > 6) estadoGeo.historicoRecente.shift();
     }
     cobertura.set(escolhido, (cobertura.get(escolhido) ?? 0) + 1);
     return escolhido;
@@ -117,13 +135,20 @@ export function selecionarMelhorLocalTSP(
       if (validos.length > 1 && rng() > 0.7) {
         index = 1;
       }
-      // Se backwardPassPenalty está ativo, forçamos o mais próximo para economizar tempo
-      if (estadoGeo.backwardPassPenalty && validos[index].dist > 2.0) {
-        index = 0;
+      // Backward Induction Real: se o budget de retorno é apertado, força o mais próximo
+      if (estadoGeo.backwardBudgetMin !== undefined && estadoGeo.backwardBudgetMin < 120) {
+        // Velocidade estimada: 30 km/h urbano. Distância máxima viável em min disponíveis
+        const distMaxKm = (estadoGeo.backwardBudgetMin / 60) * 30;
+        if (validos[index].dist > distMaxKm * 0.5) {
+          index = 0; // força o mais próximo
+        }
       }
       const escolhidoObj = validos[index];
       estadoGeo.lastLat = escolhidoObj.coord!.lat;
       estadoGeo.lastLng = escolhidoObj.coord!.lng;
+      if (!estadoGeo.historicoRecente) estadoGeo.historicoRecente = [];
+      estadoGeo.historicoRecente.push({ lat: escolhidoObj.coord!.lat, lng: escolhidoObj.coord!.lng });
+      if (estadoGeo.historicoRecente.length > 6) estadoGeo.historicoRecente.shift();
       cobertura.set(escolhidoObj.c, (cobertura.get(escolhidoObj.c) ?? 0) + 1);
       return escolhidoObj.c;
     }
@@ -135,9 +160,61 @@ export function selecionarMelhorLocalTSP(
   if (coord) {
     estadoGeo.lastLat = coord.lat;
     estadoGeo.lastLng = coord.lng;
+    if (!estadoGeo.historicoRecente) estadoGeo.historicoRecente = [];
+    estadoGeo.historicoRecente.push({ lat: coord.lat, lng: coord.lng });
+    if (estadoGeo.historicoRecente.length > 6) estadoGeo.historicoRecente.shift();
   }
   cobertura.set(escolhido, (cobertura.get(escolhido) ?? 0) + 1);
   return escolhido;
+}
+
+// ─── Intensidade de Hotspot via Poisson (V21 — Etapa 1) ──────────────────────
+// Usa frequenciaAnual (dado que existia mas era ignorado) com kernel gaussiano
+// centrado na janela crítica, em vez do RISCO_VALOR fixo {Alto:5, Médio:3, Baixo:2}.
+
+export function calcularIntensidadeHotspot(h: Hotspot, tempoAtual: number): number {
+  const RISCO_BASE: Record<string, number> = { Alto: 2, Médio: 1, Baixo: 0.5 };
+  const base = RISCO_BASE[h.risco] ?? 1;
+
+  // Se não há frequenciaAnual, fallback para valores discretos antigos
+  if (h.frequenciaAnual === null || h.frequenciaAnual === 0) {
+    const RISCO_FALLBACK: Record<string, number> = { Alto: 5, Médio: 3, Baixo: 2 };
+    return RISCO_FALLBACK[h.risco] ?? 2;
+  }
+
+  // Duração da janela crítica em horas
+  const janelaHoras =
+    h.horaInicioCritico !== null && h.horaFimCritico !== null
+      ? h.horaFimCritico >= h.horaInicioCritico
+        ? h.horaFimCritico - h.horaInicioCritico + 1
+        : 24 - h.horaInicioCritico + h.horaFimCritico + 1
+      : 12; // fallback amplo
+
+  // Taxa: incidentes por hora de janela crítica
+  const taxa = h.frequenciaAnual / Math.max(janelaHoras, 1);
+
+  // Kernel gaussiano centrado na janela crítica
+  const horaAtual = Math.floor((tempoAtual % 1440) / 60);
+  if (h.horaInicioCritico !== null && h.horaFimCritico !== null) {
+    let centroJanela: number;
+    if (h.horaFimCritico >= h.horaInicioCritico) {
+      centroJanela = (h.horaInicioCritico + h.horaFimCritico) / 2;
+    } else {
+      centroJanela = ((h.horaInicioCritico + h.horaFimCritico + 24) / 2) % 24;
+    }
+
+    // Distância circular no relógio de 24h
+    const dist = Math.min(
+      Math.abs(horaAtual - centroJanela),
+      24 - Math.abs(horaAtual - centroJanela)
+    );
+    const sigma = Math.max(janelaHoras / 3, 1); // 3-sigma cobre a janela
+    const kernel = Math.exp(-(dist * dist) / (2 * sigma * sigma));
+
+    return base + taxa * kernel;
+  }
+
+  return base + taxa * 0.5; // sem janela específica, usa metade da taxa
 }
 
 export function ajustarPesosPorFadiga(
@@ -774,18 +851,17 @@ export function tentarReservarHotspot(
 
     const chave = `${h.local} (${h.bairro})`;
     const visitasHoje = cobertura.get(chave) ?? 0;
-    return visitasHoje < 3; // máximo 3 coberturas por hotspot por turno (Interval Scheduling adaptado)
+    return visitasHoje < 3;
   });
 
   if (candidatos.length === 0) return null;
 
-  // Interval Scheduling: prioriza o que termina mais cedo, depois por risco
-  const ordemRisco: Record<string, number> = { Alto: 3, Médio: 2, Baixo: 1 };
+  // Interval Scheduling V21: prioriza o que termina mais cedo, depois por intensidade Poisson
   candidatos.sort((a, b) => {
     const endA = a.horaFimCritico ?? 24;
     const endB = b.horaFimCritico ?? 24;
     if (endA !== endB) return endA - endB;
-    return (ordemRisco[b.risco] ?? 0) - (ordemRisco[a.risco] ?? 0);
+    return calcularIntensidadeHotspot(b, tempoAtual) - calcularIntensidadeHotspot(a, tempoAtual);
   });
 
   const melhor = candidatos[0];
@@ -1567,7 +1643,7 @@ interface GerarCPPParams {
   municipios: typeof MUNICIPIOS_V33;
 }
 
-export function gerarCPP({ configuracao, municipios }: GerarCPPParams): {
+export function gerarCPPBase({ configuracao, municipios }: GerarCPPParams): {
   blocos: BlocoHorario[];
   avisos: string[];
 } {
@@ -1734,8 +1810,8 @@ export function gerarCPP({ configuracao, municipios }: GerarCPPParams): {
       const escolasMun = ppiMun?.escolas ?? [];
       const hotspotsMun = ppiMun?.hotspots ?? [];
 
-      // Ativa o Backward Pass Penalty caso falte menos de 90 minutos para o fim do patrulhamento do município
-      estadoGeoGlobal.backwardPassPenalty = (fimREL - tempoAtual) <= 90;
+      // Backward Induction Real: calcula budget de retorno baseado em tempo restante
+      estadoGeoGlobal.backwardBudgetMin = fimREL - tempoAtual;
 
       const periodo = calcularPeriodo(tempoAtual);
       const progressoTurno = (tempoAtual - turnoInicio) / duracaoTurno;
@@ -1923,11 +1999,10 @@ export function gerarCPP({ configuracao, municipios }: GerarCPPParams): {
         }
       }
 
-      // Hotspots Dirigidos (Fase 3)
-      const RISCO_VALOR = { Alto: 5, Médio: 3, Baixo: 2 };
+      // Hotspots Dirigidos — Intensidade Poisson (Etapa 1 V21)
       for (const h of hotspotsAtivosMun) {
-        const valorRisco = RISCO_VALOR[h.risco] ?? 2;
-        const boostPorMod = valorRisco / h.modalidadesRecomendadas.length;
+        const intensidade = calcularIntensidadeHotspot(h, tempoAtual);
+        const boostPorMod = intensidade / h.modalidadesRecomendadas.length;
         for (const mod of h.modalidadesRecomendadas) {
           pesos[mod] = (pesos[mod] ?? 0) + boostPorMod;
         }
@@ -2136,6 +2211,69 @@ export function gerarCPP({ configuracao, municipios }: GerarCPPParams): {
   );
 
   return { blocos, avisos };
+}
+
+// ─── Pipeline V21: gerarCPP Base + Otimizador LNS ──────────────────────────────
+// Import do otimizador (lazy para não quebrar testes existentes)
+import { otimizarPorLNS } from "./otimizadorLNS";
+import type { ContextoScore } from "./scoreRoteiro";
+
+export function gerarCPP({ configuracao, municipios }: GerarCPPParams): {
+  blocos: BlocoHorario[];
+  avisos: string[];
+  scoreV20?: number;
+  scoreV21?: number;
+} {
+  // Etapa 1: Gerar roteiro base V20
+  const resultadoBase = gerarCPPBase({ configuracao, municipios });
+  if (resultadoBase.blocos.length === 0) return resultadoBase;
+
+  // Supervisor Regional não passa pelo LNS (roteiro fixo)
+  if (CATEGORIA_ATIVIDADE[configuracao.tipoAtividade] === "SUPERVISAO") {
+    return resultadoBase;
+  }
+
+  // Modo manual: não otimizar
+  if (configuracao.modalidadeGeracao === "manual" && configuracao.blocosManuais.trim()) {
+    return resultadoBase;
+  }
+
+  const municipiosList: Municipio[] = configuracao.municipios && configuracao.municipios.length > 0
+    ? configuracao.municipios
+    : (configuracao.municipio ? [configuracao.municipio] : []);
+
+  const turnoInicioMin = snapGrid30(horaParaMin(configuracao.horaInicio));
+
+  const contextoScore: ContextoScore = {
+    municipios: municipiosList,
+    turnoInicioMin,
+  };
+
+  // RNG seedado para o otimizador (derivado do mesmo seed, com sufixo)
+  const rngOtimizador = mulberry32(
+    hashStr(
+      `${configuracao.data}|${municipiosList.join(",")}|${configuracao.horaInicio}|${configuracao.tipoAtividade}|LNS`
+    )
+  );
+
+  const scoreV20 = avaliarScoreGlobal(resultadoBase.blocos, contextoScore);
+
+  // Etapa 2: Otimizar com LNS
+  const blocosOtimizados = otimizarPorLNS(
+    resultadoBase.blocos,
+    contextoScore,
+    configuracao,
+    rngOtimizador
+  );
+
+  const scoreV21 = avaliarScoreGlobal(blocosOtimizados, contextoScore);
+
+  return {
+    blocos: blocosOtimizados,
+    avisos: resultadoBase.avisos,
+    scoreV20,
+    scoreV21,
+  };
 }
 
 export function gerarFundamentacao(

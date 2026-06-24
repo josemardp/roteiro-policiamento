@@ -5,6 +5,11 @@ on:
     branches:
       - main
 
+# Permite apenas uma implantação concorrente, cancelando execuções antigas em andamento
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
 jobs:
   deploy:
     runs-on: ubuntu-latest

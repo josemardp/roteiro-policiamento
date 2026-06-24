@@ -1,6 +1,6 @@
 # STATUS — CPP Roteiro de Policiamento
 
-> Documento de handoff. Atualizado em V20 (Motor Especialista IA Avançada) (2026-06-24).
+> Documento de handoff. Atualizado em V21 (Otimizador LNS Determinístico e Score Global) (2026-06-24).
 > Qualquer agente pode continuar o trabalho a partir daqui.
 
 ---
@@ -9,7 +9,7 @@
 
 | Item | Valor |
 |---|---|
-| Última versão concluída | V20 (Markov 3ª Ordem, Fadiga Dinâmica, TSP c/ Backward Pass) |
+| Última versão concluída | V21 (LNS Determinístico, Score Global, Intensidade Poisson, Poisson Disk, Backward Induction) |
 | Branch | `main` |
 | Motor | Estável — não alterar sem fuzz |
 | Fuzz | 11.520 roteiros · 0 violações |
@@ -42,6 +42,7 @@ Estas frentes **não precisam ser reabertas** salvo bug confirmado:
 | Modo Manual Inteligente | V18 | Inserção flutuante (Wishlist), fuzzy logic, autocorretor Levenshtein de endereços, overleap dinâmico. |
 | Motor Especialista V19 | V19 | Algoritmo Interval Scheduling (hotspots cravados na hora exata) e Cadeia de Markov de 2ª Ordem (Anti-Padrões). |
 | IA Avançada V20 | V20 | Cadeia de Markov de 3ª Ordem (trigramas), Fadiga Dinâmica (tempo de serviço), Interval Scheduling Otimizado (max 3 visitas), e TSP Backward Pass. |
+| Otimizador LNS & Score Global V21 | V21 | Otimizador Large Neighborhood Search (LNS) determinístico com fallback automático, Score Global escalar e densidade Poisson para hotspots |
 | PWA/offline em produção | Auditoria | SW + manifest respeitam o `base` do GitHub Pages |
 | Higiene de build | Auditoria | Removido runtime/debug da plataforma Manus e analytics quebrado do `index.html` |
 | Integração Consolidada de Escolas | Auditoria | 69 instituições ativas (incluindo particulares, Etecs, EAD) adicionadas com integridade geográfica |

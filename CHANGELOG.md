@@ -1,5 +1,29 @@
 # CHANGELOG — CPP Roteiro de Policiamento
 
+## V21 (2026-06-24)
+
+**Otimização Global Determinística & Resiliência de Deploy.**
+
+- **Otimizador LNS (Large Neighborhood Search)**: Implementado motor de otimização estocástica determinística que remove trechos do roteiro e reconstrói buscando elevar o Score Global, com mecanismo robusto de fallback automático em caso de violação de regras (regra de ouro).
+- **Função de Score Global**: Biblioteca de avaliação quantitativa escalar que pondera cobertura de hotspots (Poisson), deslocamentos, trigramas repetidos de Markov, fadiga dinâmica e índice de Gini simplificado de diversidade.
+- **Intensidade de Hotspots via Poisson**: Uso da `frequenciaAnual` com kernel gaussiano centrado nas janelas críticas.
+- **Poisson Disk & Diversidade Espacial**: Inibição de redundância geográfica no TSP forçando 50% de dispersão do raio máximo baseado no histórico recente de 6 pontos visitados.
+- **Backward Induction Real**: Substituição da flag estática de retorno por cálculo preciso do tempo necessário baseado na distância física para retorno à OPM de origem.
+- **Correção do CI/CD de Deploy**: Adicionado grupo de concorrência (`concurrency` com `cancel-in-progress`) no workflow do GitHub Pages para prevenir falhas de deploys paralelos (HTTP 400).
+
+---
+
+## V20 (2026-06-24)
+
+**Evolução para IA Avançada.**
+
+- **Cadeia de Markov de 3ª Ordem**: Transição de Bigramas para Trigramas táticos de anti-repetição para prevenir previsibilidade do roteiro.
+- **Fadiga Dinâmica**: Penalização ergonômica de patrulhamento tático proporcional ao tempo de turno decorrido (redução de modalidades ativas após a 8ª hora).
+- **Interval Scheduling Otimizado**: Aumento do limite para 3 visitas diárias por hotspot e priorização por término precoce (Earliest End Time).
+- **TSP com Backward Pass**: Priorização de retorno geográfico tático nos últimos 90 minutos de patrulhamento.
+
+---
+
 ## V19 (2026-06-23)
 
 **Implementação do Motor Especialista (Fases 1 e 2).**
