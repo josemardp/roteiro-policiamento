@@ -60,6 +60,7 @@ function hashStr(s: string): number {
 export interface EstadoGeoLocal {
   lastLat: number | null;
   lastLng: number | null;
+  backwardPassPenalty?: boolean;
 }
 
 export function distanciaKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
@@ -116,6 +117,10 @@ export function selecionarMelhorLocalTSP(
       if (validos.length > 1 && rng() > 0.7) {
         index = 1;
       }
+      // Se backwardPassPenalty está ativo, forçamos o mais próximo para economizar tempo
+      if (estadoGeo.backwardPassPenalty && validos[index].dist > 2.0) {
+        index = 0;
+      }
       const escolhidoObj = validos[index];
       estadoGeo.lastLat = escolhidoObj.coord!.lat;
       estadoGeo.lastLng = escolhidoObj.coord!.lng;
@@ -135,7 +140,11 @@ export function selecionarMelhorLocalTSP(
   return escolhido;
 }
 
-export function ajustarPesosPorFadiga(pesos: Pesos, tempoAtual: number): Pesos {
+export function ajustarPesosPorFadiga(
+  pesos: Pesos, 
+  tempoAtual: number, 
+  turnoInicio: number
+): Pesos {
   const novosPesos = { ...pesos };
   const hora = Math.floor((tempoAtual % 1440) / 60);
 
@@ -145,6 +154,18 @@ export function ajustarPesosPorFadiga(pesos: Pesos, tempoAtual: number): Pesos {
     if (novosPesos.POST !== undefined) novosPesos.POST = Math.max(0, novosPesos.POST - 1);
     if (novosPesos.PE !== undefined) novosPesos.PE += 2; // aumenta PE (estático)
     if (novosPesos.PREV !== undefined) novosPesos.PREV += 1; // aumenta preventivo
+  }
+
+  // Fadiga Dinâmica Proporcional
+  let tempoTrabalhado = tempoAtual - turnoInicio;
+  if (tempoTrabalhado < 0) tempoTrabalhado += 1440;
+  const horasTrabalhadas = Math.floor(tempoTrabalhado / 60);
+
+  if (horasTrabalhadas >= 8) {
+    const fatorFadiga = horasTrabalhadas - 7;
+    if (novosPesos.FISC !== undefined) novosPesos.FISC = Math.max(0, novosPesos.FISC - fatorFadiga);
+    if (novosPesos.POST !== undefined) novosPesos.POST = Math.max(0, novosPesos.POST - Math.floor(fatorFadiga / 2));
+    if (novosPesos.PE !== undefined) novosPesos.PE = (novosPesos.PE ?? 0) + fatorFadiga;
   }
 
   return novosPesos;
@@ -753,15 +774,19 @@ export function tentarReservarHotspot(
 
     const chave = `${h.local} (${h.bairro})`;
     const visitasHoje = cobertura.get(chave) ?? 0;
-    return visitasHoje < 2; // máximo 2 coberturas por hotspot por turno
+    return visitasHoje < 3; // máximo 3 coberturas por hotspot por turno (Interval Scheduling adaptado)
   });
 
   if (candidatos.length === 0) return null;
 
+  // Interval Scheduling: prioriza o que termina mais cedo, depois por risco
   const ordemRisco: Record<string, number> = { Alto: 3, Médio: 2, Baixo: 1 };
-  candidatos.sort(
-    (a, b) => (ordemRisco[b.risco] ?? 0) - (ordemRisco[a.risco] ?? 0)
-  );
+  candidatos.sort((a, b) => {
+    const endA = a.horaFimCritico ?? 24;
+    const endB = b.horaFimCritico ?? 24;
+    if (endA !== endB) return endA - endB;
+    return (ordemRisco[b.risco] ?? 0) - (ordemRisco[a.risco] ?? 0);
+  });
 
   const melhor = candidatos[0];
   const modalidade = melhor.modalidadesRecomendadas[0] as ModalidadePoliciamento;
@@ -772,36 +797,36 @@ export function tentarReservarHotspot(
 
 // ─── Cadeia de Markov (Anti-Padrão Tático) ───────────────────────────────────
 
-type BigramaChave = string;
+type TrigramaChave = string;
 
-export function construirPenalizacaoBigrama(
+export function construirPenalizacaoTrigrama(
   historico: ModalidadePoliciamento[]
 ): Map<ModalidadePoliciamento, number> {
   const penalidades = new Map<ModalidadePoliciamento, number>();
   const tactico = historico.filter(
     m => !["PREL", "DESL", "REF", "REL", "RONDA"].includes(m)
   );
-  if (tactico.length < 4) return penalidades;
+  if (tactico.length < 5) return penalidades;
 
-  const janela = tactico.slice(-8);
-  const contagem = new Map<BigramaChave, number>();
-  for (let i = 0; i < janela.length - 1; i++) {
-    const chave: BigramaChave = `${janela[i]}|${janela[i + 1]}`;
+  const janela = tactico.slice(-10);
+  const contagem = new Map<TrigramaChave, number>();
+  for (let i = 0; i < janela.length - 2; i++) {
+    const chave: TrigramaChave = `${janela[i]}|${janela[i + 1]}|${janela[i + 2]}`;
     contagem.set(chave, (contagem.get(chave) ?? 0) + 1);
   }
 
-  const ultimoBigrama: BigramaChave = `${tactico.at(-2)}|${tactico.at(-1)}`;
-  const freqUltimo = contagem.get(ultimoBigrama) ?? 0;
+  const ultimoTrigrama: TrigramaChave = `${tactico.at(-3)}|${tactico.at(-2)}|${tactico.at(-1)}`;
+  const freqUltimo = contagem.get(ultimoTrigrama) ?? 0;
 
   if (freqUltimo >= 2) {
-    const alvoSupressao = tactico.at(-2) as ModalidadePoliciamento;
-    penalidades.set(alvoSupressao, freqUltimo * 2);
+    const alvoSupressao = tactico.at(-3) as ModalidadePoliciamento;
+    penalidades.set(alvoSupressao, freqUltimo * 3);
   }
 
   return penalidades;
 }
 
-export function aplicarPenalizacaoBigrama(
+export function aplicarPenalizacaoMarkov(
   pesos: Pesos,
   penalidades: Map<ModalidadePoliciamento, number>
 ): Pesos {
@@ -1709,6 +1734,9 @@ export function gerarCPP({ configuracao, municipios }: GerarCPPParams): {
       const escolasMun = ppiMun?.escolas ?? [];
       const hotspotsMun = ppiMun?.hotspots ?? [];
 
+      // Ativa o Backward Pass Penalty caso falte menos de 90 minutos para o fim do patrulhamento do município
+      estadoGeoGlobal.backwardPassPenalty = (fimREL - tempoAtual) <= 90;
+
       const periodo = calcularPeriodo(tempoAtual);
       const progressoTurno = (tempoAtual - turnoInicio) / duracaoTurno;
       const focoAtivo = determinarFocoAtivo(configuracao.focos, configuracao.tipoPoliciamento, progressoTurno);
@@ -1922,8 +1950,8 @@ export function gerarCPP({ configuracao, municipios }: GerarCPPParams): {
       // Ponderar por Perfil Criminal (Fase 6)
       pesos = ajustarPesosPorPerfilCriminal(pesos, ppiMun?.perfilCriminal);
 
-      // Fadiga Ergonômica Circadiana (Fase 2 do Especialista)
-      pesos = ajustarPesosPorFadiga(pesos, tempoAtual);
+      // Fadiga Ergonômica Circadiana e Dinâmica (Fase 3 do Especialista)
+      pesos = ajustarPesosPorFadiga(pesos, tempoAtual, turnoInicio);
 
       // Ronda Escolar (ESC) não ocorre em fim de semana (Fase 0)
       if (!diaUtil) {
@@ -1960,9 +1988,9 @@ export function gerarCPP({ configuracao, municipios }: GerarCPPParams): {
           delete (pesos as Record<string, number>)[m];
         }
 
-        // Anti-repetição estendida: Penalidade Markov 2ª Ordem
-        const penalidadesMarkov = construirPenalizacaoBigrama(historico);
-        pesos = aplicarPenalizacaoBigrama(pesos, penalidadesMarkov);
+        // Anti-repetição estendida: Penalidade Markov 3ª Ordem
+        const penalidadesMarkov = construirPenalizacaoTrigrama(historico);
+        pesos = aplicarPenalizacaoMarkov(pesos, penalidadesMarkov);
 
         modalidade = selecionarModalidade(pesos, rng, fallback);
       }
