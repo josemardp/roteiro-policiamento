@@ -762,7 +762,8 @@ function determinarLocalFinal({
   focoAtivo,
   ppiMun,
   municipioNome,
-  estadoGeo
+  estadoGeo,
+  timelineHelper
 }: {
   modalidade: ModalidadePoliciamento;
   tempoAtual: number;
@@ -777,7 +778,27 @@ function determinarLocalFinal({
   ppiMun: any;
   municipioNome: Municipio;
   estadoGeo: EstadoGeoLocal;
+  timelineHelper?: MissionTimelineHelper;
 }): string {
+  // ── Preferência por Alvos da Diretriz ───────────────────────────────────────
+  if (timelineHelper) {
+    const fases = timelineHelper.buscarFasesAtivas(tempoAtual);
+    for (const fase of fases) {
+      if (fase.tipo === "PREFERENCIA" && fase.modificadores) {
+        const mod = fase.modificadores.find(m => m.modalidade === modalidade);
+        if (mod && mod.alvos && mod.alvos.length > 0) {
+          const alvosFiltrados = mod.alvos.filter(
+            a => !a.municipio || a.municipio === municipioNome
+          );
+          if (alvosFiltrados.length > 0) {
+            const candidatosAlvos = alvosFiltrados.map(a => a.textoOriginal);
+            return selecionarMelhorLocalTSP(candidatosAlvos, municipioNome, estadoGeo, cobertura, rng);
+          }
+        }
+      }
+    }
+  }
+
   if (modalidade === "ESC") {
     const minutoDia = tempoAtual % 1440;
     const escolasAtivas = diaUtil ? obterEscolasEmJanela(escolasMun, minutoDia) : [];
@@ -2004,7 +2025,8 @@ export function gerarCPPBase({ configuracao, municipios, diretivas }: GerarCPPPa
                 focoAtivo,
                 ppiMun,
                 municipioNome: currentMunName,
-                estadoGeo: estadoGeoGlobal
+                estadoGeo: estadoGeoGlobal,
+                timelineHelper: timelineHelper || undefined
               });
           blocos.push(
             criarBloco(
@@ -2070,6 +2092,52 @@ export function gerarCPPBase({ configuracao, municipios, diretivas }: GerarCPPPa
 
       // Ajuste de pesos pelo Foco de Policiamento Ativo
       pesos = ajustarPesosPorFoco(pesos, focoAtivo, perfil, periodo);
+
+      // Ajustes de Diretivas Táticas V23: CONTEXTO e PREFERENCIA
+      if (timelineHelper) {
+        const fasesAtivas = timelineHelper.buscarFasesAtivas(tempoAtual);
+        for (const fase of fasesAtivas) {
+          // 1. CONTEXTO
+          if (fase.tipo === "CONTEXTO" && fase.contexto) {
+            const ctx = fase.contexto;
+            if (ctx.focoEspecifico === "COMERCIAL") {
+              if (pesos.POST !== undefined) pesos.POST = Math.round(pesos.POST * 1.5);
+              if (pesos.PE !== undefined) pesos.PE = Math.round(pesos.PE * 1.5);
+            } else if (ctx.focoEspecifico === "RESIDENCIAL") {
+              if (pesos.PREV !== undefined) pesos.PREV = Math.round(pesos.PREV * 1.5);
+            } else if (ctx.focoEspecifico === "RURAL") {
+              if (pesos.RURAL !== undefined) pesos.RURAL = Math.round(pesos.RURAL * 1.5);
+            } else if (ctx.focoEspecifico === "TRANSITO") {
+              if (pesos.FISC !== undefined) pesos.FISC = Math.round(pesos.FISC * 1.5);
+            }
+
+            if (ctx.riscoAglomeracao) {
+              pesos.PE = (pesos.PE ?? 0) + 3;
+              pesos.POST = (pesos.POST ?? 0) + 3;
+            }
+
+            if (ctx.criticidade === "ALTA") {
+              pesos.POST = (pesos.POST ?? 0) + 2;
+              pesos.PE = (pesos.PE ?? 0) + 2;
+            } else if (ctx.criticidade === "MEDIA") {
+              pesos.POST = (pesos.POST ?? 0) + 1;
+              pesos.PE = (pesos.PE ?? 0) + 1;
+            }
+          }
+
+          // 2. PREFERENCIA
+          if (fase.tipo === "PREFERENCIA" && fase.modificadores) {
+            for (const mod of fase.modificadores) {
+              const modKey = mod.modalidade as keyof Pesos;
+              if (pesos[modKey] !== undefined) {
+                pesos[modKey] = Math.round(pesos[modKey]! * mod.multiplicadorPeso);
+              } else {
+                pesos[modKey] = Math.round(2 * mod.multiplicadorPeso);
+              }
+            }
+          }
+        }
+      }
 
       // Sazonalidade: SAT com peso dinâmico de evento/saturação na data
       const pesoSat = pesoSatNaData(currentMunData.eventos, configuracao.data);
@@ -2213,7 +2281,8 @@ export function gerarCPPBase({ configuracao, municipios, diretivas }: GerarCPPPa
             focoAtivo,
             ppiMun,
             municipioNome: currentMunName,
-            estadoGeo: estadoGeoGlobal
+            estadoGeo: estadoGeoGlobal,
+            timelineHelper: timelineHelper || undefined
           });
           blocos.push(
             criarBloco(
@@ -2254,7 +2323,8 @@ export function gerarCPPBase({ configuracao, municipios, diretivas }: GerarCPPPa
         focoAtivo,
         ppiMun,
         municipioNome: currentMunName,
-        estadoGeo: estadoGeoGlobal
+        estadoGeo: estadoGeoGlobal,
+        timelineHelper: timelineHelper || undefined
       });
       blocos.push(
         criarBloco(
@@ -2347,6 +2417,7 @@ export function gerarCPP({ configuracao, municipios, diretivas }: GerarCPPParams
   const contextoScore: ContextoScore = {
     municipios: municipiosList,
     turnoInicioMin,
+    diretivas,
   };
 
   // RNG seedado para o otimizador (derivado do mesmo seed, com sufixo)

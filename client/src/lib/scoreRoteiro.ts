@@ -17,6 +17,8 @@ import type { BlocoHorario, Municipio, ModalidadePoliciamento } from "./types";
 import type { Hotspot } from "./municipios/types-ppi";
 import { PPI_5CIA } from "./municipios/ppi-5cia";
 import { distanciaKm } from "./gerarCPP";
+import type { DirectivePayload } from "./domain/directivePayload";
+import { MissionTimelineHelper } from "./domain/missionTimeline";
 
 // ─── Pesos da função de score ─────────────────────────────────────────────────
 const W1_COBERTURA_HOTSPOT = 10.0;
@@ -223,6 +225,7 @@ function calcularEquilibrioMunicipal(
 export interface ContextoScore {
   municipios: Municipio[];
   turnoInicioMin: number;
+  diretivas?: DirectivePayload;
 }
 
 export function avaliarScoreGlobal(
@@ -236,7 +239,7 @@ export function avaliarScoreGlobal(
   const concentracao = calcularConcentracaoBairro(blocos);
   const equilibrio = calcularEquilibrioMunicipal(blocos, contexto.municipios);
 
-  return (
+  let scoreTotal = (
     W1_COBERTURA_HOTSPOT * cobertura -
     W2_DESLOCAMENTO * deslocamento -
     W3_PREVISIBILIDADE * previsibilidade -
@@ -244,4 +247,58 @@ export function avaliarScoreGlobal(
     W5_CONCENTRACAO_BAIRRO * concentracao -
     W6_EQUILIBRIO_MUNICIPAL * equilibrio
   );
+
+  if (contexto.diretivas) {
+    const focoOS = contexto.diretivas.focosDiretivas.find(
+      (f) => f.origem === "ORDEM_SERVICO" && f.timeline
+    );
+    if (focoOS && focoOS.timeline) {
+      const helper = new MissionTimelineHelper(focoOS.timeline);
+      for (const b of blocos) {
+        if (b.modalidade === "PREL" || b.modalidade === "REL") continue;
+        const inicioMin = horaParaMin(b.horaInicio);
+        const fases = helper.buscarFasesAtivas(inicioMin);
+        for (const fase of fases) {
+          if (fase.tipo === "PREFERENCIA" && fase.modificadores) {
+            const mod = fase.modificadores.find(m => m.modalidade === b.modalidade);
+            if (mod) {
+              // Base preference bonus
+              let bonus = 15.0 * mod.multiplicadorPeso;
+              // Target match bonus/penalty
+              if (mod.alvos && mod.alvos.length > 0 && b.municipio) {
+                const hasMatchingTarget = mod.alvos.some(
+                  a => b.local.toLowerCase().includes(a.textoOriginal.toLowerCase()) || 
+                       a.textoOriginal.toLowerCase().includes(b.local.toLowerCase())
+                );
+                if (hasMatchingTarget) {
+                  bonus += 30.0 * mod.multiplicadorPeso;
+                } else {
+                  bonus -= 20.0 * mod.multiplicadorPeso;
+                }
+              }
+              scoreTotal += bonus;
+            }
+          }
+          if (fase.tipo === "CONTEXTO" && fase.contexto) {
+            const ctx = fase.contexto;
+            if (ctx.focoEspecifico === "COMERCIAL" && (b.modalidade === "POST" || b.modalidade === "PE")) {
+              scoreTotal += 10.0;
+            } else if (ctx.focoEspecifico === "RESIDENCIAL" && b.modalidade === "PREV") {
+              scoreTotal += 10.0;
+            } else if (ctx.focoEspecifico === "RURAL" && b.modalidade === "RURAL") {
+              scoreTotal += 10.0;
+            } else if (ctx.focoEspecifico === "TRANSITO" && b.modalidade === "FISC") {
+              scoreTotal += 10.0;
+            }
+
+            if (ctx.riscoAglomeracao && (b.modalidade === "PE" || b.modalidade === "POST")) {
+              scoreTotal += 10.0;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return scoreTotal;
 }
