@@ -16,9 +16,10 @@
 import type { BlocoHorario, Municipio, ModalidadePoliciamento } from "./types";
 import type { Hotspot } from "./municipios/types-ppi";
 import { PPI_5CIA } from "./municipios/ppi-5cia";
-import { distanciaKm } from "./gerarCPP";
+import { distanciaKm, clockMinAbsoluto } from "./gerarCPP";
 import type { DirectivePayload } from "./domain/directivePayload";
 import { MissionTimelineHelper } from "./domain/missionTimeline";
+import type { ObjetivoPersistente, CorredorOperacional } from "./domain/tacticalArtifacts";
 
 // ─── Pesos da função de score ─────────────────────────────────────────────────
 const W1_COBERTURA_HOTSPOT = 10.0;
@@ -34,6 +35,92 @@ function horaParaMin(hora: string): number {
   const [h, m] = hora.split(":").map(Number);
   return h * 60 + m;
 }
+
+export function distanciaPontoSegmento(
+  lat: number,
+  lng: number,
+  latA: number,
+  lngA: number,
+  latB: number,
+  lngB: number
+): number {
+  const latMid = (latA + latB) / 2;
+  const radMid = (latMid * Math.PI) / 180;
+  const cosMid = Math.cos(radMid);
+  const factorY = 111.32;
+  const factorX = 111.32 * cosMid;
+
+  const xp = lng * factorX;
+  const yp = lat * factorY;
+  const xa = lngA * factorX;
+  const ya = latA * factorY;
+  const xb = lngB * factorX;
+  const yb = latB * factorY;
+
+  const dx = xb - xa;
+  const dy = yb - ya;
+  const lenSq = dx * dx + dy * dy;
+
+  if (lenSq === 0) {
+    const dpx = xp - xa;
+    const dpy = yp - ya;
+    return Math.sqrt(dpx * dpx + dpy * dpy);
+  }
+
+  const t = Math.max(0, Math.min(1, ((xp - xa) * dx + (yp - ya) * dy) / lenSq));
+  const xc = xa + t * dx;
+  const yc = ya + t * dy;
+
+  const dpx = xp - xc;
+  const dpy = yp - yc;
+  return Math.sqrt(dpx * dpx + dpy * dpy);
+}
+
+export function isObjetivoAtivo(obj: ObjetivoPersistente, tempoMinutos: number): boolean {
+  const currentMin = tempoMinutos % 1440;
+  const start = horaParaMin(obj.inicio);
+  const endOriginal = horaParaMin(obj.fim);
+  const end = endOriginal <= start ? endOriginal + 1440 : endOriginal;
+  const current = currentMin < start && end > 1440 ? currentMin + 1440 : currentMin;
+  return current >= start && current < end;
+}
+
+export function isObjetivoCumprido(
+  obj: ObjetivoPersistente,
+  blocos: BlocoHorario[]
+): boolean {
+  let duracaoContinua = 0;
+  for (const b of blocos) {
+    if (b.modalidade === "PREL" || b.modalidade === "REL" || b.modalidade === "DESL" || b.modalidade === "REF") {
+      duracaoContinua = 0;
+      continue;
+    }
+    const inicioMin = horaParaMin(b.horaInicio);
+    let fimMin = horaParaMin(b.horaFim);
+    if (fimMin <= inicioMin) fimMin += 1440;
+    const bDur = fimMin - inicioMin;
+
+    const matchLocal = b.local === obj.localId;
+    const matchModalidade = b.modalidade === obj.modalidade;
+
+    if (matchLocal && matchModalidade && isObjetivoAtivo(obj, inicioMin)) {
+      duracaoContinua += bDur;
+      if (duracaoContinua >= obj.permanenciaMinimaMinutos) {
+        return true;
+      }
+    } else {
+      duracaoContinua = 0;
+    }
+  }
+  return false;
+}
+
+const BONIFICACAO_CORREDOR: Record<string, number> = {
+  BAIXA: 15.0,
+  MEDIA: 30.0,
+  ALTA: 50.0,
+  CRITICA: 80.0,
+};
 
 const MODALIDADES_ATIVAS: Set<string> = new Set([
   "POST", "PREV", "PE", "FISC", "ESC", "RURAL", "SAT",
@@ -156,7 +243,8 @@ function calcularFadiga(blocos: BlocoHorario[], turnoInicioMin: number): number 
     // Peso de fadiga cresce quadraticamente após 6h
     if (horasNoTurno >= 6) {
       const fator = (horasNoTurno - 5) * 0.5;
-      const durBloco = horaParaMin(b.horaFim) - horaParaMin(b.horaInicio);
+      let durBloco = horaParaMin(b.horaFim) - horaParaMin(b.horaInicio);
+      if (durBloco <= 0) durBloco += 1440;
       fadigaTotal += fator * (durBloco / 30);
     }
   }
@@ -206,7 +294,8 @@ function calcularEquilibrioMunicipal(
 
   for (const b of blocos) {
     if (!b.municipio || !MODALIDADES_ATIVAS.has(b.modalidade)) continue;
-    const dur = horaParaMin(b.horaFim) - horaParaMin(b.horaInicio);
+    let dur = horaParaMin(b.horaFim) - horaParaMin(b.horaInicio);
+    if (dur <= 0) dur += 1440;
     temposPorMun.set(b.municipio, (temposPorMun.get(b.municipio) ?? 0) + dur);
   }
 
@@ -250,50 +339,123 @@ export function avaliarScoreGlobal(
 
   if (contexto.diretivas) {
     const focoOS = contexto.diretivas.focosDiretivas.find(
-      (f) => f.origem === "ORDEM_SERVICO" && f.timeline
+      (f) => f.origem === "ORDEM_SERVICO"
     );
-    if (focoOS && focoOS.timeline) {
-      const helper = new MissionTimelineHelper(focoOS.timeline);
-      for (const b of blocos) {
-        if (b.modalidade === "PREL" || b.modalidade === "REL") continue;
-        const inicioMin = horaParaMin(b.horaInicio);
-        const fases = helper.buscarFasesAtivas(inicioMin);
-        for (const fase of fases) {
-          if (fase.tipo === "PREFERENCIA" && fase.modificadores) {
-            const mod = fase.modificadores.find(m => m.modalidade === b.modalidade);
-            if (mod) {
-              // Base preference bonus
-              let bonus = 15.0 * mod.multiplicadorPeso;
-              // Target match bonus/penalty
-              if (mod.alvos && mod.alvos.length > 0 && b.municipio) {
-                const hasMatchingTarget = mod.alvos.some(
-                  a => b.local.toLowerCase().includes(a.textoOriginal.toLowerCase()) || 
-                       a.textoOriginal.toLowerCase().includes(b.local.toLowerCase())
-                );
-                if (hasMatchingTarget) {
-                  bonus += 30.0 * mod.multiplicadorPeso;
-                } else {
-                  bonus -= 20.0 * mod.multiplicadorPeso;
+    if (focoOS) {
+      if (focoOS.timeline) {
+        const helper = new MissionTimelineHelper(focoOS.timeline);
+        for (const b of blocos) {
+          if (b.modalidade === "PREL" || b.modalidade === "REL") continue;
+          const inicioMin = horaParaMin(b.horaInicio);
+          const fases = helper.buscarFasesAtivas(inicioMin);
+          for (const fase of fases) {
+            if (fase.tipo === "PREFERENCIA" && fase.modificadores) {
+              const mod = fase.modificadores.find(m => m.modalidade === b.modalidade);
+              if (mod) {
+                // Base preference bonus
+                let bonus = 15.0 * mod.multiplicadorPeso;
+                // Target match bonus/penalty
+                if (mod.alvos && mod.alvos.length > 0 && b.municipio) {
+                  const hasMatchingTarget = mod.alvos.some(
+                    a => b.local.toLowerCase().includes(a.textoOriginal.toLowerCase()) || 
+                         a.textoOriginal.toLowerCase().includes(b.local.toLowerCase())
+                  );
+                  if (hasMatchingTarget) {
+                    bonus += 30.0 * mod.multiplicadorPeso;
+                  } else {
+                    bonus -= 20.0 * mod.multiplicadorPeso;
+                  }
                 }
+                scoreTotal += bonus;
               }
-              scoreTotal += bonus;
+            }
+            if (fase.tipo === "CONTEXTO" && fase.contexto) {
+              const ctx = fase.contexto;
+              if (ctx.focoEspecifico === "COMERCIAL" && (b.modalidade === "POST" || b.modalidade === "PE")) {
+                scoreTotal += 10.0;
+              } else if (ctx.focoEspecifico === "RESIDENCIAL" && b.modalidade === "PREV") {
+                scoreTotal += 10.0;
+              } else if (ctx.focoEspecifico === "RURAL" && b.modalidade === "RURAL") {
+                scoreTotal += 10.0;
+              } else if (ctx.focoEspecifico === "TRANSITO" && b.modalidade === "FISC") {
+                scoreTotal += 10.0;
+              }
+
+              if (ctx.riscoAglomeracao && (b.modalidade === "PE" || b.modalidade === "POST")) {
+                scoreTotal += 10.0;
+              }
             }
           }
-          if (fase.tipo === "CONTEXTO" && fase.contexto) {
-            const ctx = fase.contexto;
-            if (ctx.focoEspecifico === "COMERCIAL" && (b.modalidade === "POST" || b.modalidade === "PE")) {
-              scoreTotal += 10.0;
-            } else if (ctx.focoEspecifico === "RESIDENCIAL" && b.modalidade === "PREV") {
-              scoreTotal += 10.0;
-            } else if (ctx.focoEspecifico === "RURAL" && b.modalidade === "RURAL") {
-              scoreTotal += 10.0;
-            } else if (ctx.focoEspecifico === "TRANSITO" && b.modalidade === "FISC") {
-              scoreTotal += 10.0;
-            }
+        }
 
-            if (ctx.riscoAglomeracao && (b.modalidade === "PE" || b.modalidade === "POST")) {
-              scoreTotal += 10.0;
+        // Metas de Visitas (META)
+        const fasesMeta = focoOS.timeline.fases.filter(f => f.tipo === "META" && f.metas);
+        for (const fase of fasesMeta) {
+          const metas = fase.metas!;
+          let visitas = 0;
+          
+          for (const b of blocos) {
+            if (b.modalidade === "PREL" || b.modalidade === "REL" || b.modalidade === "DESL" || b.modalidade === "REF") {
+              continue;
             }
+            const inicioMin = horaParaMin(b.horaInicio);
+            const fasesAtivas = helper.buscarFasesAtivas(inicioMin);
+            if (fasesAtivas.some(f => f.nome === fase.nome)) {
+              if (metas.municipioPreferencial) {
+                if (b.municipio === metas.municipioPreferencial) {
+                  visitas++;
+                }
+              } else {
+                visitas++;
+              }
+            }
+          }
+          
+          if (metas.minimoVisitas !== undefined) {
+            if (visitas < metas.minimoVisitas) {
+              scoreTotal -= (metas.minimoVisitas - visitas) * 40.0;
+            } else {
+              scoreTotal += 50.0;
+            }
+          }
+          if (metas.maximoVisitas !== undefined) {
+            if (visitas > metas.maximoVisitas) {
+              scoreTotal -= (visitas - metas.maximoVisitas) * 40.0;
+            }
+          }
+        }
+      }
+
+      // Corredores Operacionais (corredoresOperacionais)
+      if (focoOS.corredoresOperacionais && focoOS.corredoresOperacionais.length > 0) {
+        for (const b of blocos) {
+          if (b.modalidade === "PREL" || b.modalidade === "REL" || b.modalidade === "DESL" || b.modalidade === "REF") {
+            continue;
+          }
+          if (typeof b.lat === "number" && typeof b.lng === "number") {
+            for (const corr of focoOS.corredoresOperacionais) {
+              const distKm = distanciaPontoSegmento(
+                b.lat, b.lng,
+                corr.origem.lat, corr.origem.lng,
+                corr.destino.lat, corr.destino.lng
+              );
+              const distMetros = distKm * 1000;
+              if (distMetros <= corr.raioMetros) {
+                const bonus = BONIFICACAO_CORREDOR[corr.prioridade] ?? 30.0;
+                scoreTotal += bonus;
+              }
+            }
+          }
+        }
+      }
+
+      // Objetivos Persistentes (objetivosPersistentes)
+      if (focoOS.objetivosPersistentes && focoOS.objetivosPersistentes.length > 0) {
+        for (const obj of focoOS.objetivosPersistentes) {
+          if (isObjetivoCumprido(obj, blocos)) {
+            scoreTotal += 150.0;
+          } else {
+            scoreTotal -= 250.0;
           }
         }
       }

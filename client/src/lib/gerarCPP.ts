@@ -33,7 +33,7 @@ import {
 import { PPI_5CIA } from "./municipios/ppi-5cia";
 import { obterCoordenadaPonto, obterCoordenadaReferenciaMunicipio } from "./municipios/coordenadas-pontos";
 import type { Escola, Hotspot, PerfilCriminal } from "./municipios/types-ppi";
-import { avaliarScoreGlobal } from "./scoreRoteiro";
+import { avaliarScoreGlobal, isObjetivoAtivo, isObjetivoCumprido } from "./scoreRoteiro";
 import type { DirectivePayload } from "./domain/directivePayload";
 import { MissionTimelineHelper } from "./domain/missionTimeline";
 
@@ -2206,10 +2206,19 @@ export function gerarCPPBase({ configuracao, municipios, diretivas }: GerarCPPPa
         coberturas[currentMunName]
       );
 
+      // Verifica se há objetivo persistente ativo e pendente para este horário
+      const objetivosAtivos = (diretivas?.focosDiretivas || [])
+        .flatMap(f => f.objetivosPersistentes || [])
+        .filter(obj => isObjetivoAtivo(obj, tempoAtual));
+      const objPendente = objetivosAtivos.find(obj => !isObjetivoCumprido(obj, blocos));
+
       let modalidade: ModalidadePoliciamento;
       let localFinalForce: string | undefined;
 
-      if (hotspotReservado) {
+      if (objPendente) {
+        modalidade = objPendente.modalidade;
+        localFinalForce = objPendente.localId;
+      } else if (hotspotReservado) {
         modalidade = hotspotReservado.modalidade;
         localFinalForce = hotspotReservado.local;
       } else {
