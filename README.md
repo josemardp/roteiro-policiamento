@@ -186,16 +186,16 @@ pnpm build
 
 | Arquivo | Finalidade | Última execução |
 |---|---|---|
-| `client/fuzz_test.ts` | Invariantes do motor: soma, grade, PREL/REL, REF | V16.1 — 0 violações |
-| `client/test_manual_mode.ts` | Regressão do modo manual: siglas, locais, turnos noturnos | V16.1 — 35/35 |
-| `client/test_manual_preview.ts` | Prévia do modo manual: normalização noturna, PREL overlap | V16.1 — 24/24 |
+| `client/fuzz_test.ts` | Invariantes do motor: soma, grade, PREL/REL, REF | V20 — 11.520 roteiros sem violações |
+| `client/test_manual_mode.ts` | Regressão do modo manual: siglas, locais, turnos noturnos | V20 — 35/35 |
+| `client/test_manual_preview.ts` | Prévia do modo manual: normalização noturna, PREL overlap | V20 — 24/24 |
 
 ---
 
 ## Estado atual
 
-**Última versão:** V19 (2026-06-23) — Motor Especialista (Fases 1 e 2)
-**Próxima sprint planejada:** Expansão e refinamento de Inteligência Artificial e dados.
+**Última versão:** V20 (2026-06-24) — IA Avançada (Markov 3ª Ordem, Fadiga Dinâmica e Hotspots)
+**Próxima sprint planejada:** Implementação do Design "Operacional Moderno" (interface tática).
 
 ### Frentes fechadas
 
@@ -209,6 +209,7 @@ pnpm build
 - **Histórico local de CPPs (V17)** — salvar, reabrir, duplicar, excluir e backup JSON (export/import). Persistido em `localStorage` na chave `historico_roteiros`. Reabrir exibe o roteiro salvo sem recalcular.
 - **PWA/offline-first válido em produção** — service worker e manifest respeitam o `base` `/roteiro-policiamento/` do GitHub Pages.
 - **Motor Especialista (V19)** — Adiciona lógica de fadiga, anti-previsibilidade via Cadeia de Markov, otimização física de trajeto (TSP Nearest Neighbor) e distribuição de tempo baseada em peso criminal.
+- **IA Avançada (V20)** — Evolução para Cadeia de Markov de 3ª Ordem (trigramas), Fadiga Dinâmica atrelada ao tempo de serviço, Interval Scheduling (max 3 visitas por hotspot) e Backward Pass no TSP.
 
 ### Pendências reais
 

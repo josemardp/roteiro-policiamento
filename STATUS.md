@@ -1,6 +1,6 @@
 # STATUS — CPP Roteiro de Policiamento
 
-> Documento de handoff. Atualizado em V19 (Hotspots & Markov) (2026-06-23).
+> Documento de handoff. Atualizado em V20 (Motor Especialista IA Avançada) (2026-06-24).
 > Qualquer agente pode continuar o trabalho a partir daqui.
 
 ---
@@ -9,7 +9,7 @@
 
 | Item | Valor |
 |---|---|
-| Última versão concluída | V19 (Markov & Hotspots Scheduling) |
+| Última versão concluída | V20 (Markov 3ª Ordem, Fadiga Dinâmica, TSP c/ Backward Pass) |
 | Branch | `main` |
 | Motor | Estável — não alterar sem fuzz |
 | Fuzz | 11.520 roteiros · 0 violações |
@@ -41,6 +41,7 @@ Estas frentes **não precisam ser reabertas** salvo bug confirmado:
 | Histórico local de CPPs | V17 | localStorage `historico_roteiros`; reabrir não recalcula; backup JSON export/import |
 | Modo Manual Inteligente | V18 | Inserção flutuante (Wishlist), fuzzy logic, autocorretor Levenshtein de endereços, overleap dinâmico. |
 | Motor Especialista V19 | V19 | Algoritmo Interval Scheduling (hotspots cravados na hora exata) e Cadeia de Markov de 2ª Ordem (Anti-Padrões). |
+| IA Avançada V20 | V20 | Cadeia de Markov de 3ª Ordem (trigramas), Fadiga Dinâmica (tempo de serviço), Interval Scheduling Otimizado (max 3 visitas), e TSP Backward Pass. |
 | PWA/offline em produção | Auditoria | SW + manifest respeitam o `base` do GitHub Pages |
 | Higiene de build | Auditoria | Removido runtime/debug da plataforma Manus e analytics quebrado do `index.html` |
 | Integração Consolidada de Escolas | Auditoria | 69 instituições ativas (incluindo particulares, Etecs, EAD) adicionadas com integridade geográfica |
