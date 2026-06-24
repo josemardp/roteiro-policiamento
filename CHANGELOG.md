@@ -1,5 +1,19 @@
 # CHANGELOG — CPP Roteiro de Policiamento
 
+## V23 (2026-06-24)
+
+**Diretrizes Operacionais, Restrições Duras, Doutrina Tática e Metas (Mapa Força).**
+
+- **Marco 1: Infraestrutura de Diretrizes Táticas**: Modelagem de domínio para `MissionTimeline`, `FaseOperacional` (Contexto, Preferência, Meta, Restrição) e artefatos táticos, com hash canônico e suporte a fusos de fusão de timelines cruzando a meia-noite.
+- **Marco 2: Restrições Duras Operacionais**: Mecanismo de veto físico de deslocamentos (`vetaDeslocamento`), suspensão inteligente de refeições (`suspendeRefeicao`), fixação de localidades e coordenadas (`localFixoId`), e filtros estritos de modalidades permitidas/proibidas.
+- **Marco 3: Camada de Doutrina e Preferências**: Multiplicadores dinâmicos de peso por contexto de policiamento (`riscoAglomeracao`, `criticidade` e focos residenciais/comerciais/rurais/trânsito) e preferências geográficas TSP por alvos (`GeoTarget`).
+- **Marco 4: Metas, Corredores e Objetivos Persistentes**: 
+  - Otimização e bonificação/penalização no score LNS por contagem de visitas (`META`) e proximidade geométrica a corredores lineares (`CorredorOperacional`).
+  - Imposição de contiguidade obrigatória em geração base para objetivos persistentes de permanência mínima (`ObjetivoPersistente`).
+  - Correção de bugs de estouro/duração de blocos negativos sob a virada de meia-noite em turnos noturnos.
+
+---
+
 ## V21 (2026-06-24)
 
 **Otimização Global Determinística & Resiliência de Deploy.**
