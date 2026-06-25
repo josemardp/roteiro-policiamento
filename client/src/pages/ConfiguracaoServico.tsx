@@ -313,9 +313,9 @@ Exemplos reais válidos para Guararapes:
 - 'Jardim Aeroporto'
 
 Exemplos reais válidos para Valparaíso:
-- 'Praça Oscar de Figueiredo (Centro)'
-- 'Banco do Brasil (Rua Padre Bento, 180)'
-- 'Santander (Av. Nove de Julho, 212)'
+- 'Praça Oscar de Arruda (Praça Central)'
+- 'Banco do Brasil (Rua Quinze de Novembro, 70)'
+- 'Santander (Avenida Nove de Julho, 580)'
 
 2. Se a Ordem de Serviço contiver apenas orientações gerais sem horários rígidos, distribua as fases na timeline cobrindo horários aproximados ou o turno completo.
 3. Se houver citação de áreas comerciais, use tipo 'CONTEXTO' com 'focoEspecifico': 'COMERCIAL'.

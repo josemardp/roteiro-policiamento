@@ -789,18 +789,7 @@ function determinarLocalFinal({
         if (mod && mod.alvos && mod.alvos.length > 0) {
           const alvosFiltrados = mod.alvos.filter(a => {
             if (a.municipio && a.municipio !== municipioNome) return false;
-            
-            const normOriginal = a.textoOriginal.toLowerCase();
-            const outrosMunicipios = (["Valparaíso", "Guararapes", "Rubiácea", "Bento de Abreu"] as Municipio[])
-              .filter(m => m !== municipioNome);
-            
-            for (const outro of outrosMunicipios) {
-              const normOutro = outro.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-              if (normOriginal.includes(normOutro) || normOriginal.includes(outro.toLowerCase())) {
-                return false;
-              }
-            }
-            return true;
+            return pertenceAoMunicipio(a.textoOriginal, municipioNome);
           });
           if (alvosFiltrados.length > 0) {
             const candidatosAlvos = alvosFiltrados.map(a => a.textoOriginal);
@@ -1168,6 +1157,46 @@ export function obterCoordenadasLocal(
   }
 
   return { lat: null, lng: null };
+}
+
+const pertenceAoMunicipioCache = new Map<string, boolean>();
+
+export function pertenceAoMunicipio(localId: string, municipioNome: Municipio): boolean {
+  const cacheKey = `${localId}|${municipioNome}`;
+  if (pertenceAoMunicipioCache.has(cacheKey)) {
+    return pertenceAoMunicipioCache.get(cacheKey)!;
+  }
+
+  const normOriginal = localId.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  
+  // 1. Check substring of other municipalities
+  const outrosMunicipios = (["Valparaíso", "Guararapes", "Rubiácea", "Bento de Abreu"] as Municipio[])
+    .filter(m => m !== municipioNome);
+  
+  for (const outro of outrosMunicipios) {
+    const normOutro = outro.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    if (normOriginal.includes(normOutro) || normOriginal.includes(outro.toLowerCase())) {
+      pertenceAoMunicipioCache.set(cacheKey, false);
+      return false;
+    }
+  }
+
+  // 2. Check if coordinates exist for this point in another municipality but NOT in this one
+  const coordsThis = obterCoordenadasLocal(localId, municipioNome);
+  const hasCoordsThis = coordsThis.lat !== null && coordsThis.lng !== null;
+  
+  if (!hasCoordsThis) {
+    for (const outro of outrosMunicipios) {
+      const coordsOutro = obterCoordenadasLocal(localId, outro);
+      if (coordsOutro.lat !== null && coordsOutro.lng !== null) {
+        pertenceAoMunicipioCache.set(cacheKey, false);
+        return false;
+      }
+    }
+  }
+
+  pertenceAoMunicipioCache.set(cacheKey, true);
+  return true;
 }
 
 function criarBloco(
@@ -1717,7 +1746,7 @@ export function aplicarRestricoesDuras(
       }
 
       // 2. localFixoId
-      if (rd.localFixoId && b.municipio) {
+      if (rd.localFixoId && b.municipio && pertenceAoMunicipio(rd.localFixoId, b.municipio)) {
         const targetCoords = obterCoordenadasLocal(rd.localFixoId, b.municipio);
         b.local = rd.localFixoId;
         b.lat = targetCoords.lat;
@@ -2218,10 +2247,10 @@ export function gerarCPPBase({ configuracao, municipios, diretivas }: GerarCPPPa
         coberturas[currentMunName]
       );
 
-      // Verifica se há objetivo persistente ativo e pendente para este horário
+      // Verifica se há objetivo persistente ativo e pendente para este horário e município
       const objetivosAtivos = (diretivas?.focosDiretivas || [])
         .flatMap(f => f.objetivosPersistentes || [])
-        .filter(obj => isObjetivoAtivo(obj, tempoAtual));
+        .filter(obj => pertenceAoMunicipio(obj.localId, currentMunName) && isObjetivoAtivo(obj, tempoAtual));
       const objPendente = objetivosAtivos.find(obj => !isObjetivoCumprido(obj, blocos));
 
       let modalidade: ModalidadePoliciamento;

@@ -16,7 +16,7 @@
 import type { BlocoHorario, Municipio, ModalidadePoliciamento } from "./types";
 import type { Hotspot } from "./municipios/types-ppi";
 import { PPI_5CIA } from "./municipios/ppi-5cia";
-import { distanciaKm, clockMinAbsoluto } from "./gerarCPP";
+import { distanciaKm, clockMinAbsoluto, pertenceAoMunicipio } from "./gerarCPP";
 import type { DirectivePayload } from "./domain/directivePayload";
 import { MissionTimelineHelper } from "./domain/missionTimeline";
 import type { ObjetivoPersistente, CorredorOperacional } from "./domain/tacticalArtifacts";
@@ -356,14 +356,20 @@ export function avaliarScoreGlobal(
                 let bonus = 15.0 * mod.multiplicadorPeso;
                 // Target match bonus/penalty
                 if (mod.alvos && mod.alvos.length > 0 && b.municipio) {
-                  const hasMatchingTarget = mod.alvos.some(
-                    a => b.local.toLowerCase().includes(a.textoOriginal.toLowerCase()) || 
-                         a.textoOriginal.toLowerCase().includes(b.local.toLowerCase())
-                  );
-                  if (hasMatchingTarget) {
-                    bonus += 30.0 * mod.multiplicadorPeso;
-                  } else {
-                    bonus -= 20.0 * mod.multiplicadorPeso;
+                  const alvosFiltrados = mod.alvos.filter(a => {
+                    if (a.municipio && a.municipio !== b.municipio) return false;
+                    return pertenceAoMunicipio(a.textoOriginal, b.municipio!);
+                  });
+                  if (alvosFiltrados.length > 0) {
+                    const hasMatchingTarget = alvosFiltrados.some(
+                      a => b.local.toLowerCase().includes(a.textoOriginal.toLowerCase()) || 
+                           a.textoOriginal.toLowerCase().includes(b.local.toLowerCase())
+                    );
+                    if (hasMatchingTarget) {
+                      bonus += 30.0 * mod.multiplicadorPeso;
+                    } else {
+                      bonus -= 20.0 * mod.multiplicadorPeso;
+                    }
                   }
                 }
                 scoreTotal += bonus;
@@ -451,7 +457,10 @@ export function avaliarScoreGlobal(
 
       // Objetivos Persistentes (objetivosPersistentes)
       if (focoOS.objetivosPersistentes && focoOS.objetivosPersistentes.length > 0) {
-        for (const obj of focoOS.objetivosPersistentes) {
+        const objetivosFiltrados = focoOS.objetivosPersistentes.filter(obj =>
+          contexto.municipios.some(m => pertenceAoMunicipio(obj.localId, m))
+        );
+        for (const obj of objetivosFiltrados) {
           if (isObjetivoCumprido(obj, blocos)) {
             scoreTotal += 150.0;
           } else {
