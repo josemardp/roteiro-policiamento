@@ -171,6 +171,7 @@ export default function ConfiguracaoServico({
   const [showApiKeyInput, setShowApiKeyInput] = useState(false);
   const [loadingIA, setLoadingIA] = useState(false);
 
+
   const handleSaveApiKey = (key: string) => {
     localStorage.setItem("gemini_api_key", key);
     setApiKey(key);
@@ -319,9 +320,10 @@ Exemplos reais válidos para Valparaíso:
 4. Certifique-se de retornar APENAS o JSON. Sem comentários, sem barras ou tags de markdown.`;
 
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
         {
           method: "POST",
+
           headers: {
             "Content-Type": "application/json",
           },
