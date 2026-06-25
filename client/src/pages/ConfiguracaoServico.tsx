@@ -275,6 +275,7 @@ Retorne APENAS um objeto JSON válido, sem markdown (\`\`\`json ou similar), seg
                   {
                     "tipo": "PONTO_EXISTENTE" | "AREA",
                     "textoOriginal": "Nome exato do ponto na base de dados (ex: 'Caixa Econômica Federal (Av. Marechal Floriano, 675)')",
+                    "municipio": "Guararapes" | "Valparaíso" | "Rubiácea" | "Bento de Abreu",
                     "confiancaMatch": 1.0
                   }
                 ]
@@ -302,7 +303,8 @@ Retorne APENAS um objeto JSON válido, sem markdown (\`\`\`json ou similar), seg
 }
 
 Regras importantes de compatibilidade com a base da OPM Guararapes / Valparaíso / Bento de Abreu / Rubiácea:
-1. Os nomes de pontos no campo 'localId' e 'textoOriginal' devem bater EXATAMENTE com os pontos de estacionamento conhecidos na região ou aproximados.
+1. Preencha sempre o campo 'municipio' em cada objeto de 'alvos' identificando a qual cidade pertence aquele ponto (ex: 'Guararapes' ou 'Valparaíso').
+2. Os nomes de pontos no campo 'localId' e 'textoOriginal' devem bater EXATAMENTE com os pontos de estacionamento conhecidos na região ou aproximados.
 Exemplos reais válidos para Guararapes:
 - 'Caixa Econômica Federal (Av. Marechal Floriano, 675)'
 - 'Banco do Brasil (Praça Nossa Senhora da Conceição, 308)'

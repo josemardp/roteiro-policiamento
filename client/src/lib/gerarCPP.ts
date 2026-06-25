@@ -787,9 +787,21 @@ function determinarLocalFinal({
       if (fase.tipo === "PREFERENCIA" && fase.modificadores) {
         const mod = fase.modificadores.find(m => m.modalidade === modalidade);
         if (mod && mod.alvos && mod.alvos.length > 0) {
-          const alvosFiltrados = mod.alvos.filter(
-            a => !a.municipio || a.municipio === municipioNome
-          );
+          const alvosFiltrados = mod.alvos.filter(a => {
+            if (a.municipio && a.municipio !== municipioNome) return false;
+            
+            const normOriginal = a.textoOriginal.toLowerCase();
+            const outrosMunicipios = (["Valparaíso", "Guararapes", "Rubiácea", "Bento de Abreu"] as Municipio[])
+              .filter(m => m !== municipioNome);
+            
+            for (const outro of outrosMunicipios) {
+              const normOutro = outro.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+              if (normOriginal.includes(normOutro) || normOriginal.includes(outro.toLowerCase())) {
+                return false;
+              }
+            }
+            return true;
+          });
           if (alvosFiltrados.length > 0) {
             const candidatosAlvos = alvosFiltrados.map(a => a.textoOriginal);
             return selecionarMelhorLocalTSP(candidatosAlvos, municipioNome, estadoGeo, cobertura, rng);
