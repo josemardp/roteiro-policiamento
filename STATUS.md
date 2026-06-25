@@ -9,7 +9,7 @@
 
 | Item | Valor |
 |---|---|
-| Última versão concluída | V21 (LNS Determinístico, Score Global, Intensidade Poisson, Poisson Disk, Backward Induction) |
+| Última versão concluída | V23 (Leitura de PDF/Imagens via Gemini e Correção de Leakage Inter-Municípios) |
 | Branch | `main` |
 | Motor | Estável — não alterar sem fuzz |
 | Fuzz | 11.520 roteiros · 0 violações |
@@ -46,6 +46,8 @@ Estas frentes **não precisam ser reabertas** salvo bug confirmado:
 | PWA/offline em produção | Auditoria | SW + manifest respeitam o `base` do GitHub Pages |
 | Higiene de build | Auditoria | Removido runtime/debug da plataforma Manus e analytics quebrado do `index.html` |
 | Integração Consolidada de Escolas | Auditoria | 69 instituições ativas (incluindo particulares, Etecs, EAD) adicionadas com integridade geográfica |
+| Leitura de PDF/Imagens com Gemini | V23 | Leitura direta local Base64 no cliente e prompt estruturado V23 |
+| Correção de Vazamento Inter-Municípios | V23 | Função cacheada `pertenceAoMunicipio` e filtragem no score e no motor |
 
 ---
 
