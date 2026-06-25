@@ -17,6 +17,8 @@ import { calcularHoraTermino, parseDataLocal } from "@/lib/gerarCPP";
 import { ATIVIDADE_MONO_MUNICIPIO, DURACAO_TURNO_MIN } from "@/lib/constants";
 import { OPM_CPI10 } from "@/lib/opm-cpi10";
 import type { DirectivePayload } from "@/lib/domain/directivePayload";
+import { toast } from "sonner";
+
 
 
 const schema = z.object({
@@ -163,19 +165,209 @@ export default function ConfiguracaoServico({
   const [errorDiretiva, setErrorDiretiva] = useState<string | null>(null);
   const [previewCollapsed, setPreviewCollapsed] = useState(false);
 
+  const [apiKey, setApiKey] = useState(() => {
+    return localStorage.getItem("gemini_api_key") || "";
+  });
+  const [showApiKeyInput, setShowApiKeyInput] = useState(false);
+  const [loadingIA, setLoadingIA] = useState(false);
+
+  const handleSaveApiKey = (key: string) => {
+    localStorage.setItem("gemini_api_key", key);
+    setApiKey(key);
+    setShowApiKeyInput(false);
+    toast.success("Chave de API do Gemini salva com sucesso!");
+  };
+
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      try {
-        const parsed = JSON.parse(event.target?.result as string);
-        validarETransmitirDiretiva(parsed);
-      } catch (err: any) {
-        setErrorDiretiva("Falha ao ler o arquivo JSON: " + err.message);
+
+    if (file.name.endsWith(".json")) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const parsed = JSON.parse(event.target?.result as string);
+          validarETransmitirDiretiva(parsed);
+        } catch (err: any) {
+          setErrorDiretiva("Falha ao ler o arquivo JSON: " + err.message);
+        }
+      };
+      reader.readAsText(file);
+    } else if (file.type === "application/pdf" || file.type.startsWith("image/")) {
+      if (!apiKey.trim()) {
+        setErrorDiretiva("Por favor, configure sua Chave de API do Gemini antes de anexar arquivos PDF ou Imagens.");
+        toast.error("Chave de API do Gemini pendente!");
+        return;
       }
-    };
-    reader.readAsText(file);
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const dataUrl = event.target?.result as string;
+        const base64Data = dataUrl.split(",")[1];
+        enviarParaGemini(base64Data, file.type);
+      };
+      reader.readAsDataURL(file);
+    } else {
+      setErrorDiretiva("Formato de arquivo não suportado. Use .json, .pdf ou imagem.");
+    }
+  };
+
+  const enviarParaGemini = async (base64Data: string, mimeType: string) => {
+    setLoadingIA(true);
+    setErrorDiretiva(null);
+    try {
+      const promptText = `Você é um especialista em operações policiais da Polícia Militar do Estado de São Paulo (PMESP).
+Analise a Ordem de Serviço (PDF ou Imagem) fornecida e extraia as diretrizes operacionais de policiamento para o turno de trabalho.
+Retorne APENAS um objeto JSON válido, sem markdown (\`\`\`json ou similar), seguindo estritamente a versão 1.1 da especificação de diretivas táticas:
+
+{
+  "versaoSchema": "1.1",
+  "observacoes": ["Resumo opcional das diretrizes principais da Ordem de Serviço"],
+  "focosDiretivas": [
+    {
+      "id": "gerado_automaticamente",
+      "tipo": "Urbano" | "Rural" | "Foco Urbano" | "Foco Rural" | "Foco Escolar" | "Foco Fiscalização" | "Foco Evento",
+      "posicao": "Automático",
+      "origem": "ORDEM_SERVICO",
+      "corredoresOperacionais": [
+        {
+          "id": "identificador_unico",
+          "nome": "Nome amigável do corredor ou via a patrulhar",
+          "origem": { "lat": -21.xxxx, "lng": -50.xxxx },
+          "destino": { "lat": -21.xxxx, "lng": -50.xxxx },
+          "raioMetros": 500,
+          "prioridade": "BAIXA" | "MEDIA" | "ALTA" | "CRITICA"
+        }
+      ],
+      "objetivosPersistentes": [
+        {
+          "id": "identificador_unico",
+          "localId": "Nome exato do ponto de estacionamento (ex: 'Caixa Econômica Federal (Av. Marechal Floriano, 675)' ou 'Praça Nossa Senhora da Conceição (Centro)')",
+          "inicio": "HH:MM",
+          "fim": "HH:MM",
+          "permanenciaMinimaMinutos": 120,
+          "modalidade": "PE" | "PREV" | "POST" | "SAT"
+        }
+      ],
+      "timeline": {
+        "id": "timeline_gerada",
+        "nome": "Timeline de Diretivas",
+        "fases": [
+          {
+            "nome": "Nome amigável da fase",
+            "tipo": "CONTEXTO" | "PREFERENCIA" | "META" | "RESTRICAO",
+            "inicio": "HH:MM",
+            "fim": "HH:MM",
+            // Se tipo === CONTEXTO
+            "contexto": {
+              "evento": "Descrição do evento ou foco operacional",
+              "criticidade": "BAIXA" | "MEDIA" | "ALTA",
+              "riscoAglomeracao": true/false,
+              "focoEspecifico": "COMERCIAL" | "RESIDENCIAL" | "RURAL" | "TRANSITO"
+            },
+            // Se tipo === PREFERENCIA
+            "modificadores": [
+              {
+                "modalidade": "PE" | "PREV" | "POST" | "SAT" | "ESC" | "RURAL" | "FISC",
+                "multiplicadorPeso": 3.0,
+                "prioridade": "BAIXA" | "MEDIA" | "ALTA" | "CRITICA",
+                "alvos": [
+                  {
+                    "tipo": "PONTO_EXISTENTE" | "AREA",
+                    "textoOriginal": "Nome exato do ponto na base de dados (ex: 'Caixa Econômica Federal (Av. Marechal Floriano, 675)')",
+                    "confiancaMatch": 1.0
+                  }
+                ]
+              }
+            ],
+            // Se tipo === META
+            "metas": {
+              "minimoVisitas": 3,
+              "maximoVisitas": 10,
+              "municipioPreferencial": "Guararapes" | "Valparaíso" | "Rubiácea" | "Bento de Abreu"
+            },
+            // Se tipo === RESTRICAO
+            "restricoesDuras": {
+              "vetaDeslocamento": true/false,
+              "suspendeRefeicao": true/false,
+              "localFixoId": "Identificador opcional de local fixo",
+              "modalidadesPermitidas": ["PE", "POST"],
+              "modalidadesProibidas": ["REF"]
+            }
+          }
+        ]
+      }
+    }
+  ]
+}
+
+Regras importantes de compatibilidade com a base da OPM Guararapes / Valparaíso / Bento de Abreu / Rubiácea:
+1. Os nomes de pontos no campo 'localId' e 'textoOriginal' devem bater EXATAMENTE com os pontos de estacionamento conhecidos na região ou aproximados.
+Exemplos reais válidos para Guararapes:
+- 'Caixa Econômica Federal (Av. Marechal Floriano, 675)'
+- 'Banco do Brasil (Praça Nossa Senhora da Conceição, 308)'
+- 'Bradesco (Rua Marechal Deodoro, 1021)'
+- 'Praça Nossa Senhora da Conceição (Centro)'
+- 'Jardim Aeroporto'
+
+Exemplos reais válidos para Valparaíso:
+- 'Praça Oscar de Figueiredo (Centro)'
+- 'Banco do Brasil (Rua Padre Bento, 180)'
+- 'Santander (Av. Nove de Julho, 212)'
+
+2. Se a Ordem de Serviço contiver apenas orientações gerais sem horários rígidos, distribua as fases na timeline cobrindo horários aproximados ou o turno completo.
+3. Se houver citação de áreas comerciais, use tipo 'CONTEXTO' com 'focoEspecifico': 'COMERCIAL'.
+4. Certifique-se de retornar APENAS o JSON. Sem comentários, sem barras ou tags de markdown.`;
+
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            contents: [
+              {
+                parts: [
+                  { text: promptText },
+                  {
+                    inlineData: {
+                      mimeType: mimeType,
+                      data: base64Data,
+                    },
+                  },
+                ],
+              },
+            ],
+            generationConfig: {
+              responseMimeType: "application/json",
+            },
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error?.message || `Erro na API (Status ${response.status})`);
+      }
+
+      const resJson = await response.json();
+      const textResponse = resJson.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!textResponse) {
+        throw new Error("A resposta da IA veio vazia.");
+      }
+
+      const cleanJsonStr = textResponse.replace(/^```json\s*/i, "").replace(/```\s*$/, "").trim();
+      const parsed = JSON.parse(cleanJsonStr);
+      validarETransmitirDiretiva(parsed);
+      toast.success("Ordem de serviço analisada e carregada com sucesso pela IA!");
+    } catch (err: any) {
+      console.error(err);
+      setErrorDiretiva("Falha na análise da IA: " + err.message);
+      toast.error("Erro na análise da IA.");
+    } finally {
+      setLoadingIA(false);
+    }
   };
 
   const validarETransmitirDiretiva = (payload: any) => {
@@ -206,6 +398,7 @@ export default function ConfiguracaoServico({
       setErrorDiretiva("JSON inválido: " + err.message);
     }
   };
+
 
   const horaTermino = calcularHoraTermino(horaInicio, tipoAtividade);
 
@@ -802,21 +995,72 @@ export default function ConfiguracaoServico({
               )}
             </div>
 
+            {/* Configuração de Chave de API */}
+            <div className="flex justify-between items-center bg-gray-50 border-b border-gray-150 px-4 py-2 text-xs">
+              <span className="text-gray-600 font-medium">
+                Gemini IA: {apiKey ? "🔑 Chave configurada" : "⚠️ Chave pendente para PDF/Img"}
+              </span>
+              <button
+                type="button"
+                onClick={() => setShowApiKeyInput(!showApiKeyInput)}
+                className="text-[#0a2540] hover:underline font-bold"
+              >
+                {showApiKeyInput ? "Fechar Configuração" : "Configurar Chave"}
+              </button>
+            </div>
+
+            {showApiKeyInput && (
+              <div className="bg-slate-50 p-3 border-b border-gray-200 space-y-2">
+                <label className="block text-xs font-bold text-gray-700">Chave de API do Gemini:</label>
+                <div className="flex gap-2">
+                  <input
+                    type="password"
+                    placeholder="Cole sua chave AI Studio aqui..."
+                    defaultValue={apiKey}
+                    id="gemini-key-input"
+                    className="flex-1 px-3 py-1.5 text-xs rounded border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const val = (document.getElementById("gemini-key-input") as HTMLInputElement)?.value || "";
+                      handleSaveApiKey(val);
+                    }}
+                    className="px-3 py-1.5 text-xs font-bold text-white bg-[#0a2540] hover:bg-[#1a3a5c] rounded"
+                  >
+                    Salvar
+                  </button>
+                </div>
+                <p className="text-[10px] text-gray-500 leading-normal">
+                  Você pode obter uma chave gratuita no site do <a href="https://aistudio.google.com/" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Google AI Studio</a>. Ela fica salva apenas localmente no seu navegador.
+                </p>
+              </div>
+            )}
+
             <div className="p-4 space-y-4">
               <p className="text-xs text-gray-500 leading-relaxed">
-                Anexe um arquivo de Diretiva/Ordem de Serviço (JSON) para que o motor calcule automaticamente pesos, objetivos de permanência e restrições operacionais.
+                Anexe um arquivo de Diretiva/Ordem de Serviço (JSON, PDF ou Imagem) para que o motor calcule automaticamente pesos, objetivos de permanência e restrições operacionais.
               </p>
 
+              {/* Loader IA */}
+              {loadingIA && (
+                <div className="flex flex-col items-center justify-center p-8 border border-blue-100 rounded-lg bg-blue-50/50 space-y-3 animate-pulse">
+                  <span className="text-3xl animate-spin">⏳</span>
+                  <span className="text-sm font-semibold text-blue-900">Analisando Ordem de Serviço com Gemini IA...</span>
+                  <span className="text-xs text-blue-700">Extraindo fases, horários e pontos estratégicos</span>
+                </div>
+              )}
+
               {/* Upload e Ações */}
-              {!diretivaCarregada && !showJsonInput && (
+              {!diretivaCarregada && !showJsonInput && !loadingIA && (
                 <div className="space-y-3">
                   <label className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg p-5 hover:bg-gray-50 transition-colors cursor-pointer text-center">
                     <span className="text-2xl mb-1">📂</span>
-                    <span className="text-sm font-semibold text-gray-700">Importar arquivo .json</span>
-                    <span className="text-xs text-gray-400 mt-1">Selecione o payload da Ordem de Serviço</span>
+                    <span className="text-sm font-semibold text-gray-700">Importar Ordem de Serviço (.json, .pdf, imagem)</span>
+                    <span className="text-xs text-gray-400 mt-1">Selecione o arquivo ou tire foto do documento</span>
                     <input
                       type="file"
-                      accept=".json"
+                      accept=".json,.pdf,image/*"
                       onChange={handleFileUpload}
                       className="hidden"
                     />
@@ -859,7 +1103,8 @@ export default function ConfiguracaoServico({
               )}
 
               {/* Input JSON de Texto */}
-              {showJsonInput && (
+              {showJsonInput && !loadingIA && (
+
                 <div className="space-y-3">
                   <label className="block text-xs font-bold text-gray-700">Cole o JSON da Diretiva abaixo:</label>
                   <textarea
