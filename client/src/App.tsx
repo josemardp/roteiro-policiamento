@@ -73,6 +73,7 @@ function AppContent() {
     const { blocos, avisos } = gerarCPP({
       configuracao: config,
       municipios: MUNICIPIOS_V33,
+      diretivas: config.diretivas,
     });
     avisos.forEach(a => toast.warning(a));
 
@@ -83,6 +84,7 @@ function AppContent() {
       dataCriacao: new Date().toISOString(),
       dataAtualizacao: new Date().toISOString(),
       percentualConcluido: 0,
+      diretivas: config.diretivas,
     };
 
     setRoteiroDia(novoRoteiro);

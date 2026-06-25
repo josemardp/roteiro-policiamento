@@ -16,11 +16,113 @@ import type {
 import { calcularHoraTermino, parseDataLocal } from "@/lib/gerarCPP";
 import { ATIVIDADE_MONO_MUNICIPIO, DURACAO_TURNO_MIN } from "@/lib/constants";
 import { OPM_CPI10 } from "@/lib/opm-cpi10";
+import type { DirectivePayload } from "@/lib/domain/directivePayload";
+
 
 const schema = z.object({
   data: z.string().min(1, "Data é obrigatória"),
   horaInicio: z.string().regex(/^\d{2}:\d{2}$/, "Hora inválida"),
 });
+
+const TEMPLATES_DIRETIVAS = {
+  operacaoBancaria: {
+    versaoSchema: "1.1" as const,
+    criadoEmISO: "2026-06-24T17:00:00Z",
+    observacoes: ["Foco em aglomeração e trânsito na região bancária (CEF / Bradesco)"],
+    focosDiretivas: [
+      {
+        id: "f_corredor_meta",
+        tipo: "Foco Evento" as const,
+        posicao: "Automático" as const,
+        origem: "ORDEM_SERVICO" as const,
+        corredoresOperacionais: [
+          {
+            id: "corr_bancario",
+            nome: "Corredor Bancário (Guararapes)",
+            origem: { lat: -21.26, lng: -50.64 },
+            destino: { lat: -21.262, lng: -50.641 },
+            raioMetros: 500,
+            prioridade: "ALTA" as const,
+          }
+        ],
+        timeline: {
+          id: "t_meta",
+          nome: "Timeline Meta e Pref",
+          fases: [
+            {
+              nome: "Foco CEF",
+              tipo: "PREFERENCIA" as const,
+              inicio: "17:00",
+              fim: "20:00",
+              modificadores: [
+                {
+                  modalidade: "PE" as const,
+                  multiplicadorPeso: 10.0,
+                  prioridade: "ALTA" as const,
+                  alvos: [
+                    {
+                      tipo: "PONTO_EXISTENTE" as const,
+                      textoOriginal: "Caixa Econômica Federal (Av. Marechal Floriano, 675)",
+                      confiancaMatch: 1.0,
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              nome: "Visitas Minimas Guararapes",
+              tipo: "META" as const,
+              inicio: "17:00",
+              fim: "20:00",
+              metas: {
+                minimoVisitas: 3,
+                municipioPreferencial: "Guararapes"
+              }
+            }
+          ]
+        }
+      }
+    ]
+  },
+  permanenciaCEF: {
+    versaoSchema: "1.1" as const,
+    criadoEmISO: "2026-06-24T17:00:00Z",
+    observacoes: ["Permanência mínima de 120min contínuos na Caixa Econômica"],
+    focosDiretivas: [
+      {
+        id: "f_persistente",
+        tipo: "Foco Evento" as const,
+        posicao: "Automático" as const,
+        origem: "ORDEM_SERVICO" as const,
+        objetivosPersistentes: [
+          {
+            id: "obj_cef_120m",
+            localId: "Caixa Econômica Federal (Av. Marechal Floriano, 675)",
+            inicio: "18:00",
+            fim: "21:00",
+            permanenciaMinimaMinutos: 120,
+            modalidade: "PE" as const
+          }
+        ],
+        timeline: {
+          id: "t_restricao",
+          nome: "Timeline Restrição",
+          fases: [
+            {
+              nome: "Sem Refeição no Pico",
+              tipo: "RESTRICAO" as const,
+              inicio: "18:00",
+              fim: "21:00",
+              restricoesDuras: {
+                suspendeRefeicao: true
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+};
 
 interface ConfiguracaoServicioProps {
   onGerarCPP: (config: ConfiguracaoServico) => void;
@@ -32,6 +134,7 @@ export default function ConfiguracaoServico({
   const [tipoAtividade, setTipoAtividade] =
     useState<TipoAtividade>("Atividade Delegada");
   const [municipiosSel, setMunicipiosSel] = useState<Municipio[]>(["Valparaíso"]);
+
   const [tipoPoliciamento, setTipoPoliciamento] =
     useState<TipoPoliciamento>("Urbano");
   const [modoAvancadoFoco, setModoAvancadoFoco] = useState(false);
@@ -54,7 +157,58 @@ export default function ConfiguracaoServico({
   const [viatura, setViatura] = useState("");
   const [prefixoUS, setPrefixoUS] = useState("");
 
+  const [diretivaCarregada, setDiretivaCarregada] = useState<DirectivePayload | null>(null);
+  const [showJsonInput, setShowJsonInput] = useState(false);
+  const [jsonText, setJsonText] = useState("");
+  const [errorDiretiva, setErrorDiretiva] = useState<string | null>(null);
+  const [previewCollapsed, setPreviewCollapsed] = useState(false);
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const parsed = JSON.parse(event.target?.result as string);
+        validarETransmitirDiretiva(parsed);
+      } catch (err: any) {
+        setErrorDiretiva("Falha ao ler o arquivo JSON: " + err.message);
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const validarETransmitirDiretiva = (payload: any) => {
+    if (!payload || typeof payload !== "object") {
+      setErrorDiretiva("O payload de diretivas deve ser um objeto JSON válido.");
+      return;
+    }
+    if (payload.versaoSchema !== "1.1") {
+      setErrorDiretiva("A versão do schema de diretiva deve ser '1.1'.");
+      return;
+    }
+    if (!Array.isArray(payload.focosDiretivas)) {
+      setErrorDiretiva("O campo 'focosDiretivas' deve ser um array.");
+      return;
+    }
+    
+    setDiretivaCarregada(payload);
+    setErrorDiretiva(null);
+    setJsonText(JSON.stringify(payload, null, 2));
+    setShowJsonInput(false);
+  };
+
+  const handleApplyJsonText = () => {
+    try {
+      const parsed = JSON.parse(jsonText);
+      validarETransmitirDiretiva(parsed);
+    } catch (err: any) {
+      setErrorDiretiva("JSON inválido: " + err.message);
+    }
+  };
+
   const horaTermino = calcularHoraTermino(horaInicio, tipoAtividade);
+
   const atividadeMonoMunicipio = ATIVIDADE_MONO_MUNICIPIO.has(tipoAtividade);
 
   // parseDataLocal evita bug de fuso: new Date("YYYY-MM-DD") interpreta como UTC
@@ -115,6 +269,7 @@ export default function ConfiguracaoServico({
       localEvento: temFocoEvento ? localEvento : undefined,
       municipioBase: isSupReg ? municipioBase : undefined,
       municipiosRondaOPM: isSupReg ? municipiosRondaOPM : undefined,
+      diretivas: diretivaCarregada || undefined,
     };
     onGerarCPP(config);
   };
@@ -628,6 +783,236 @@ export default function ConfiguracaoServico({
               />
             </div>
           )}
+
+          {/* Diretivas Táticas V23 */}
+          <div className="border border-blue-200 bg-white rounded-xl shadow-sm overflow-hidden mt-6">
+            <div className="bg-[#0a2540] px-4 py-3 text-white flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">📋</span>
+                <span className="font-semibold text-sm tracking-wide">DIRETIVAS TÁTICAS V23 / OS</span>
+              </div>
+              {diretivaCarregada ? (
+                <span className="bg-emerald-500 text-white text-xs font-bold px-2 py-0.5 rounded-full animate-pulse">
+                  ATIVA
+                </span>
+              ) : (
+                <span className="bg-gray-700 text-gray-300 text-xs font-bold px-2 py-0.5 rounded-full">
+                  NENHUMA
+                </span>
+              )}
+            </div>
+
+            <div className="p-4 space-y-4">
+              <p className="text-xs text-gray-500 leading-relaxed">
+                Anexe um arquivo de Diretiva/Ordem de Serviço (JSON) para que o motor calcule automaticamente pesos, objetivos de permanência e restrições operacionais.
+              </p>
+
+              {/* Upload e Ações */}
+              {!diretivaCarregada && !showJsonInput && (
+                <div className="space-y-3">
+                  <label className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg p-5 hover:bg-gray-50 transition-colors cursor-pointer text-center">
+                    <span className="text-2xl mb-1">📂</span>
+                    <span className="text-sm font-semibold text-gray-700">Importar arquivo .json</span>
+                    <span className="text-xs text-gray-400 mt-1">Selecione o payload da Ordem de Serviço</span>
+                    <input
+                      type="file"
+                      accept=".json"
+                      onChange={handleFileUpload}
+                      className="hidden"
+                    />
+                  </label>
+
+                  <div className="flex flex-wrap gap-2 justify-center">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setJsonText("");
+                        setErrorDiretiva(null);
+                        setShowJsonInput(true);
+                      }}
+                      className="px-3 py-1.5 rounded bg-gray-100 hover:bg-gray-200 text-xs font-bold text-gray-700 transition-all border border-gray-300"
+                    >
+                      Colar JSON
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        validarETransmitirDiretiva(TEMPLATES_DIRETIVAS.operacaoBancaria);
+                        setMunicipiosSel(["Guararapes"]);
+                      }}
+                      className="px-3 py-1.5 rounded bg-blue-50 hover:bg-blue-100 text-xs font-bold text-blue-700 transition-all border border-blue-200"
+                    >
+                      Exemplo: Op. Bancária
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        validarETransmitirDiretiva(TEMPLATES_DIRETIVAS.permanenciaCEF);
+                        setMunicipiosSel(["Guararapes"]);
+                      }}
+                      className="px-3 py-1.5 rounded bg-indigo-50 hover:bg-indigo-100 text-xs font-bold text-indigo-700 transition-all border border-indigo-200"
+                    >
+                      Exemplo: Permanência CEF
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Input JSON de Texto */}
+              {showJsonInput && (
+                <div className="space-y-3">
+                  <label className="block text-xs font-bold text-gray-700">Cole o JSON da Diretiva abaixo:</label>
+                  <textarea
+                    rows={6}
+                    value={jsonText}
+                    onChange={(e) => setJsonText(e.target.value)}
+                    placeholder='{ "versaoSchema": "1.1", ... }'
+                    className="w-full p-2 text-xs font-mono border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                  />
+                  <div className="flex gap-2 justify-end">
+                    <button
+                      type="button"
+                      onClick={() => setShowJsonInput(false)}
+                      className="px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-100 rounded"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleApplyJsonText}
+                      className="px-3 py-1.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded shadow-sm"
+                    >
+                      Aplicar
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Mensagem de Erro */}
+              {errorDiretiva && (
+                <div className="bg-red-50 border border-red-200 rounded p-3 text-xs text-red-700 flex gap-2">
+                  <span className="font-bold">⚠️</span>
+                  <span>{errorDiretiva}</span>
+                </div>
+              )}
+
+              {/* Preview de Diretiva Carregada */}
+              {diretivaCarregada && (
+                <div className="space-y-3 border border-emerald-100 rounded-lg p-3 bg-emerald-50/20">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs font-bold text-emerald-950 flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span>
+                      Diretiva Carregada (Schema {diretivaCarregada.versaoSchema})
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDiretivaCarregada(null);
+                        setErrorDiretiva(null);
+                      }}
+                      className="text-xs text-red-600 hover:underline font-bold"
+                    >
+                      Remover
+                    </button>
+                  </div>
+
+                  {diretivaCarregada.observacoes && diretivaCarregada.observacoes.length > 0 && (
+                    <div className="text-xs text-gray-600 bg-white/70 p-2 rounded border border-gray-100">
+                      <strong>Obs:</strong> {diretivaCarregada.observacoes.join(", ")}
+                    </div>
+                  )}
+
+                  {/* Detalhes Colapsáveis */}
+                  <div className="border border-gray-100 rounded bg-white overflow-hidden shadow-xs">
+                    <button
+                      type="button"
+                      onClick={() => setPreviewCollapsed(!previewCollapsed)}
+                      className="w-full px-3 py-2 bg-gray-50 hover:bg-gray-100 text-left text-xs font-bold text-gray-700 flex justify-between items-center"
+                    >
+                      <span>Visualizar Fases e Artefatos ({diretivaCarregada.focosDiretivas.flatMap(f => f.timeline?.fases || []).length} Fases)</span>
+                      <span>{previewCollapsed ? "▼" : "▲"}</span>
+                    </button>
+
+                    {!previewCollapsed && (
+                      <div className="p-3 space-y-3 max-h-72 overflow-y-auto divide-y divide-gray-100">
+                        {diretivaCarregada.focosDiretivas.map((foco, focoIdx) => (
+                          <div key={focoIdx} className="space-y-2 pt-2 first:pt-0">
+                            {/* Fases Timeline */}
+                            {foco.timeline?.fases.map((fase, phaseIdx) => {
+                              const badgeColors = {
+                                CONTEXTO: "bg-blue-100 border-blue-200 text-blue-800",
+                                PREFERENCIA: "bg-emerald-100 border-emerald-200 text-emerald-800",
+                                META: "bg-purple-100 border-purple-200 text-purple-800",
+                                RESTRICAO: "bg-rose-100 border-rose-200 text-rose-800"
+                              };
+                              return (
+                                <div key={phaseIdx} className="flex flex-col gap-1 p-2 rounded border border-gray-50 bg-gray-50/50 font-sans">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-xs font-bold text-gray-800">{fase.nome}</span>
+                                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${badgeColors[fase.tipo]}`}>
+                                      {fase.tipo}
+                                    </span>
+                                  </div>
+                                  <div className="text-[11px] text-gray-500 font-medium">
+                                    Horário: {fase.inicio} - {fase.fim}
+                                  </div>
+                                  
+                                  {fase.contexto && (
+                                    <div className="text-[10px] text-gray-650 mt-1 pl-1 border-l-2 border-blue-400 font-medium">
+                                      Evento: {fase.contexto.evento} | Foco: {fase.contexto.focoEspecifico || "Geral"} | Criticidade: {fase.contexto.criticidade}
+                                    </div>
+                                  )}
+                                  {fase.modificadores && fase.modificadores.map((mod, modIdx) => (
+                                    <div key={modIdx} className="text-[10px] text-gray-650 mt-1 pl-1 border-l-2 border-emerald-400 font-medium">
+                                      Modifica: <span className="font-bold">{mod.modalidade}</span> (Multiplicador: x{mod.multiplicadorPeso}) em {mod.alvos.map(a => a.textoOriginal).join(', ')}
+                                    </div>
+                                  ))}
+                                  {fase.metas && (
+                                    <div className="text-[10px] text-gray-650 mt-1 pl-1 border-l-2 border-purple-400 font-medium">
+                                      Meta: Mínimo {fase.metas.minimoVisitas || 0} visitas em {fase.metas.municipioPreferencial || "qualquer"}
+                                    </div>
+                                  )}
+                                  {fase.restricoesDuras && (
+                                    <div className="text-[10px] text-gray-650 mt-1 pl-1 border-l-2 border-rose-400 font-medium">
+                                      Veta deslocamento: {fase.restricoesDuras.vetaDeslocamento ? "Sim" : "Não"} | Suspende refeição: {fase.restricoesDuras.suspendeRefeicao ? "Sim" : "Não"}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+
+                            {/* Corredores Operacionais */}
+                            {foco.corredoresOperacionais && foco.corredoresOperacionais.length > 0 && (
+                              <div className="space-y-1.5 mt-2">
+                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Corredores Operacionais</span>
+                                {foco.corredoresOperacionais.map((corr, corrIdx) => (
+                                  <div key={corrIdx} className="text-[11px] text-gray-700 bg-blue-50/30 border border-blue-100/50 rounded p-1.5 pl-2 font-sans font-medium">
+                                    <span className="font-bold text-blue-900">📍 {corr.nome}</span> (Raio: {corr.raioMetros}m, Prioridade: {corr.prioridade})
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+
+                            {/* Objetivos Persistentes */}
+                            {foco.objetivosPersistentes && foco.objetivosPersistentes.length > 0 && (
+                              <div className="space-y-1.5 mt-2">
+                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Objetivos de Permanência</span>
+                                {foco.objetivosPersistentes.map((obj, objIdx) => (
+                                  <div key={objIdx} className="text-[11px] text-gray-700 bg-indigo-50/30 border border-indigo-100/50 rounded p-1.5 pl-2 font-sans font-medium">
+                                    <span className="font-bold text-indigo-950">⏱️ {obj.modalidade}</span> em {obj.localId} ({obj.permanenciaMinimaMinutos}m contínuos das {obj.inicio} às {obj.fim})
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
 
           {/* Informações Adicionais */}
           <div className="border-t pt-4">

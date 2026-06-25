@@ -3,6 +3,9 @@
  * Design: Operacional Moderno — Legibilidade Tática
  */
 
+import type { DirectivePayload } from "./domain/directivePayload";
+
+
 // Nota de Design: Existe uma colisão de siglas. No contexto do sistema,
 // CPP = Cartão de Prioridade de Patrulhamento.
 // No contexto prisional/operacional local (como o CPP Valparaíso),
@@ -108,6 +111,7 @@ export interface ConfiguracaoServico {
   localEvento?: string;
   municipioBase?: Municipio; // Supervisor Regional: município de saída e retorno (base)
   municipiosRondaOPM?: string[]; // Supervisor Regional: OPMs a inspecionar (43 municípios CPI-10)
+  diretivas?: DirectivePayload;
 }
 
 export interface RoteiroDia {
@@ -117,6 +121,7 @@ export interface RoteiroDia {
   dataCriacao: string; // ISO timestamp
   dataAtualizacao: string; // ISO timestamp
   percentualConcluido: number; // 0-100
+  diretivas?: DirectivePayload;
 }
 
 export type MunicipioData = {
